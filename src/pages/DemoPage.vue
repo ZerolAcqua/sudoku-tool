@@ -44,6 +44,23 @@
       </div>
     </div>
     
+    <!-- 明数与填入数展示 -->
+    <div class="bg-white shadow rounded-lg p-6 mb-8">
+      <h2 class="text-xl font-semibold mb-4">明数与填入数的区别</h2>
+      <div class="flex flex-col items-center gap-4">
+        <p class="text-sm text-gray-600">黑色数字为题目给定的明数，蓝色数字为玩家填入的数字。</p>
+        <SudokuBoard 
+          :board="boardWithUserInput" 
+          :given="given" 
+          mode="display"
+        />
+        <div class="text-xs text-gray-500 space-y-1">
+          <p>• <span class="font-bold text-black">黑色数字</span>：题目提供的明数（given）</p>
+          <p>• <span class="font-bold" style="color: var(--user-num-color)">蓝色数字</span>：玩家填入的数字</p>
+        </div>
+      </div>
+    </div>
+    
     <!-- 候选数展示 -->
     <div class="bg-white shadow rounded-lg p-6 mb-8">
       <h2 class="text-xl font-semibold mb-4">候选数示例（显示候选数）</h2>
@@ -173,21 +190,24 @@
       <div class="bg-white shadow rounded-lg p-6 mb-8">
         <h2 class="text-xl font-semibold mb-4">摒除线绘制</h2>
         <div class="flex flex-col items-center gap-4">
-          <p class="text-sm text-gray-600">在两个单元格之间绘制摒除线</p>
+          <p class="text-sm text-gray-600">在两个单元格之间绘制摒除线，从起点圆圈边缘指向目标格</p>
           <SudokuBoard 
             :board="board" 
             :given="given" 
             :markers="[
+              { cell: {row: 0, col: 0}, type: 'circle', color: '#9c27b0', strokeWidth: 3, size: 35 },
               { cells: [{row: 0, col: 0}, {row: 0, col: 8}], type: 'line', color: '#9c27b0', strokeWidth: 3 },
-              { cells: [{row: 3, col: 1}, {row: 5, col: 1}], type: 'line', color: '#ff5722', strokeWidth: 2 },
-              { cells: [{row: 6, col: 6}, {row: 8, col: 8}], type: 'line', color: '#00bcd4', strokeWidth: 2 }
+              { cell: {row: 3, col: 1}, type: 'circle', color: '#ff5722', strokeWidth: 3, size: 35 },
+              { cells: [{row: 3, col: 1}, {row: 5, col: 1}], type: 'line', color: '#ff5722', strokeWidth: 3 },
+              { cell: {row: 6, col: 6}, type: 'circle', color: '#00bcd4', strokeWidth: 3, size: 35 },
+              { cells: [{row: 6, col: 6}, {row: 8, col: 8}], type: 'line', color: '#00bcd4', strokeWidth: 3 }
             ]"
             mode="display"
           />
           <div class="text-xs text-gray-500 space-y-1">
-            <p>• 紫色线：第 1 行横跨</p>
-            <p>• 橙色线：第 2 列部分竖线</p>
-            <p>• 青色线：右下角斜线</p>
+            <p>• 紫色圆圈 + 线：第 1 行横跨，线从圆圈边缘开始</p>
+            <p>• 橙色圆圈 + 线：第 2 列部分竖线</p>
+            <p>• 青色圆圈 + 线：右下角斜线</p>
           </div>
         </div>
       </div>
@@ -453,6 +473,19 @@ const board = reactive([
   [0,6,0,0,0,0,2,8,0],
   [0,0,0,4,1,9,0,0,5],
   [0,0,0,0,8,0,0,7,9]
+])
+
+// 带有用户填入数字的盘面（用于展示明数与填入数的区别）
+const boardWithUserInput = reactive([
+  [5,3,4,6,7,8,9,1,2],
+  [6,7,2,1,9,5,3,4,8],
+  [1,9,8,3,4,2,5,6,7],
+  [8,5,9,7,6,1,4,2,3],
+  [4,2,6,8,5,3,7,9,1],
+  [7,1,3,9,2,4,8,5,6],
+  [9,6,1,5,3,7,2,8,4],
+  [2,8,7,4,1,9,6,3,5],
+  [3,4,5,2,8,6,1,7,9]
 ])
 
 const given = reactive([
