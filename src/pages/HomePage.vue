@@ -8,7 +8,7 @@
             丘卡的数独小站
           </h1>
           <p class="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
-            关于数独学习和练习的多功能工具小站
+            关于数独学习的工具小站
           </p>
         </div>
       </div>
@@ -39,7 +39,7 @@
 const features = [
   {
     title: '唯余练习',
-    description: '提高行、列、宫唯余判断能力',
+    description: '提高唯余判断能力',
     path: '/practice',
   },
   {
@@ -54,7 +54,7 @@ const features = [
   },
   {
     title: '数独教程',
-    description: '千题千解，详细图文题解',
+    description: '千题千解文档化，详细图文题解',
     path: '/tutorial',
   },
 ]
