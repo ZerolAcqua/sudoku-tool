@@ -123,7 +123,47 @@ const renderSegments = computed(() => {
           endPoint = arcInfo.endPoint
           direction = arcInfo.direction
         } else {
-          const arcInfo = arcPath(p1, p2, props.cellSize * 0.35, props.cellSize * 0.15, props.cellSize * 0.15)
+          // 检测弧线是否靠近边缘，决定弧线的凹凸方向
+          const boardSize = props.cellSize * 9
+          const midX = (p1.x + p2.x) / 2
+          const midY = (p1.y + p2.y) / 2
+          
+          // 计算中点到边界的距离
+          const distToLeft = midX
+          const distToRight = boardSize - midX
+          const distToTop = midY
+          const distToBottom = boardSize - midY
+          const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom)
+          
+          // 计算默认弧线方向（顺时针为正）
+          const dx = p2.x - p1.x
+          const dy = p2.y - p1.y
+          const defaultArcHeight = props.cellSize * 0.35
+          
+          // 如果靠近边缘（距离小于1.5个单元格），检查弧线是否会超出
+          let arcHeight = defaultArcHeight
+          if (minDist < props.cellSize * 1.5) {
+            // 计算弧线法向量（顺时针方向）
+            const len = Math.sqrt(dx * dx + dy * dy)
+            if (len > 0) {
+              const normalX = dy / len
+              const normalY = -dx / len
+              
+              // 控制点位置（弧线中心）
+              const ctrlX = midX + normalX * 2 * defaultArcHeight
+              const ctrlY = midY + normalY * 2 * defaultArcHeight
+              
+              // 检查控制点是否超出边界
+              const margin = props.cellSize * 0.3
+              if (ctrlX < margin || ctrlX > boardSize - margin || 
+                  ctrlY < margin || ctrlY > boardSize - margin) {
+                // 反转弧线方向（向内凹）
+                arcHeight = -defaultArcHeight
+              }
+            }
+          }
+          
+          const arcInfo = arcPath(p1, p2, arcHeight, props.cellSize * 0.15, props.cellSize * 0.15)
           path = arcInfo.path
           endPoint = arcInfo.endPoint
           direction = arcInfo.direction
