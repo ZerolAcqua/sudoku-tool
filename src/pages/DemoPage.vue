@@ -2,6 +2,29 @@
   <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
     <h1 class="text-3xl font-bold text-gray-900 mb-8">功能测试 Demo</h1>
     
+    <!-- Tab Navigation -->
+    <div class="bg-white shadow rounded-lg mb-8">
+      <div class="border-b border-gray-200">
+        <nav class="flex -mb-px">
+          <button
+            v-for="tab in tabs"
+            :key="tab.id"
+            @click="activeTab = tab.id"
+            :class="[
+              'px-6 py-4 text-sm font-medium border-b-2 transition-colors',
+              activeTab === tab.id
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]"
+          >
+            {{ tab.label }}
+          </button>
+        </nav>
+      </div>
+    </div>
+
+    <!-- Tab Content: 基础展示 -->
+    <div v-show="activeTab === 'basic'">
     <!-- 不同尺寸展示 -->
     <div class="bg-white shadow rounded-lg p-6 mb-8">
       <h2 class="text-xl font-semibold mb-4">不同尺寸的数独盘面（纯展示模式）</h2>
@@ -27,8 +50,8 @@
       <div class="flex flex-col items-center gap-4">
         <p class="text-sm text-gray-600">展示在空格中的候选数（铅笔记），数字在格内按 3×3 小网格排布。</p>
         <div class="flex flex-wrap gap-2 justify-center">
-          <button @click="loadSampleCandidates" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">加载示例候选</button>
-          <button @click="clearCandidates" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors">清空候选</button>
+          <button @click="loadSampleCandidates" class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">加载示例候选</button>
+          <button @click="clearCandidates" class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">清空候选</button>
         </div>
         <SudokuBoard 
           :board="board" 
@@ -39,28 +62,38 @@
         />
       </div>
     </div>
+    </div>
 
+    <!-- Tab Content: 交互模式 -->
+    <div v-show="activeTab === 'interactive'">
     <div class="bg-white shadow rounded-lg p-6 mb-8">
       <h2 class="text-xl font-semibold mb-4">唯余练习模式（程序预设目标格）</h2>
       <div class="flex flex-col items-center gap-4">
-        <p class="text-sm text-gray-600">高亮为程序预设的待填入格子，用蓝色边框标记</p>
+        <p class="text-sm text-gray-600">测试不同的高亮类型：行唯余、列唯余、宫唯余、复杂唯余</p>
+        <div class="flex flex-wrap gap-2 justify-center mb-2">
+          <button @click="highlightType = 'row'" :class="['px-3 py-1 text-sm rounded transition-colors', highlightType === 'row' ? 'bg-blue-600 text-white' : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">行唯一数</button>
+          <button @click="highlightType = 'col'" :class="['px-3 py-1 text-sm rounded transition-colors', highlightType === 'col' ? 'bg-blue-600 text-white' : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">列唯一数</button>
+          <button @click="highlightType = 'box'" :class="['px-3 py-1 text-sm rounded transition-colors', highlightType === 'box' ? 'bg-blue-600 text-white' : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">宫唯一数</button>
+          <button @click="highlightType = 'all'" :class="['px-3 py-1 text-sm rounded transition-colors', highlightType === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">唯一余数</button>
+        </div>
         <SudokuBoard 
           :board="board" 
           :given="given" 
           :focusCell="practiceCell"
+          :focusHighlight="highlightType"
           @cell-click="onPracticeCellClick"
           mode="practice"
         />
         <div class="flex gap-2">
           <button 
             @click="nextPracticeCell" 
-            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors"
           >
             下一题
           </button>
           <button 
             @click="practiceCell = null" 
-            class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+            class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors"
           >
             清除高亮
           </button>
@@ -84,32 +117,35 @@
         </p>
       </div>
     </div>
-    
+    </div>
+
+    <!-- Tab Content: 完整功能 -->
+    <div v-show="activeTab === 'full'">
     <div class="bg-white shadow rounded-lg p-6">
       <h2 class="text-xl font-semibold mb-4">交互式数独</h2>
       <div class="flex flex-col items-center gap-4">
         <!-- 控制按钮 -->
         <div class="flex flex-wrap gap-2 justify-center">
-          <button @click="saveAsImage" class="px-4 py-2 bg-accent text-white rounded hover:bg-blue-700 transition-colors">
+          <button @click="saveAsImage" class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
             保存为图片
           </button>
-          <button @click="savePuzzle" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
+          <button @click="savePuzzle" class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
             保存盘面数据
           </button>
-          <button @click="loadPuzzle" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors">
+          <button @click="loadPuzzle" class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
             加载盘面
           </button>
-          <button @click="exportPuzzle" class="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors">
+          <button @click="exportPuzzle" class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
             导出为文件
           </button>
           <input ref="fileInput" type="file" accept=".json" @change="importPuzzle" class="hidden">
-          <button @click="fileInput?.click()" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors">
+          <button @click="fileInput?.click()" class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
             导入文件
           </button>
-          <button @click="clearUserInput" class="px-4 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-600 transition-colors">
+          <button @click="clearUserInput" class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
             清空输入
           </button>
-          <button @click="clearPuzzle" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
+          <button @click="clearPuzzle" class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
             清空全部
           </button>
         </div>
@@ -132,6 +168,7 @@
           </div>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>
@@ -170,6 +207,15 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const sudokuBoard = ref(null)
 const selectedCell = ref<{ row: number, col: number } | null>(null)
 const practiceCell = ref<{ row: number, col: number } | null>({ row: 0, col: 2 })
+const highlightType = ref<'row' | 'col' | 'box' | 'all' | 'none'>('all')
+
+// Tab state
+const activeTab = ref('basic')
+const tabs = [
+  { id: 'basic', label: '基础展示' },
+  { id: 'interactive', label: '交互模式' },
+  { id: 'full', label: '完整功能' }
+]
 
 // 候选数二维数组（9×9），每个格子是一个 number[]，为空数组表示无候选
 const candidates = reactive<number[][][]>(Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => [] as number[])))
@@ -210,65 +256,42 @@ function nextPracticeCell() {
 }
 
 function loadSampleCandidates() {
-  // 先清空
+  // 自动计算候选数
   clearCandidates()
-  // 为部分空格填充示例候选（仅示意）
-  candidates[0]![2] = [1, 2, 4]
-  candidates[0]![3] = [2, 4, 6]
-  candidates[0]![5] = [1, 3, 4]
-
-  candidates[1]![1] = [2, 3, 4]
-  candidates[1]![2] = [2, 4, 7]
-  candidates[1]![6] = [3, 4, 7]
-  candidates[1]![7] = [1, 3]
-  candidates[1]![8] = [2, 4]
-
-  candidates[2]![0] = [1, 2, 3]
-  candidates[2]![3] = [2, 3, 4]
-  candidates[2]![4] = [2, 3, 4]
-  candidates[2]![5] = [1, 3, 4]
-  candidates[2]![6] = [1, 2, 3]
-  candidates[2]![8] = [1, 2, 3]
-
-  candidates[3]![1] = [1, 2, 4]
-  candidates[3]![2] = [1, 2, 5]
-  candidates[3]![3] = [1, 2, 4]
-  candidates[3]![5] = [1, 4, 5]
-  candidates[3]![6] = [1, 2, 4]
-  candidates[3]![7] = [1, 2, 4]
-
-  candidates[4]![1] = [2, 5, 6]
-  candidates[4]![2] = [2, 5, 6]
-  candidates[4]![4] = [5, 6, 7]
-  candidates[4]![6] = [5, 6, 7]
-  candidates[4]![7] = [2, 5, 6]
-
-  candidates[5]![1] = [1, 2, 4]
-  candidates[5]![2] = [1, 2, 4]
-  candidates[5]![3] = [1, 4, 5]
-  candidates[5]![5] = [1, 4, 5]
-  candidates[5]![6] = [1, 2, 4]
-  candidates[5]![7] = [1, 2, 4]
-
-  candidates[6]![0] = [1, 3, 4]
-  candidates[6]![2] = [1, 3, 4]
-  candidates[6]![3] = [1, 3, 4]
-  candidates[6]![4] = [1, 3, 4]
-  candidates[6]![5] = [1, 3, 4]
-  candidates[6]![8] = [1, 3, 4]
-
-  candidates[7]![0] = [2, 3]
-  candidates[7]![1] = [2, 3]
-  candidates[7]![2] = [2, 3]
-  candidates[7]![6] = [2, 3]
-  candidates[7]![7] = [2, 3]
-
-  candidates[8]![0] = [1, 2]
-  candidates[8]![1] = [1, 2]
-  candidates[8]![2] = [1, 2]
-  candidates[8]![3] = [1, 2]
-  candidates[8]![5] = [1, 2]
-  candidates[8]![6] = [1, 2]
+  
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      // 只为空格计算候选数
+      if (board[r]![c] === 0) {
+        const possible = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9])
+        
+        // 排除同行的数字
+        for (let col = 0; col < 9; col++) {
+          const val = board[r]![col]
+          if (val !== undefined && val > 0) possible.delete(val)
+        }
+        
+        // 排除同列的数字
+        for (let row = 0; row < 9; row++) {
+          const val = board[row]?.[c]
+          if (val && val > 0) possible.delete(val)
+        }
+        
+        // 排除同宫的数字
+        const boxStartRow = Math.floor(r / 3) * 3
+        const boxStartCol = Math.floor(c / 3) * 3
+        for (let row = boxStartRow; row < boxStartRow + 3; row++) {
+          for (let col = boxStartCol; col < boxStartCol + 3; col++) {
+            const val = board[row]?.[col]
+            if (val && val > 0) possible.delete(val)
+          }
+        }
+        
+        // 将可能的数字设置为候选数
+        candidates[r]![c] = Array.from(possible).sort((a, b) => a - b)
+      }
+    }
+  }
 }
 
 function clearCandidates() {

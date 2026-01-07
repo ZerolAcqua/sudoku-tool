@@ -197,6 +197,7 @@ const props = defineProps({
   showCandidates: { type: Boolean, default: true },
   selected: { type: Object, default: null }, // 用户点击选中的格子
   focusCell: { type: Object, default: null }, // 程序预设的目标格（如唤余练习）
+  focusHighlight: { type: String, default: 'all' }, // 'row' | 'col' | 'box' | 'all' | 'none'
   // 交互模式：'display' 纯展示无交互 | 'interactive' 可交互（hover + click） | 'practice' 练习模式（无hover，显示focusCell）
   mode: { type: String, default: 'interactive' },
 });
@@ -248,30 +249,36 @@ const relatedCells = computed(() => {
 
 // Union of related cells for focusCell (same logic as selected), used in practice mode
 const focusRelatedCells = computed(() => {
-  if (!props.focusCell) return [];
+  if (!props.focusCell || props.focusHighlight === 'none') return [];
   const sr = focusRow.value;
   const sc = focusCol.value;
   const set = new Set();
 
   // Row
-  for (let c = 0; c < 9; c++) {
-    if (c === sc) continue;
-    set.add(`${sr}-${c}`);
+  if (props.focusHighlight === 'row' || props.focusHighlight === 'all') {
+    for (let c = 0; c < 9; c++) {
+      if (c === sc) continue;
+      set.add(`${sr}-${c}`);
+    }
   }
 
   // Column
-  for (let r = 0; r < 9; r++) {
-    if (r === sr) continue;
-    set.add(`${r}-${sc}`);
+  if (props.focusHighlight === 'col' || props.focusHighlight === 'all') {
+    for (let r = 0; r < 9; r++) {
+      if (r === sr) continue;
+      set.add(`${r}-${sc}`);
+    }
   }
 
   // Box
-  const br = Math.floor(sr / 3) * 3;
-  const bc = Math.floor(sc / 3) * 3;
-  for (let r = br; r < br + 3; r++) {
-    for (let c = bc; c < bc + 3; c++) {
-      if (r === sr && c === sc) continue;
-      set.add(`${r}-${c}`);
+  if (props.focusHighlight === 'box' || props.focusHighlight === 'all') {
+    const br = Math.floor(sr / 3) * 3;
+    const bc = Math.floor(sc / 3) * 3;
+    for (let r = br; r < br + 3; r++) {
+      for (let c = bc; c < bc + 3; c++) {
+        if (r === sr && c === sc) continue;
+        set.add(`${r}-${c}`);
+      }
     }
   }
 
