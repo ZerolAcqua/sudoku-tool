@@ -86,14 +86,19 @@ const renderSegments = computed(() => {
       
       const hasArrow = chain.arrow === true // 每条线都有箭头
 
+      // 检查是否在同一单元格内的不同候选数（需要减小预留空间）
+      const sameCellDiffCandidate = sameCell && 
+                                    node1.candidate !== undefined && 
+                                    node2.candidate !== undefined
+
       // 选择直线或圆弧
       let path: string
         let endPoint: { x: number; y: number } = p2
         let direction: { x: number; y: number } = { x: 1, y: 0 }
 
       if (curve === 'straight') {
-        // 为直线两端预留空间
-        const pad = props.cellSize * 0.15
+        // 为直线两端预留空间（同格内候选数使用更小的预留）
+        const pad = sameCellDiffCandidate ? 2 : props.cellSize * 0.15
         const dx = p2.x - p1.x
         const dy = p2.y - p1.y
         const len = Math.sqrt(dx * dx + dy * dy)
@@ -111,11 +116,18 @@ const renderSegments = computed(() => {
           direction = { x: 1, y: 0 }
         }
       } else {
-        // smooth: 用圆弧，两端都预留空间
-        const arcInfo = arcPath(p1, p2, props.cellSize * 0.35, props.cellSize * 0.15, props.cellSize * 0.15)
-        path = arcInfo.path
-        endPoint = arcInfo.endPoint
-        direction = arcInfo.direction
+        // smooth: 用圆弧，两端都预留空间（同格内候选数使用更小的预留和弧度）
+        if (sameCellDiffCandidate) {
+          const arcInfo = arcPath(p1, p2, props.cellSize * 0.1, 2, 2)
+          path = arcInfo.path
+          endPoint = arcInfo.endPoint
+          direction = arcInfo.direction
+        } else {
+          const arcInfo = arcPath(p1, p2, props.cellSize * 0.35, props.cellSize * 0.15, props.cellSize * 0.15)
+          path = arcInfo.path
+          endPoint = arcInfo.endPoint
+          direction = arcInfo.direction
+        }
       }
 
       // V形箭头

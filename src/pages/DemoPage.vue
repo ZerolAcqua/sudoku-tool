@@ -120,6 +120,116 @@
 
     <!-- Tab Content: 绘图功能 -->
     <div v-show="activeTab === 'drawing'">
+
+            <!-- 交互式绘图 -->
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">交互式绘图工具</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">点击单元格进行绘图操作</p>
+
+          <!-- 绘图工具栏 -->
+          <div class="w-full max-w-3xl space-y-4">
+            <!-- 绘图模式选择 -->
+            <div class="flex flex-wrap gap-2">
+              <span class="text-sm font-medium text-gray-700 self-center min-w-20">绘图模式:</span>
+              <button v-for="mode in drawingModes" :key="mode.id" @click="currentDrawMode = mode.id" :class="['px-3 py-1 text-sm rounded transition-colors',
+                currentDrawMode === mode.id
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">
+                {{ mode.label }}
+              </button>
+            </div>
+
+            <!-- 标记类型（仅在标记模式下显示） -->
+            <div v-if="currentDrawMode === 'marker'" class="flex flex-wrap gap-2">
+              <span class="text-sm font-medium text-gray-700 self-center min-w-20">标记类型:</span>
+              <button v-for="type in markerTypes" :key="type" @click="currentMarkerType = type" :class="['px-3 py-1 text-sm rounded transition-colors',
+                currentMarkerType === type
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">
+                {{ type }}
+              </button>
+            </div>
+
+            <!-- 链条样式（仅在链条模式下显示） -->
+            <div v-if="currentDrawMode === 'chain'" class="flex flex-wrap gap-2">
+              <span class="text-sm font-medium text-gray-700 self-center min-w-20">链条样式:</span>
+              <button v-for="style in chainStyles" :key="style.id" @click="currentChainStyle = style.id" :class="['px-3 py-1 text-sm rounded transition-colors',
+                currentChainStyle === style.id
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">
+                {{ style.label }}
+              </button>
+              <label class="flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 border border-gray-400 rounded">
+                <input type="checkbox" v-model="chainArrow" class="rounded">
+                <span>箭头</span>
+              </label>
+            </div>
+
+            <!-- 颜色选择 -->
+            <div class="flex flex-wrap gap-2 items-center">
+              <span class="text-sm font-medium text-gray-700 min-w-20">颜色:</span>
+              <button v-for="color in drawingColors" :key="color.value" @click="currentColor = color.value" :class="['w-8 h-8 rounded border-2 transition-all',
+                currentColor === color.value ? 'border-gray-900 scale-110' : 'border-gray-300']"
+                :style="{ backgroundColor: color.value }" :title="color.name"></button>
+            </div>
+
+            <!-- 候选数选择开关（仅高亮和链条模式显示，链条模式强制启用） -->
+            <div v-if="currentDrawMode === 'highlight' || currentDrawMode === 'chain'" class="flex items-center gap-2">
+              <label class="flex items-center gap-2 px-3 py-1 text-sm bg-gray-100 border border-gray-400 rounded"
+                :class="currentDrawMode === 'chain' ? 'opacity-60 cursor-not-allowed' : ''">
+                <input type="checkbox" v-model="selectCandidateMode" :disabled="currentDrawMode === 'chain'"
+                  class="rounded">
+                <span>选择候选数</span>
+                <span v-if="currentDrawMode === 'chain'" class="text-xs text-gray-500">(链条必须)</span>
+              </label>
+              <span v-if="selectCandidateMode && selectedCandidate" class="text-sm text-gray-700">
+                已选择: {{ selectedCandidate }}
+              </span>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="flex flex-wrap gap-2">
+              <button v-if="currentDrawMode === 'chain' && drawingChain.length > 0" @click="finishChain"
+                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
+                完成链条 ({{ drawingChain.length }} 个节点)
+              </button>
+              <button v-if="currentDrawMode === 'chain' && drawingChain.length > 0" @click="cancelChain"
+                class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+                取消
+              </button>
+              <button @click="clearDrawing"
+                class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
+                清空绘图
+              </button>
+            </div>
+          </div>
+
+          <!-- 数独盘面 -->
+          <SudokuBoard 
+            :board="board" 
+            :given="given" 
+            :showCandidates="true" 
+            :candidates="candidates"
+            :customHighlights="drawnHighlights" 
+            :markers="drawnMarkers" 
+            :chains="drawnChains"
+            :candidateMarkers="drawnCandidateMarkers" 
+            :selectedCandidate="selectCandidateMode && selectedCandidate ? currentDrawingCandidate : null"
+            :mode="selectCandidateMode && (currentDrawMode === 'highlight' || currentDrawMode === 'chain') ? 'candidate' : 'interactive'" 
+            @cell-click="onDrawingCellClick"
+            @candidate-click="onDrawingCandidateClick" 
+          />
+
+          <div class="text-xs text-gray-500 space-y-1">
+            <p>• <strong>高亮模式:</strong> 点击单元格添加/移除高亮。启用"选择候选数"后可直接点击候选数进行高亮</p>
+            <p>• <strong>标记模式:</strong> 点击单元格添加标记（圆圈、叉号等）</p>
+            <p>• <strong>摒除线模式:</strong> 依次点击起点和终点（起点自动添加圆圈）</p>
+            <p>• <strong>链条模式:</strong> 直接点击候选数添加节点，点击"完成链条"按钮结束</p>
+          </div>
+        </div>
+      </div>
+
       <!-- 自定义高亮示例 -->
       <div class="bg-white shadow rounded-lg p-6 mb-8">
         <h2 class="text-xl font-semibold mb-4">自定义单元格高亮</h2>
@@ -341,133 +451,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 交互式绘图 -->
-      <div class="bg-white shadow rounded-lg p-6 mb-8">
-        <h2 class="text-xl font-semibold mb-4">交互式绘图工具</h2>
-        <div class="flex flex-col items-center gap-4">
-          <p class="text-sm text-gray-600">点击单元格进行绘图操作</p>
-
-          <!-- 绘图工具栏 -->
-          <div class="w-full max-w-3xl space-y-4">
-            <!-- 绘图模式选择 -->
-            <div class="flex flex-wrap gap-2">
-              <span class="text-sm font-medium text-gray-700 self-center min-w-20">绘图模式:</span>
-              <button v-for="mode in drawingModes" :key="mode.id" @click="currentDrawMode = mode.id" :class="['px-3 py-1 text-sm rounded transition-colors',
-                currentDrawMode === mode.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">
-                {{ mode.label }}
-              </button>
-            </div>
-
-            <!-- 标记类型（仅在标记模式下显示） -->
-            <div v-if="currentDrawMode === 'marker'" class="flex flex-wrap gap-2">
-              <span class="text-sm font-medium text-gray-700 self-center min-w-20">标记类型:</span>
-              <button v-for="type in markerTypes" :key="type" @click="currentMarkerType = type" :class="['px-3 py-1 text-sm rounded transition-colors',
-                currentMarkerType === type
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">
-                {{ type }}
-              </button>
-            </div>
-
-            <!-- 链条样式（仅在链条模式下显示） -->
-            <div v-if="currentDrawMode === 'chain'" class="flex flex-wrap gap-2">
-              <span class="text-sm font-medium text-gray-700 self-center min-w-20">链条样式:</span>
-              <button v-for="style in chainStyles" :key="style.id" @click="currentChainStyle = style.id" :class="['px-3 py-1 text-sm rounded transition-colors',
-                currentChainStyle === style.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">
-                {{ style.label }}
-              </button>
-              <label class="flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 border border-gray-400 rounded">
-                <input type="checkbox" v-model="chainArrow" class="rounded">
-                <span>箭头</span>
-              </label>
-            </div>
-
-            <!-- 颜色选择 -->
-            <div class="flex flex-wrap gap-2 items-center">
-              <span class="text-sm font-medium text-gray-700 min-w-20">颜色:</span>
-              <button v-for="color in drawingColors" :key="color.value" @click="currentColor = color.value" :class="['w-8 h-8 rounded border-2 transition-all',
-                currentColor === color.value ? 'border-gray-900 scale-110' : 'border-gray-300']"
-                :style="{ backgroundColor: color.value }" :title="color.name"></button>
-            </div>
-
-            <!-- 候选数选择开关（仅高亮和链条模式显示，链条模式强制启用） -->
-            <div v-if="currentDrawMode === 'highlight' || currentDrawMode === 'chain'" class="flex items-center gap-2">
-              <label class="flex items-center gap-2 px-3 py-1 text-sm bg-gray-100 border border-gray-400 rounded"
-                :class="currentDrawMode === 'chain' ? 'opacity-60 cursor-not-allowed' : ''">
-                <input type="checkbox" v-model="selectCandidateMode" :disabled="currentDrawMode === 'chain'"
-                  class="rounded">
-                <span>选择候选数</span>
-                <span v-if="currentDrawMode === 'chain'" class="text-xs text-gray-500">(链条必须)</span>
-              </label>
-              <span v-if="selectCandidateMode && selectedCandidate" class="text-sm text-gray-700">
-                已选择: {{ selectedCandidate }}
-              </span>
-            </div>
-
-            <!-- 操作按钮 -->
-            <div class="flex flex-wrap gap-2">
-              <button v-if="currentDrawMode === 'chain' && drawingChain.length > 0" @click="finishChain"
-                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
-                完成链条 ({{ drawingChain.length }} 个节点)
-              </button>
-              <button v-if="currentDrawMode === 'chain' && drawingChain.length > 0" @click="cancelChain"
-                class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
-                取消
-              </button>
-              <button @click="clearDrawing"
-                class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
-                清空绘图
-              </button>
-            </div>
-          </div>
-
-          <!-- 数独盘面 -->
-          <SudokuBoard :board="board" :given="given" :showCandidates="true" :candidates="candidates"
-            :customHighlights="drawnHighlights" :markers="drawnMarkers" :chains="drawnChains"
-            :candidateMarkers="drawnCandidateMarkers" mode="interactive" @cell-click="onDrawingCellClick" />
-
-          <!-- 候选数选择弹出框 -->
-          <div
-            v-if="selectCandidateMode && showCandidateSelector && (currentDrawMode === 'highlight' || currentDrawMode === 'chain')"
-            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg shadow-lg p-6 min-w-80">
-              <h3 class="text-lg font-semibold mb-2">选择候选数 ({{ currentSelectorCell?.row }}, {{ currentSelectorCell?.col
-                }})</h3>
-              <p class="text-xs text-gray-500 mb-4">当前模式: {{ currentDrawMode === 'highlight' ? '高亮' : '链条' }}</p>
-              <div class="grid grid-cols-3 gap-2">
-                <button v-for="n in 9" :key="n" @click="selectCandidateNumber(n)" :class="['w-12 h-12 rounded font-semibold text-lg transition-colors',
-                  selectedCandidate === n
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200']">
-                  {{ n }}
-                </button>
-              </div>
-              <div class="flex gap-2 mt-4">
-                <button @click="confirmCandidateSelection"
-                  class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex-1">
-                  确认
-                </button>
-                <button @click="closeCandidateSelector"
-                  class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors flex-1">
-                  取消
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="text-xs text-gray-500 space-y-1">
-            <p>• <strong>高亮模式:</strong> 点击单元格添加/移除高亮</p>
-            <p>• <strong>标记模式:</strong> 点击单元格添加标记（圆圈、叉号等）</p>
-            <p>• <strong>摒除线模式:</strong> 依次点击起点和终点（起点自动添加圆圈）</p>
-            <p>• <strong>链条模式:</strong> 依次点击多个单元格，点击"完成链条"按钮结束</p>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Tab Content: 完整功能 -->
@@ -633,6 +616,7 @@ const drawingColors = [
 // 候选数选择相关状态
 const selectCandidateMode = ref(false)
 const selectedCandidate = ref<number | null>(null)
+const currentDrawingCandidate = ref<{ row: number, col: number, candidate: number } | null>(null)
 const showCandidateSelector = ref(false)
 const currentSelectorCell = ref<{ row: number, col: number } | null>(null)
 
@@ -668,10 +652,8 @@ function onPracticeCellClick(pos: { row: number, col: number }) {
 
 // 交互式绘图事件处理
 function onDrawingCellClick(pos: { row: number, col: number }) {
-  // 如果开启了候选数选择，弹出选择器（仅高亮和链条支持）
+  // 候选数模式下不处理单元格点击
   if (selectCandidateMode.value && (currentDrawMode.value === 'highlight' || currentDrawMode.value === 'chain')) {
-    currentSelectorCell.value = pos
-    showCandidateSelector.value = true
     return
   }
 
@@ -688,6 +670,36 @@ function onDrawingCellClick(pos: { row: number, col: number }) {
     case 'chain':
       addChainPoint(pos)
       break
+  }
+}
+
+// 候选数点击处理
+function onDrawingCandidateClick(pos: { row: number, col: number, candidate: number }) {
+  currentDrawingCandidate.value = pos
+  selectedCandidate.value = pos.candidate
+
+  if (currentDrawMode.value === 'highlight') {
+    toggleHighlightCandidate(pos)
+  } else if (currentDrawMode.value === 'chain') {
+    addChainPointCandidate(pos)
+  }
+}
+
+function toggleHighlightCandidate(pos: { row: number, col: number, candidate: number }) {
+  const existingIndex = drawnCandidateMarkers.value.findIndex(m =>
+    m.row === pos.row && m.col === pos.col && m.candidate === pos.candidate
+  )
+
+  if (existingIndex >= 0) {
+    drawnCandidateMarkers.value.splice(existingIndex, 1)
+  } else {
+    drawnCandidateMarkers.value.push({
+      row: pos.row,
+      col: pos.col,
+      candidate: pos.candidate,
+      color: currentColor.value,
+      opacity: 0.6
+    })
   }
 }
 
@@ -780,12 +792,42 @@ function addChainPoint(pos: { row: number, col: number }) {
   }
 }
 
+function addChainPointCandidate(pos: { row: number, col: number, candidate: number }) {
+  // 检查是否与上一个点相同
+  const lastPoint = drawingChain.value[drawingChain.value.length - 1]
+  if (lastPoint && lastPoint.row === pos.row && lastPoint.col === pos.col && 
+      'candidate' in lastPoint && lastPoint.candidate === pos.candidate) {
+    return // 忽略重复点击同一个候选数
+  }
+
+  drawingChain.value.push({
+    row: pos.row,
+    col: pos.col,
+    candidate: pos.candidate
+  })
+}
+
 function finishChain() {
   // 过滤掉连续重复的节点
   const filteredChain = drawingChain.value.filter((point, index) => {
     if (index === 0) return true
     const prev = drawingChain.value[index - 1]
-    return !(prev && prev.row === point.row && prev.col === point.col)
+    if (!prev) return true
+    
+    // 检查是否为同一个单元格
+    if (prev.row !== point.row || prev.col !== point.col) return true
+    
+    // 如果在同一个单元格，需要检查候选数
+    // 只有当两个点都有候选数且候选数相同时才算重复
+    const prevHasCandidate = 'candidate' in prev && prev.candidate !== undefined
+    const pointHasCandidate = 'candidate' in point && point.candidate !== undefined
+    
+    if (prevHasCandidate && pointHasCandidate) {
+      return prev.candidate !== point.candidate
+    }
+    
+    // 如果其中一个没有候选数，则不算重复（允许单元格级和候选数级节点混合）
+    return true
   })
 
   if (filteredChain.length >= 2) {
@@ -800,6 +842,7 @@ function finishChain() {
   }
   drawingChain.value = []
   selectedCandidate.value = null
+  currentDrawingCandidate.value = null
 }
 
 function selectCandidateNumber(n: number) {

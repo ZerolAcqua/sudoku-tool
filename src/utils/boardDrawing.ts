@@ -91,66 +91,45 @@ export function arcPath(p1: Point, p2: Point, arcHeight: number = 30, offsetEnd:
     return { path: linePath(p1, p1), endPoint: p1, direction: { x: 1, y: 0 } }
   }
 
-  // 缩短距离：从 p2 向 p1 方向倒回 offsetEnd 像素
-  const ratioEnd = offsetEnd / chordLen
-  const p2_short = {
-    x: p2.x - dx * ratioEnd,
-    y: p2.y - dy * ratioEnd,
-  }
-
-  // 计算弧线（从 p1 到 p2_short）
-  const dx_short = p2_short.x - p1.x
-  const dy_short = p2_short.y - p1.y
-  const shortChordLen = Math.sqrt(dx_short * dx_short + dy_short * dy_short)
-
-  if (shortChordLen === 0) {
-    return { path: linePath(p1, p1), endPoint: p1, direction: { x: 1, y: 0 } }
-  }
-
-  // 先用未缩短的起点 p1 和缩短后的终点 p2_short 估算控制点，得到起始切线方向
-  const mid1 = { x: (p1.x + p2_short.x) / 2, y: (p1.y + p2_short.y) / 2 }
-  const normalCW1 = { x: dy_short / shortChordLen, y: -dx_short / shortChordLen }
-  const normalCCW1 = { x: -dy_short / shortChordLen, y: dx_short / shortChordLen }
-  const normal1 = arcHeight >= 0 ? normalCW1 : normalCCW1
+  // 首先计算完整弧线的控制点（基于原始端点）
+  const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+  const normalCW = { x: dy / chordLen, y: -dx / chordLen }
+  const normalCCW = { x: -dy / chordLen, y: dx / chordLen }
+  const normal = arcHeight >= 0 ? normalCW : normalCCW
   const h = Math.abs(arcHeight)
-  const ctrl1 = { x: mid1.x + normal1.x * 2 * h, y: mid1.y + normal1.y * 2 * h }
+  const ctrl = { x: mid.x + normal.x * 2 * h, y: mid.y + normal.y * 2 * h }
 
-  // 起点沿初始切线方向缩短 offsetStart
-  const sx = ctrl1.x - p1.x
-  const sy = ctrl1.y - p1.y
-  const slen = Math.sqrt(sx * sx + sy * sy)
-  const ratioStart = slen > 0 ? offsetStart / slen : 0
+  // 计算终点处的切线方向（二次贝塞尔在 t=1 处的切线是 P2 - 控制点）
+  const tx_end = p2.x - ctrl.x
+  const ty_end = p2.y - ctrl.y
+  const tlen_end = Math.sqrt(tx_end * tx_end + ty_end * ty_end)
+  const tangent_end = tlen_end > 0 ? { x: tx_end / tlen_end, y: ty_end / tlen_end } : { x: 1, y: 0 }
+
+  // 沿切线方向倒回 offsetEnd 得到新的终点
+  const p2_short = {
+    x: p2.x - tangent_end.x * offsetEnd,
+    y: p2.y - tangent_end.y * offsetEnd,
+  }
+
+  // 计算起点处的切线方向（二次贝塞尔在 t=0 处的切线是 控制点 - P1）
+  const tx_start = ctrl.x - p1.x
+  const ty_start = ctrl.y - p1.y
+  const tlen_start = Math.sqrt(tx_start * tx_start + ty_start * ty_start)
+  const tangent_start = tlen_start > 0 ? { x: tx_start / tlen_start, y: ty_start / tlen_start } : { x: 1, y: 0 }
+
+  // 沿切线方向前进 offsetStart 得到新的起点
   const p1_short = {
-    x: p1.x + sx * ratioStart,
-    y: p1.y + sy * ratioStart,
+    x: p1.x + tangent_start.x * offsetStart,
+    y: p1.y + tangent_start.y * offsetStart,
   }
 
-  // 基于缩短后的两端点重新计算控制点与路径
-  const dx2 = p2_short.x - p1_short.x
-  const dy2 = p2_short.y - p1_short.y
-  const chordLen2 = Math.sqrt(dx2 * dx2 + dy2 * dy2)
-  if (chordLen2 === 0) {
-    return { path: linePath(p1_short, p1_short), endPoint: p1_short, direction: { x: 1, y: 0 } }
-  }
-  const mid2 = { x: (p1_short.x + p2_short.x) / 2, y: (p1_short.y + p2_short.y) / 2 }
-  const normalCW2 = { x: dy2 / chordLen2, y: -dx2 / chordLen2 }
-  const normalCCW2 = { x: -dy2 / chordLen2, y: dx2 / chordLen2 }
-  const normal2 = arcHeight >= 0 ? normalCW2 : normalCCW2
-  const ctrl2 = { x: mid2.x + normal2.x * 2 * h, y: mid2.y + normal2.y * 2 * h }
-
-  // 路径：二次贝塞尔曲线
-  const path = `M ${p1_short.x} ${p1_short.y} Q ${ctrl2.x} ${ctrl2.y} ${p2_short.x} ${p2_short.y}`
-
-  // 末端切线方向：二次贝塞尔在终点的切线方向与 (P2 - 控制点) 同向
-  const tx = p2_short.x - ctrl2.x
-  const ty = p2_short.y - ctrl2.y
-  const tlen = Math.sqrt(tx * tx + ty * ty)
-  const tangent = tlen > 0 ? { x: tx / tlen, y: ty / tlen } : { x: 1, y: 0 }
+  // 使用原控制点和新的端点生成路径（保持弧线形状）
+  const path = `M ${p1_short.x} ${p1_short.y} Q ${ctrl.x} ${ctrl.y} ${p2_short.x} ${p2_short.y}`
 
   return {
     path,
     endPoint: p2_short,
-    direction: tangent,
+    direction: tangent_end,
   }
 }
 
