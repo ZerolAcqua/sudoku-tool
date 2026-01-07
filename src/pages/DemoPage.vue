@@ -232,6 +232,118 @@
         </div>
       </div>
 
+      <!-- 候选到候选的链条示例 -->
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">候选数级链条（直线/曲线）</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">链条节点可以定位到单元格中的具体候选数（1-9），支持多节点路径。每相邻两个节点间生成一条箭头线，末端显示箭头。</p>
+          <SudokuBoard 
+            :board="board" 
+            :given="given" 
+            :showCandidates="true"
+            :candidates="candidates"
+            :chains="[
+              {
+                // 同一格内候选 3 → 7 的直线
+                cells: [
+                  { row: 0, col: 2, candidate: 3 },
+                  { row: 0, col: 2, candidate: 7 }
+                ],
+                style: 'solid',
+                color: '#8e44ad',
+                strokeWidth: 2,
+                arrow: true,
+                curve: 'straight'
+              },
+              {
+                // 多节点平滑曲线路径：跨格候选 1 → 9 → 5（弧度大）
+                cells: [
+                  { row: 2, col: 0, candidate: 1 },
+                  { row: 2, col: 3, candidate: 9 },
+                  { row: 2, col: 6, candidate: 5 }
+                ],
+                style: 'dashed',
+                color: '#16a085',
+                strokeWidth: 3,
+                arrow: true,
+                curve: 'smooth'
+              },
+              {
+                // 竖向多节点弧线：上中下三格（明显的S形曲线）
+                cells: [
+                  { row: 3, col: 5, candidate: 3 },
+                  { row: 5, col: 4, candidate: 7 },
+                  { row: 7, col: 5, candidate: 2 }
+                ],
+                style: 'solid',
+                color: '#f39c12',
+                strokeWidth: 2.5,
+                arrow: true,
+                curve: 'smooth'
+              }
+            ]"
+            mode="display"
+          />
+          <div class="text-xs text-gray-500 space-y-1">
+            <p>• 紫色直线：同格候选 3 → 7</p>
+            <p>• 绿色平滑虚线（多段）：跨格候选 1 → 9 → 5（每段都有V形箭头）</p>
+            <p>• 橙色平滑线（多段）：竖向S形曲线 3 → 7 → 2（明显的弧度）</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 候选数强调 + 链条综合示例 -->
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">候选数强调 + 链条组合示例</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">演示候选数显示 + 候选数强调标记 + 链条箭头的组合使用</p>
+          <SudokuBoard 
+            :board="board" 
+            :given="given" 
+            :showCandidates="true"
+            :candidates="candidates"
+            :candidateMarkers="[
+              { row: 0, col: 2, candidate: 2, color: '#FF6B6B', opacity: 0.7 },
+              { row: 0, col: 2, candidate: 4, color: '#4ECDC4', opacity: 0.7 },
+              { row: 2, col: 0, candidate: 1, color: '#95E1D3', opacity: 0.7 },
+              { row: 2, col: 3, candidate: 3, color: '#FFE66D', opacity: 0.7 },
+              { row: 2, col: 6, candidate: 4, color: '#C7CEEA', opacity: 0.7 }
+            ]"
+            :chains="[
+              {
+                cells: [
+                  { row: 0, col: 2, candidate: 2 },
+                  { row: 2, col: 0, candidate: 1 },
+                  { row: 2, col: 3, candidate: 3 }
+                ],
+                style: 'solid',
+                color: '#FF6B6B',
+                strokeWidth: 2.5,
+                arrow: true,
+                curve: 'smooth'
+              },
+              {
+                cells: [
+                  { row: 0, col: 2, candidate: 4 },
+                  { row: 2, col: 6, candidate: 4 }
+                ],
+                style: 'dashed',
+                color: '#4ECDC4',
+                strokeWidth: 2,
+                arrow: true,
+                curve: 'straight'
+              }
+            ]"
+            mode="display"
+          />
+          <div class="text-xs text-gray-500 space-y-1">
+            <p>• 彩色实心圆：候选数强调标记（背景圆圈突出候选数）</p>
+            <p>• 红色平滑线：连接候选 2 → 1 → 3（每段有V形箭头）</p>
+            <p>• 青色虚线：连接候选 4 → 4（直线箭头）</p>
+          </div>
+        </div>
+      </div>
+
       <!-- 综合示例 -->
       <div class="bg-white shadow rounded-lg p-6 mb-8">
         <h2 class="text-xl font-semibold mb-4">综合绘图示例（教学演示）</h2>
@@ -376,6 +488,7 @@ const candidates = reactive<number[][][]>(Array.from({ length: 9 }, () => Array.
 
 onMounted(() => {
   loadSavedPuzzlesFromStorage()
+  loadSampleCandidates() // 默认加载候选数
 })
 
 function onClick(pos: any) {

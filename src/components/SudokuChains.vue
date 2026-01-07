@@ -1,95 +1,143 @@
 <template>
   <g class="chains-layer">
-    <template v-for="(chain, idx) in chains" :key="'chain-' + idx">
-      <!-- 绘制链条路径 -->
+    <!-- 每条链拆成多个线段，每段连接两个相邻节点，末端都有V形箭头 -->
+    <template v-for="(chainSegment, idx) in renderSegments" :key="'seg-' + idx">
+      <!-- 主线段 -->
       <path
-        :d="buildChainPath(chain)"
+        :d="chainSegment.path"
         fill="none"
-        :stroke="chain.color"
-        :stroke-width="chain.strokeWidth ?? 3"
-        :stroke-dasharray="getStrokeDashArray(chain.style)"
+        :stroke="chainSegment.color"
+        :stroke-width="chainSegment.strokeWidth"
+        :stroke-dasharray="chainSegment.dash"
         stroke-linecap="round"
         stroke-linejoin="round"
         pointer-events="none"
       />
-
-      <!-- 绘制箭头 -->
-      <g v-if="chain.arrow && chain.cells.length >= 2">
-        <defs>
-          <marker
-            :id="'arrowhead-' + idx"
-            markerWidth="10"
-            markerHeight="10"
-            refX="9"
-            refY="3"
-            orient="auto"
-            markerUnits="strokeWidth"
-          >
-            <path
-              d="M0,0 L0,6 L9,3 z"
-              :fill="chain.color"
-            />
-          </marker>
-        </defs>
-        
-        <!-- 箭头线段（从倒数第二个点到最后一个点） -->
+      
+      <!-- V形箭头（两根短线） -->
+      <template v-if="chainSegment.hasArrow">
         <line
-          v-if="chain.cells.length >= 2 && chain.cells[chain.cells.length - 2] && chain.cells[chain.cells.length - 1]"
-          :x1="chain.cells[chain.cells.length - 2]!.col * cellSize + cellSize / 2"
-          :y1="chain.cells[chain.cells.length - 2]!.row * cellSize + cellSize / 2"
-          :x2="chain.cells[chain.cells.length - 1]!.col * cellSize + cellSize / 2"
-          :y2="chain.cells[chain.cells.length - 1]!.row * cellSize + cellSize / 2"
-          :stroke="chain.color"
-          :stroke-width="chain.strokeWidth ?? 3"
-          :stroke-dasharray="getStrokeDashArray(chain.style)"
+          :x1="chainSegment.arrowTip.x"
+          :y1="chainSegment.arrowTip.y"
+          :x2="chainSegment.arrowBase1.x"
+          :y2="chainSegment.arrowBase1.y"
+          :stroke="chainSegment.color"
+          :stroke-width="chainSegment.strokeWidth"
           stroke-linecap="round"
-          :marker-end="'url(#arrowhead-' + idx + ')'"
           pointer-events="none"
         />
-      </g>
+        <line
+          :x1="chainSegment.arrowTip.x"
+          :y1="chainSegment.arrowTip.y"
+          :x2="chainSegment.arrowBase2.x"
+          :y2="chainSegment.arrowBase2.y"
+          :stroke="chainSegment.color"
+          :stroke-width="chainSegment.strokeWidth"
+          stroke-linecap="round"
+          pointer-events="none"
+        />
+      </template>
     </template>
   </g>
 </template>
 
 <script setup lang="ts">
-import type { Chain } from '@/types/sudoku';
+import { computed } from 'vue'
+import type { Chain } from '@/types/sudoku'
+import { anchorPoint, linePath, arcPath, strokeDashArray, arrowHeadLines } from '@/utils/boardDrawing'
 
-const props = defineProps<{
-  chains: Chain[];
-  cellSize: number;
-}>();
+const props = defineProps<{ chains: Chain[]; cellSize: number }>()
 
-// 构建链条路径
-const buildChainPath = (chain: Chain): string => {
-  if (chain.cells.length < 2) return '';
-  
-  const pathParts: string[] = [];
-  
-  // 起点
-  const start = chain.cells[0];
-  if (!start) return '';
-  pathParts.push(`M ${start.col * props.cellSize + props.cellSize / 2} ${start.row * props.cellSize + props.cellSize / 2}`);
-  
-  // 中间点和终点（如果有箭头，路径到倒数第二个点）
-  const endIndex = chain.arrow ? chain.cells.length - 1 : chain.cells.length;
-  for (let i = 1; i < endIndex; i++) {
-    const cell = chain.cells[i];
-    if (!cell) continue;
-    pathParts.push(`L ${cell.col * props.cellSize + props.cellSize / 2} ${cell.row * props.cellSize + props.cellSize / 2}`);
-  }
-  
-  return pathParts.join(' ');
-};
+// 展开所有链的线段，每段连接相邻两个节点
+const renderSegments = computed(() => {
+  const segments: Array<{
+    path: string
+    color: string
+    strokeWidth: number
+    dash: string
+    hasArrow: boolean
+    arrowTip: { x: number; y: number }
+    arrowBase1: { x: number; y: number }
+    arrowBase2: { x: number; y: number }
+  }> = []
 
-// 获取虚线样式
-const getStrokeDashArray = (style?: string): string => {
-  switch (style) {
-    case 'dashed':
-      return '10,5';
-    case 'dotted':
-      return '2,3';
-    default:
-      return '';
-  }
-};
+  props.chains.forEach((chain) => {
+    if (chain.cells.length < 2) return
+
+    const points = chain.cells.map(n => anchorPoint(n, props.cellSize))
+    const dash = strokeDashArray(chain.style) || ''
+    const curve = chain.curve ?? 'straight'
+
+    // 为相邻节点对生成线段
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i]!
+      const p2 = points[i + 1]!
+      const hasArrow = chain.arrow === true // 每条线都有箭头
+
+      // 选择直线或圆弧
+      let path: string
+        let endPoint: { x: number; y: number } = p2
+        let direction: { x: number; y: number } = { x: 1, y: 0 }
+
+      if (curve === 'straight') {
+        // 为直线两端预留空间
+        const pad = props.cellSize * 0.15
+        const dx = p2.x - p1.x
+        const dy = p2.y - p1.y
+        const len = Math.sqrt(dx * dx + dy * dy)
+        if (len > 0) {
+          const ux = dx / len
+          const uy = dy / len
+          const p1s = { x: p1.x + ux * pad, y: p1.y + uy * pad }
+          const p2s = { x: p2.x - ux * pad, y: p2.y - uy * pad }
+          path = linePath(p1s, p2s)
+          endPoint = p2s
+          direction = { x: ux, y: uy }
+        } else {
+          path = linePath(p1, p2)
+          endPoint = p2
+          direction = { x: 1, y: 0 }
+        }
+      } else {
+        // smooth: 用圆弧，两端都预留空间
+        const arcInfo = arcPath(p1, p2, props.cellSize * 0.35, props.cellSize * 0.15, props.cellSize * 0.15)
+        path = arcInfo.path
+        endPoint = arcInfo.endPoint
+        direction = arcInfo.direction
+      }
+
+      // V形箭头
+      let arrowTip = { x: 0, y: 0 }
+      let arrowBase1 = { x: 0, y: 0 }
+      let arrowBase2 = { x: 0, y: 0 }
+      if (hasArrow) {
+        // 用末端点和切线方向构造虚拟的起点，然后计算V形
+        const arrowSize = 6
+        const virtualFrom = {
+          x: endPoint.x - direction.x * arrowSize,
+          y: endPoint.y - direction.y * arrowSize,
+        }
+        const arrows = arrowHeadLines(virtualFrom, endPoint, arrowSize)
+        arrowTip = endPoint
+        arrowBase1 = arrows.line1[1]
+        arrowBase2 = arrows.line2[1]
+      }
+
+      segments.push({
+        path,
+        color: chain.color,
+        strokeWidth: chain.strokeWidth ?? 3,
+        dash,
+        hasArrow,
+        arrowTip,
+        arrowBase1,
+        arrowBase2,
+      })
+    }
+  })
+
+  return segments
+})
 </script>
+
+
