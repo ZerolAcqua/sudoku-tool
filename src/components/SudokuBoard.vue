@@ -25,6 +25,38 @@
     <!-- Candidate emphasis layer (filled circles behind candidates) -->
     <SudokuCandidateHighlights v-if="candidateMarkers.length > 0" :markers="candidateMarkers" :cellSize="100" />
 
+    <!-- Hover highlight for candidate mode -->
+    <circle
+      v-if="hoveredCandidate && mode === 'candidate'"
+      :cx="hoveredCandidate.col * 100 + getCandidateX(hoveredCandidate.candidate)"
+      :cy="hoveredCandidate.row * 100 + getCandidateY(hoveredCandidate.candidate)"
+      r="10"
+      fill="#BBDEFB"
+      opacity="0.6"
+      pointer-events="none"
+    />
+
+    <!-- Selected candidate highlight -->
+    <circle
+      v-if="selectedCandidate && mode === 'candidate'"
+      :cx="selectedCandidate.col * 100 + getCandidateX(selectedCandidate.candidate)"
+      :cy="selectedCandidate.row * 100 + getCandidateY(selectedCandidate.candidate)"
+      r="10"
+      fill="#D6ECFF"
+      opacity="0.85"
+      pointer-events="none"
+    />
+    <circle
+      v-if="selectedCandidate && mode === 'candidate'"
+      :cx="selectedCandidate.col * 100 + getCandidateX(selectedCandidate.candidate)"
+      :cy="selectedCandidate.row * 100 + getCandidateY(selectedCandidate.candidate)"
+      r="10"
+      fill="none"
+      stroke="var(--accent)"
+      stroke-width="2"
+      pointer-events="none"
+    />
+
     <!-- Hover highlight (only in interactive mode, not in practice mode) -->
     <rect v-if="hoveredCell && mode === 'interactive' && !props.focusCell" :x="hoveredCell.col * 100"
       :y="hoveredCell.row * 100" width="100" height="100" fill="#BBDEFB" opacity="0.5" pointer-events="none" />
@@ -38,8 +70,30 @@
     <!-- Chains layer -->
     <SudokuChains v-if="chains.length > 0" :chains="chains" :cellSize="100" />
 
+    <!-- Click areas for candidate mode -->
+    <g v-if="mode === 'candidate'">
+      <template v-for="(row, r) in candidates" :key="'cand-click-row-' + r">
+        <template v-for="(cellCands, c) in row" :key="'cand-click-' + r + '-' + c">
+          <g v-if="cellCands && cellCands.length > 0">
+            <circle
+              v-for="n in cellCands"
+              :key="'cand-click-' + r + '-' + c + '-' + n"
+              :cx="(c as number) * 100 + getCandidateX(n)"
+              :cy="(r as number) * 100 + getCandidateY(n)"
+              r="12"
+              fill="transparent"
+              @click="emit('candidate-click', { row: r as number, col: c as number, candidate: n })"
+              @mouseenter="hoveredCandidate = { row: r as number, col: c as number, candidate: n }"
+              @mouseleave="hoveredCandidate = null"
+              style="cursor: pointer"
+            />
+          </g>
+        </template>
+      </template>
+    </g>
+
     <!-- Click areas (interactive and practice modes) -->
-    <g v-if="mode !== 'display'" v-for="(row, r) in props.board" :key="'click-row-' + r">
+    <g v-if="mode !== 'display' && mode !== 'candidate'" v-for="(row, r) in props.board" :key="'click-row-' + r">
       <rect v-for="(_, c) in row" :key="'click-' + r + '-' + c" :x="c * 100" :y="r * 100" width="100" height="100"
         fill="transparent" @click="emit('cell-click', { row: r, col: c })"
         @dblclick="emit('cell-dblclick', { row: r, col: c })"
@@ -117,6 +171,12 @@ import SudokuMarkers from './SudokuMarkers.vue';
 import SudokuChains from './SudokuChains.vue';
 import SudokuCandidateHighlights from './SudokuCandidateHighlights.vue';
 
+interface CandidatePosition {
+  row: number;
+  col: number;
+  candidate: number;
+}
+
 const props = withDefaults(defineProps<{
   board: number[][];
   given?: boolean[][];
@@ -124,9 +184,10 @@ const props = withDefaults(defineProps<{
   size?: number;
   showCandidates?: boolean;
   selected?: { row: number; col: number } | null;
+  selectedCandidate?: CandidatePosition | null;
   focusCell?: { row: number; col: number } | null;
   focusHighlight?: 'row' | 'col' | 'box' | 'all' | 'none';
-  mode?: 'display' | 'interactive' | 'practice';
+  mode?: 'display' | 'interactive' | 'practice' | 'candidate';
   customHighlights?: CellHighlight[];
   markers?: CellMarker[];
   chains?: Chain[];
@@ -144,9 +205,10 @@ const props = withDefaults(defineProps<{
   candidateMarkers: () => []
 });
 
-const emit = defineEmits(['cell-click', 'cell-dblclick']);
+const emit = defineEmits(['cell-click', 'cell-dblclick', 'candidate-click']);
 
 const hoveredCell = ref<{ row: number; col: number } | null>(null);
+const hoveredCandidate = ref<CandidatePosition | null>(null);
 
 // Computed properties for selected cell
 const selectedRow = computed(() => props.selected?.row ?? null);

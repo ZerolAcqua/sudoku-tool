@@ -94,6 +94,28 @@
           </p>
         </div>
       </div>
+
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">候选数交互模式</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">点击候选数进行选择，悬浮和选中时显示高亮效果</p>
+          <SudokuBoard 
+            :board="board" 
+            :given="given" 
+            :showCandidates="true"
+            :candidates="candidates"
+            :selectedCandidate="selectedCandidateDemo"
+            @candidate-click="onCandidateSelect"
+            mode="candidate" 
+          />
+          <p v-if="selectedCandidateDemo" class="text-sm text-gray-700">
+            当前选中候选数: 行 {{ selectedCandidateDemo.row + 1 }}, 列 {{ selectedCandidateDemo.col + 1 }}, 数字 {{ selectedCandidateDemo.candidate }}
+          </p>
+          <p v-else class="text-sm text-gray-500">
+            请点击任意候选数
+          </p>
+        </div>
+      </div>
     </div>
 
     <!-- Tab Content: 绘图功能 -->
@@ -552,6 +574,7 @@ const savedPuzzles = ref<any[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 const sudokuBoard = ref(null)
 const selectedCell = ref<{ row: number, col: number } | null>(null)
+const selectedCandidateDemo = ref<{ row: number, col: number, candidate: number } | null>(null)
 const practiceCell = ref<{ row: number, col: number } | null>({ row: 0, col: 2 })
 const highlightType = ref<'row' | 'col' | 'box' | 'all' | 'none'>('all')
 
@@ -632,6 +655,11 @@ function onClick(pos: any) {
 function onCellSelect(pos: { row: number, col: number }) {
   selectedCell.value = pos
   console.log('选中单元格', pos)
+}
+
+function onCandidateSelect(pos: { row: number, col: number, candidate: number }) {
+  selectedCandidateDemo.value = pos
+  console.log('选中候选数', pos)
 }
 
 function onPracticeCellClick(pos: { row: number, col: number }) {
