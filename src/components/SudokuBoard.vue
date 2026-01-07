@@ -23,7 +23,7 @@
     </g>
 
     <!-- Candidate emphasis layer (filled circles behind candidates) -->
-    <SudokuCandidateMarkers v-if="candidateMarkers.length > 0" :markers="candidateMarkers" :cellSize="100" />
+    <SudokuCandidateHighlights v-if="candidateMarkers.length > 0" :markers="candidateMarkers" :cellSize="100" />
 
     <!-- Hover highlight (only in interactive mode, not in practice mode) -->
     <rect v-if="hoveredCell && mode === 'interactive' && !props.focusCell" :x="hoveredCell.col * 100"
@@ -115,7 +115,7 @@ import type { CellHighlight, CellMarker, Chain, CandidateMarker } from '@/types/
 import SudokuHighlight from './SudokuHighlight.vue';
 import SudokuMarkers from './SudokuMarkers.vue';
 import SudokuChains from './SudokuChains.vue';
-import SudokuCandidateMarkers from './SudokuCandidateMarkers.vue';
+import SudokuCandidateHighlights from './SudokuCandidateHighlights.vue';
 
 const props = withDefaults(defineProps<{
   board: number[][];
@@ -253,15 +253,15 @@ const getCandidateY = (n: number) => {
 </script>
 
 <style scoped>
-:root {
-  --accent: #007acc;
-  --highlight-bg: #007acc;
-  --user-num-color: #0b5;
-  --cand-color: #444;
-}
-
 /* ensure SVG scales smoothly in layout */
 .sudoku-svg {
+
+  --accent: #007acc;
+  --highlight-bg: #007acc;
+  --user-num-color: #0066cc;
+  --given-num-color: #000000;
+  --cand-color: #1b1b1b;
+
   display: block;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
