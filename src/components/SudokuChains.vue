@@ -72,6 +72,18 @@ const renderSegments = computed(() => {
     for (let i = 0; i < points.length - 1; i++) {
       const p1 = points[i]!
       const p2 = points[i + 1]!
+      const node1 = chain.cells[i]!
+      const node2 = chain.cells[i + 1]!
+      
+      // 检查是否在同一个单元格的同一个候选数上，如果是则跳过这条线段
+      const sameCell = node1.row === node2.row && node1.col === node2.col
+      const sameCand = node1.candidate !== undefined && 
+                       node2.candidate !== undefined && 
+                       node1.candidate === node2.candidate
+      if (sameCell && sameCand) {
+        continue // 忽略同一单元格同一候选数之间的线段
+      }
+      
       const hasArrow = chain.arrow === true // 每条线都有箭头
 
       // 选择直线或圆弧
