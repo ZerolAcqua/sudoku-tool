@@ -135,30 +135,33 @@ const renderSegments = computed(() => {
           const distToBottom = boardSize - midY
           const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom)
           
-          // 计算默认弧线方向（顺时针为正）
+          // 计算起点终点之间的距离
           const dx = p2.x - p1.x
           const dy = p2.y - p1.y
-          const defaultArcHeight = props.cellSize * 0.35
+          const chordLen = Math.sqrt(dx * dx + dy * dy)
+          
+          // 弧高与距离成比例，但有最小值
+          const minArcHeight = props.cellSize * 0.15
+          const baseArcHeight = Math.max(minArcHeight, chordLen * 0.05)
           
           // 如果靠近边缘（距离小于1.5个单元格），检查弧线是否会超出
-          let arcHeight = defaultArcHeight
-          if (minDist < props.cellSize * 1.5) {
+          let arcHeight = baseArcHeight
+          if (minDist < props.cellSize * 0.5) {
             // 计算弧线法向量（顺时针方向）
-            const len = Math.sqrt(dx * dx + dy * dy)
-            if (len > 0) {
-              const normalX = dy / len
-              const normalY = -dx / len
+            if (chordLen > 0) {
+              const normalX = dy / chordLen
+              const normalY = -dx / chordLen
               
               // 控制点位置（弧线中心）
-              const ctrlX = midX + normalX * 2 * defaultArcHeight
-              const ctrlY = midY + normalY * 2 * defaultArcHeight
+              const ctrlX = midX + normalX * 2 * baseArcHeight
+              const ctrlY = midY + normalY * 2 * baseArcHeight
               
               // 检查控制点是否超出边界
-              const margin = props.cellSize * 0.3
+              const margin = props.cellSize * 0.1
               if (ctrlX < margin || ctrlX > boardSize - margin || 
                   ctrlY < margin || ctrlY > boardSize - margin) {
                 // 反转弧线方向（向内凹）
-                arcHeight = -defaultArcHeight
+                arcHeight = -baseArcHeight
               }
             }
           }
