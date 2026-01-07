@@ -119,6 +119,158 @@
     </div>
     </div>
 
+    <!-- Tab Content: 绘图功能 -->
+    <div v-show="activeTab === 'drawing'">
+      <!-- 自定义高亮示例 -->
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">自定义单元格高亮</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">为特定单元格添加自定义颜色高亮</p>
+          <SudokuBoard 
+            :board="board" 
+            :given="given" 
+            :customHighlights="[
+              { cells: [{row: 0, col: 0}, {row: 0, col: 1}, {row: 0, col: 2}], color: '#ffeb3b', opacity: 0.4 },
+              { cells: [{row: 1, col: 3}, {row: 2, col: 3}], color: '#4caf50', opacity: 0.3 },
+              { cells: [{row: 4, col: 4}], color: '#f44336', opacity: 0.5 }
+            ]"
+            mode="display"
+          />
+          <div class="text-xs text-gray-500 space-y-1">
+            <p>• 黄色：第一行前三格</p>
+            <p>• 绿色：第 4 列的第 2、3 行</p>
+            <p>• 红色：中心格</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 标记示例 -->
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">单元格标记（圆圈、叉号、点、星号）</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">为单元格添加不同类型的标记符号</p>
+          <SudokuBoard 
+            :board="board" 
+            :given="given" 
+            :markers="[
+              { cell: {row: 0, col: 4}, type: 'circle', color: '#f44336', strokeWidth: 3 },
+              { cell: {row: 0, col: 6}, type: 'cross', color: '#2196f3', strokeWidth: 3 },
+              { cell: {row: 2, col: 0}, type: 'dot', color: '#4caf50', size: 10 },
+              { cell: {row: 2, col: 2}, type: 'star', color: '#ff9800', size: 45 }
+            ]"
+            mode="display"
+          />
+          <div class="text-xs text-gray-500 space-y-1">
+            <p>• 红色圆圈：第 1 行第 5 格</p>
+            <p>• 蓝色叉号：第 1 行第 7 格</p>
+            <p>• 绿色圆点：第 3 行第 1 格</p>
+            <p>• 橙色星号：第 3 行第 3 格</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 摒除线示例 -->
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">摒除线绘制</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">在两个单元格之间绘制摒除线</p>
+          <SudokuBoard 
+            :board="board" 
+            :given="given" 
+            :markers="[
+              { cells: [{row: 0, col: 0}, {row: 0, col: 8}], type: 'line', color: '#9c27b0', strokeWidth: 3 },
+              { cells: [{row: 3, col: 1}, {row: 5, col: 1}], type: 'line', color: '#ff5722', strokeWidth: 2 },
+              { cells: [{row: 6, col: 6}, {row: 8, col: 8}], type: 'line', color: '#00bcd4', strokeWidth: 2 }
+            ]"
+            mode="display"
+          />
+          <div class="text-xs text-gray-500 space-y-1">
+            <p>• 紫色线：第 1 行横跨</p>
+            <p>• 橙色线：第 2 列部分竖线</p>
+            <p>• 青色线：右下角斜线</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 链绘制示例 -->
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">链条绘制</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">绘制连接多个单元格的链条，支持实线、虚线和箭头</p>
+          <SudokuBoard 
+            :board="board" 
+            :given="given" 
+            :chains="[
+              { 
+                cells: [{row: 0, col: 0}, {row: 0, col: 3}, {row: 0, col: 6}],
+                style: 'solid',
+                color: '#4caf50',
+                strokeWidth: 3,
+                arrow: true
+              },
+              { 
+                cells: [{row: 3, col: 0}, {row: 3, col: 4}, {row: 3, col: 8}],
+                style: 'dashed',
+                color: '#2196f3',
+                strokeWidth: 2
+              },
+              { 
+                cells: [{row: 6, col: 0}, {row: 7, col: 1}, {row: 8, col: 2}],
+                style: 'dotted',
+                color: '#f44336',
+                strokeWidth: 2,
+                arrow: true
+              }
+            ]"
+            mode="display"
+          />
+          <div class="text-xs text-gray-500 space-y-1">
+            <p>• 绿色实线箭头：第 1 行三格连接</p>
+            <p>• 蓝色虚线：第 4 行三格连接</p>
+            <p>• 红色点线箭头：左下角斜向连接</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 综合示例 -->
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">综合绘图示例（教学演示）</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">结合高亮、标记和链条，模拟教学场景</p>
+          <SudokuBoard 
+            :board="board" 
+            :given="given" 
+            :customHighlights="[
+              { cells: [{row: 0, col: 2}, {row: 1, col: 2}, {row: 2, col: 2}], color: '#E8F4F8', opacity: 0.6 },
+              { cells: [{row: 2, col: 0}, {row: 2, col: 1}, {row: 2, col: 2}], color: '#FFF9C4', opacity: 0.5 }
+            ]"
+            :markers="[
+              { cell: {row: 2, col: 2}, type: 'circle', color: '#f44336', strokeWidth: 3 },
+              { cell: {row: 0, col: 2}, type: 'cross', color: '#2196f3', strokeWidth: 2 },
+              { cells: [{row: 2, col: 0}, {row: 2, col: 2}], type: 'line', color: '#9c27b0', strokeWidth: 2 }
+            ]"
+            :chains="[
+              { 
+                cells: [{row: 0, col: 0}, {row: 2, col: 2}],
+                style: 'dashed',
+                color: '#4caf50',
+                strokeWidth: 2,
+                arrow: true
+              }
+            ]"
+            mode="display"
+          />
+          <div class="text-xs text-gray-500 space-y-1">
+            <p>• 蓝色背景：第 3 列前三格（相关区域）</p>
+            <p>• 黄色背景：第 3 行前三格（候选数区域）</p>
+            <p>• 红色圆圈：目标格</p>
+            <p>• 紫色摒除线：行内关系</p>
+            <p>• 绿色虚线箭头：推理路径</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Tab Content: 完整功能 -->
     <div v-show="activeTab === 'full'">
     <div class="bg-white shadow rounded-lg p-6">
@@ -177,6 +329,7 @@
 import { reactive, ref, onMounted } from 'vue'
 import type { DefineComponent } from 'vue'
 import SudokuBoard from '../components/SudokuBoard.vue'
+import type { CellHighlight, CellMarker, Chain } from '@/types/sudoku'
 
 const board = reactive([
   [5,3,0,0,7,0,0,0,0],
@@ -214,6 +367,7 @@ const activeTab = ref('basic')
 const tabs = [
   { id: 'basic', label: '基础展示' },
   { id: 'interactive', label: '交互模式' },
+  { id: 'drawing', label: '绘图功能' },
   { id: 'full', label: '完整功能' }
 ]
 

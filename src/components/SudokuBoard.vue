@@ -12,7 +12,7 @@
     <rect x="-10" y="-10" width="920" height="920" fill="white" />
 
     <!-- Cell highlight backgrounds (for user selected) -->
-    <g v-if="props.selected && props.mode === 'interactive'">
+    <g v-if="props.selected && mode === 'interactive'">
       <!-- Draw union of row/col/box related cells once each -->
       <rect
         v-for="cell in relatedCells"
@@ -28,7 +28,7 @@
     </g>
 
     <!-- Focus cell highlight (practice uses same colors as interactive) -->
-    <g v-if="props.focusCell && (props.mode === 'practice' || props.mode === 'interactive')">
+    <g v-if="props.focusCell && focusCol !== null && focusRow !== null && (mode === 'practice' || mode === 'interactive')">
       <!-- Focus cell background -->
       <rect
         :x="focusCol * 100"
@@ -55,7 +55,7 @@
 
     <!-- Hover highlight (only in interactive mode, not in practice mode) -->
     <rect
-      v-if="hoveredCell && props.mode === 'interactive' && !props.focusCell"
+      v-if="hoveredCell && mode === 'interactive' && !props.focusCell"
       :x="hoveredCell.col * 100"
       :y="hoveredCell.row * 100"
       width="100"
@@ -65,8 +65,29 @@
       pointer-events="none"
     />
 
+    <!-- Custom highlights layer -->
+    <SudokuHighlight
+      v-if="customHighlights.length > 0"
+      :highlights="customHighlights"
+      :cellSize="100"
+    />
+
+    <!-- Markers layer (circles, crosses, elimination lines, etc.) -->
+    <SudokuMarkers
+      v-if="markers.length > 0"
+      :markers="markers"
+      :cellSize="100"
+    />
+
+    <!-- Chains layer -->
+    <SudokuChains
+      v-if="chains.length > 0"
+      :chains="chains"
+      :cellSize="100"
+    />
+
     <!-- Click areas (interactive and practice modes) -->
-    <g v-if="props.mode !== 'display'" v-for="(row, r) in props.board" :key="'click-row-' + r">
+    <g v-if="mode !== 'display'" v-for="(row, r) in props.board" :key="'click-row-' + r">
       <rect
         v-for="(_, c) in row"
         :key="'click-' + r + '-' + c"
@@ -77,9 +98,9 @@
         fill="transparent"
         @click="emit('cell-click', { row: r, col: c })"
         @dblclick="emit('cell-dblclick', { row: r, col: c })"
-        @mouseenter="props.mode === 'interactive' && !props.focusCell ? hoveredCell = { row: r, col: c } : null"
+        @mouseenter="mode === 'interactive' && !props.focusCell ? (hoveredCell = { row: r as number, col: c as number }) : undefined"
         @mouseleave="hoveredCell = null"
-        :style="props.mode !== 'display' ? 'cursor: pointer' : ''"
+        style="cursor: pointer"
       />
     </g>
 
@@ -106,7 +127,7 @@
     <!-- Selected cell border -->
     <!-- Selected cell background -->
     <rect
-      v-if="props.selected && props.mode === 'interactive'"
+      v-if="props.selected && selectedCol !== null && selectedRow !== null && mode === 'interactive'"
       :x="selectedCol * 100"
       :y="selectedRow * 100"
       width="100"
@@ -118,7 +139,7 @@
     
     <!-- Selected cell border -->
     <rect
-      v-if="props.selected && props.mode === 'interactive'"
+      v-if="props.selected && selectedCol !== null && selectedRow !== null && mode === 'interactive'"
       :x="selectedCol * 100"
       :y="selectedRow * 100"
       width="100"
@@ -132,7 +153,7 @@
 
     <!-- Focus cell border (for practice mode) -->
     <rect
-      v-if="props.focusCell"
+      v-if="props.focusCell && focusCol !== null && focusRow !== null"
       :x="focusCol * 100"
       :y="focusRow * 100"
       width="100"
@@ -162,15 +183,15 @@
     </g>
 
     <!-- Candidates (if enabled) -->
-    <g v-if="props.showCandidates && props.candidates">
-      <template v-for="(row, r) in props.candidates" :key="'cand-row-' + r">
+    <g v-if="showCandidates && candidates.length > 0">
+      <template v-for="(row, r) in candidates" :key="'cand-row-' + r">
         <template v-for="(cellCands, c) in row" :key="'cand-' + r + '-' + c">
           <g v-if="cellCands && cellCands.length > 0">
             <text
               v-for="n in cellCands"
               :key="'cand-' + r + '-' + c + '-' + n"
-              :x="c * 100 + getCandidateX(n)"
-              :y="r * 100 + getCandidateY(n)"
+              :x="(c as number) * 100 + getCandidateX(n)"
+              :y="(r as number) * 100 + getCandidateY(n)"
               font-size="22"
               fill="var(--cand-color)"
               text-anchor="middle"
@@ -186,25 +207,41 @@
   </svg>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref } from 'vue';
+import type { CellHighlight, CellMarker, Chain } from '@/types/sudoku';
+import SudokuHighlight from './SudokuHighlight.vue';
+import SudokuMarkers from './SudokuMarkers.vue';
+import SudokuChains from './SudokuChains.vue';
 
-const props = defineProps({
-  board: { type: Array, required: true },
-  given: { type: Array, default: () => Array.from({length:9}, () => Array(9).fill(false)) },
-  candidates: { type: Array, default: () => [] },
-  size: { type: Number, default: 450 },
-  showCandidates: { type: Boolean, default: true },
-  selected: { type: Object, default: null }, // 用户点击选中的格子
-  focusCell: { type: Object, default: null }, // 程序预设的目标格（如唤余练习）
-  focusHighlight: { type: String, default: 'all' }, // 'row' | 'col' | 'box' | 'all' | 'none'
-  // 交互模式：'display' 纯展示无交互 | 'interactive' 可交互（hover + click） | 'practice' 练习模式（无hover，显示focusCell）
-  mode: { type: String, default: 'interactive' },
+const props = withDefaults(defineProps<{
+  board: number[][];
+  given?: boolean[][];
+  candidates?: number[][][];
+  size?: number;
+  showCandidates?: boolean;
+  selected?: { row: number; col: number } | null;
+  focusCell?: { row: number; col: number } | null;
+  focusHighlight?: 'row' | 'col' | 'box' | 'all' | 'none';
+  mode?: 'display' | 'interactive' | 'practice';
+  customHighlights?: CellHighlight[];
+  markers?: CellMarker[];
+  chains?: Chain[];
+}>(), {
+  given: () => Array.from({length:9}, () => Array(9).fill(false)),
+  candidates: () => [],
+  size: 450,
+  showCandidates: true,
+  mode: 'interactive',
+  focusHighlight: 'all',
+  customHighlights: () => [],
+  markers: () => [],
+  chains: () => []
 });
 
 const emit = defineEmits(['cell-click', 'cell-dblclick']);
 
-const hoveredCell = ref(null);
+const hoveredCell = ref<{ row: number; col: number } | null>(null);
 
 // Computed properties for selected cell
 const selectedRow = computed(() => props.selected?.row ?? null);
@@ -217,7 +254,8 @@ const relatedCells = computed(() => {
   if (!props.selected || props.mode !== 'interactive') return [];
   const sr = selectedRow.value;
   const sc = selectedCol.value;
-  const set = new Set();
+  if (sr === null || sc === null) return [];
+  const set = new Set<string>();
 
   // Row
   for (let c = 0; c < 9; c++) {
@@ -241,9 +279,9 @@ const relatedCells = computed(() => {
     }
   }
 
-  return Array.from(set).map(key => {
+  return Array.from(set).map((key: string) => {
     const [r, c] = key.split('-').map(Number);
-    return { row: r, col: c };
+    return { row: r!, col: c! };
   });
 });
 
@@ -252,7 +290,8 @@ const focusRelatedCells = computed(() => {
   if (!props.focusCell || props.focusHighlight === 'none') return [];
   const sr = focusRow.value;
   const sc = focusCol.value;
-  const set = new Set();
+  if (sr === null || sc === null) return [];
+  const set = new Set<string>();
 
   // Row
   if (props.focusHighlight === 'row' || props.focusHighlight === 'all') {
@@ -282,9 +321,9 @@ const focusRelatedCells = computed(() => {
     }
   }
 
-  return Array.from(set).map(key => {
+  return Array.from(set).map((key: string) => {
     const [r, c] = key.split('-').map(Number);
-    return { row: r, col: c };
+    return { row: r!, col: c! };
   });
 });
 
@@ -295,16 +334,16 @@ const focusBoxX = computed(() => props.focusCell ? Math.floor(props.focusCell.co
 const focusBoxY = computed(() => props.focusCell ? Math.floor(props.focusCell.row / 3) : 0);
 
 // Helper functions
-const isGiven = (r, c) => props.given[r]?.[c] || false;
+const isGiven = (r: number, c: number) => props.given[r]?.[c] || false;
 
-const getCandidateX = (n) => {
+const getCandidateX = (n: number) => {
   const positions = [17, 50, 83, 17, 50, 83, 17, 50, 83];
-  return positions[n - 1];
+  return positions[n - 1] ?? 50;
 };
 
-const getCandidateY = (n) => {
+const getCandidateY = (n: number) => {
   const positions = [20, 20, 20, 50, 50, 50, 80, 80, 80];
-  return positions[n - 1];
+  return positions[n - 1] ?? 50;
 };
 </script>
 
