@@ -140,8 +140,14 @@
             <div class="text-lg">平均用时：{{ getAvgMs() }}</div>
           </div>
           <div class="flex justify-between gap-3">
-            <button class="flex-1 bg-gray-100 text-gray-700 border border-gray-400 rounded px-4 py-2 hover:bg-gray-200 text-sm"
-              @click="copyStats()">复制数据</button>
+            <button 
+              :class="[
+                'flex-1 rounded px-4 py-2 text-sm transition-colors',
+                copied 
+                  ? 'bg-green-100 text-green-700 border border-green-400' 
+                  : 'bg-gray-100 text-gray-700 border border-gray-400 hover:bg-gray-200'
+              ]"
+              @click="copyStats()">{{ copied ? '已复制！' : '复制数据' }}</button>
             <button class="flex-1 bg-gray-100 text-gray-700 border border-gray-400 rounded px-4 py-2 hover:bg-gray-200"
               @click="showSettlement = false">确定</button>
           </div>
@@ -171,6 +177,7 @@ const timerInterval = ref<ReturnType<typeof setInterval> | null>(null)
 const sprintTarget = 100
 const isSessionComplete = ref<boolean>(false)
 const showSettlement = ref<boolean>(false)
+const copied = ref<boolean>(false)
 
 // 当前题目数据
 const board = ref<number[][]>(Array.from({ length: 9 }, () => Array(9).fill(0)))
@@ -289,6 +296,10 @@ async function copyStats() {
   try {
     const text = generateStatsText()
     await navigator.clipboard.writeText(text)
+    copied.value = true
+    setTimeout(() => {
+      copied.value = false
+    }, 2000)
   } catch (err) {
     console.error('复制失败:', err)
   }
