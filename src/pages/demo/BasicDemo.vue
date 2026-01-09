@@ -2,7 +2,7 @@
   <div>
     <!-- 不同尺寸展示 -->
     <div class="bg-white shadow rounded-lg p-6 mb-8">
-      <h2 class="text-xl font-semibold mb-4">不同尺寸的数独盘面（纯展示模式）</h2>
+      <h2 class="text-xl font-semibold mb-4">不同尺寸的数独盘面（展示模式无交互）</h2>
       <div class="flex flex-wrap items-end justify-center gap-8">
         <div class="flex flex-col items-center">
           <p class="text-sm text-gray-600 mb-2">小尺寸 (300px)</p>
@@ -19,24 +19,20 @@
       </div>
     </div>
 
-    <!-- 明数与填入数展示 -->
+    <!-- 已知数与填入数展示 -->
     <div class="bg-white shadow rounded-lg p-6 mb-8">
-      <h2 class="text-xl font-semibold mb-4">明数与填入数的区别</h2>
+      <h2 class="text-xl font-semibold mb-4">已知数与填入数的区别</h2>
       <div class="flex flex-col items-center gap-4">
         <p class="text-sm text-gray-600">黑色数字为题目给定的明数，蓝色数字为玩家填入的数字。</p>
         <SudokuBoard :board="boardWithUserInput" :given="given" mode="display" />
-        <div class="text-xs text-gray-500 space-y-1">
-          <p>• <span class="font-bold text-black">黑色数字</span>：题目提供的明数（given）</p>
-          <p>• <span class="font-bold" style="color: var(--user-num-color)">蓝色数字</span>：玩家填入的数字</p>
-        </div>
       </div>
     </div>
 
     <!-- 候选数展示 -->
     <div class="bg-white shadow rounded-lg p-6 mb-8">
-      <h2 class="text-xl font-semibold mb-4">候选数示例（显示候选数）</h2>
+      <h2 class="text-xl font-semibold mb-4">候选数示例</h2>
       <div class="flex flex-col items-center gap-4">
-        <p class="text-sm text-gray-600">展示在空格中的候选数（铅笔记），数字在格内按 3×3 小网格排布。</p>
+        <p class="text-sm text-gray-600">展示在空格中的候选数（笔记），数字在格内按 3×3 小网格排布。</p>
         <SudokuBoard :board="board" :given="given" :showCandidates="true" :candidates="candidates" mode="display" />
       </div>
     </div>

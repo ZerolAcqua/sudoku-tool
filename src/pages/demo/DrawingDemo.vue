@@ -69,6 +69,10 @@
 
           <!-- 操作按钮 -->
           <div class="flex flex-wrap gap-2">
+            <button @click="saveDrawingAsImage"
+              class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+              保存为图片
+            </button>
             <button v-if="currentDrawMode === 'chain' && drawingChain.length > 0" @click="finishChain"
               class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
               完成链 ({{ drawingChain.length }} 个节点)
@@ -85,20 +89,12 @@
         </div>
 
         <!-- 数独盘面 -->
-        <SudokuBoard 
-          :board="board" 
-          :given="given" 
-          :showCandidates="true" 
-          :candidates="candidates"
-          :customHighlights="drawnHighlights" 
-          :markers="drawnMarkers" 
-          :chains="drawnChains"
-          :candidateMarkers="drawnCandidateMarkers" 
+        <SudokuBoard ref="drawingBoard" :board="board" :given="given" :showCandidates="true" :candidates="candidates"
+          :customHighlights="drawnHighlights" :markers="drawnMarkers" :chains="drawnChains"
+          :candidateMarkers="drawnCandidateMarkers"
           :selectedCandidate="selectCandidateMode && selectedCandidate ? currentDrawingCandidate : null"
-          :mode="selectCandidateMode && (currentDrawMode === 'highlight' || currentDrawMode === 'chain') ? 'candidate' : 'interactive'" 
-          @cell-click="onDrawingCellClick"
-          @candidate-click="onDrawingCandidateClick" 
-        />
+          :mode="selectCandidateMode && (currentDrawMode === 'highlight' || currentDrawMode === 'chain') ? 'candidate' : 'interactive'"
+          @cell-click="onDrawingCellClick" @candidate-click="onDrawingCandidateClick" />
 
         <div class="text-xs text-gray-500 space-y-1">
           <p>• <strong>高亮模式:</strong> 点击单元格添加/移除高亮。启用"选择候选数"后可直接点击候选数进行高亮</p>
@@ -110,233 +106,171 @@
     </div>
 
     <!-- 静态示例 -->
-<div>
-    <!-- 自定义高亮示例 -->
-    <div class="bg-white shadow rounded-lg p-6 mb-8">
-      <h2 class="text-xl font-semibold mb-4">自定义单元格高亮</h2>
-      <div class="flex flex-col items-center gap-4">
-        <p class="text-sm text-gray-600">为特定单元格添加自定义颜色高亮</p>
-        <SudokuBoard :board="board" :given="given" :customHighlights="[
-          { cells: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }], color: '#ffeb3b', opacity: 0.4 },
-          { cells: [{ row: 1, col: 3 }, { row: 2, col: 3 }], color: '#4caf50', opacity: 0.3 },
-          { cells: [{ row: 4, col: 4 }], color: '#f44336', opacity: 0.5 }
-        ]" mode="display" />
-        <div class="text-xs text-gray-500 space-y-1">
-          <p>• 黄色：第一行前三格</p>
-          <p>• 绿色：第 4 列的第 2、3 行</p>
-          <p>• 红色：中心格</p>
+    <div>
+      <!-- 自定义高亮示例 -->
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">自定义单元格高亮</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">为特定单元格添加自定义颜色高亮</p>
+          <SudokuBoard :board="board" :given="given" :customHighlights="[
+            { cells: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }], color: '#ffeb3b', opacity: 0.4 },
+            { cells: [{ row: 1, col: 3 }, { row: 2, col: 3 }], color: '#4caf50', opacity: 0.3 },
+            { cells: [{ row: 4, col: 4 }], color: '#f44336', opacity: 0.5 }
+          ]" mode="display" />
         </div>
       </div>
-    </div>
 
-    <!-- 标记示例 -->
-    <div class="bg-white shadow rounded-lg p-6 mb-8">
-      <h2 class="text-xl font-semibold mb-4">单元格标记（圆圈、叉号、点、星号）</h2>
-      <div class="flex flex-col items-center gap-4">
-        <p class="text-sm text-gray-600">为单元格添加不同类型的标记符号</p>
-        <SudokuBoard :board="board" :given="given" :markers="[
-          { cell: { row: 0, col: 4 }, type: 'circle', color: '#f44336', strokeWidth: 3 },
-          { cell: { row: 0, col: 6 }, type: 'cross', color: '#2196f3', strokeWidth: 3 },
-          { cell: { row: 2, col: 0 }, type: 'dot', color: '#4caf50', size: 10 },
-          { cell: { row: 2, col: 2 }, type: 'star', color: '#ff9800', size: 45 }
-        ]" mode="display" />
-        <div class="text-xs text-gray-500 space-y-1">
-          <p>• 红色圆圈：第 1 行第 5 格</p>
-          <p>• 蓝色叉号：第 1 行第 7 格</p>
-          <p>• 绿色圆点：第 3 行第 1 格</p>
-          <p>• 橙色星号：第 3 行第 3 格</p>
+      <!-- 标记示例 -->
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">单元格标记</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">为单元格添加不同类型的标记符号</p>
+          <SudokuBoard :board="board" :given="given" :markers="[
+            { cell: { row: 0, col: 4 }, type: 'circle', color: '#f44336', strokeWidth: 3 },
+            { cell: { row: 0, col: 6 }, type: 'cross', color: '#2196f3', strokeWidth: 3 },
+            { cell: { row: 2, col: 0 }, type: 'dot', color: '#4caf50', size: 10 },
+            { cell: { row: 2, col: 2 }, type: 'star', color: '#ff9800', size: 45 }
+          ]" mode="display" />
         </div>
       </div>
-    </div>
 
-    <!-- 摒除线示例 -->
-    <div class="bg-white shadow rounded-lg p-6 mb-8">
-      <h2 class="text-xl font-semibold mb-4">摒除线绘制</h2>
-      <div class="flex flex-col items-center gap-4">
-        <p class="text-sm text-gray-600">在两个单元格之间绘制摒除线，从起点圆圈边缘指向目标格</p>
-        <SudokuBoard :board="board" :given="given" :markers="[
-          { cell: { row: 0, col: 0 }, type: 'circle', color: '#9c27b0', strokeWidth: 3, size: 35 },
-          { cells: [{ row: 0, col: 0 }, { row: 0, col: 8 }], type: 'line', color: '#9c27b0', strokeWidth: 3 },
-          { cell: { row: 3, col: 1 }, type: 'circle', color: '#ff5722', strokeWidth: 3, size: 35 },
-          { cells: [{ row: 3, col: 1 }, { row: 5, col: 1 }], type: 'line', color: '#ff5722', strokeWidth: 3 },
-          { cell: { row: 6, col: 6 }, type: 'circle', color: '#00bcd4', strokeWidth: 3, size: 35 },
-          { cells: [{ row: 6, col: 6 }, { row: 8, col: 8 }], type: 'line', color: '#00bcd4', strokeWidth: 3 }
-        ]" mode="display" />
-        <div class="text-xs text-gray-500 space-y-1">
-          <p>• 紫色圆圈 + 线：第 1 行横跨，线从圆圈边缘开始</p>
-          <p>• 橙色圆圈 + 线：第 2 列部分竖线</p>
-          <p>• 青色圆圈 + 线：右下角斜线</p>
+      <!-- 摒除线示例 -->
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">摒除线绘制</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">在两个单元格之间绘制摒除线，从起点圆圈边缘指向目标格</p>
+          <SudokuBoard :board="board" :given="given" :markers="[
+            { cell: { row: 0, col: 0 }, type: 'circle', color: '#9c27b0', strokeWidth: 3, size: 35 },
+            { cells: [{ row: 0, col: 0 }, { row: 0, col: 8 }], type: 'line', color: '#9c27b0', strokeWidth: 3 },
+            { cell: { row: 3, col: 1 }, type: 'circle', color: '#ff5722', strokeWidth: 3, size: 35 },
+            { cells: [{ row: 3, col: 1 }, { row: 5, col: 1 }], type: 'line', color: '#ff5722', strokeWidth: 3 },
+            { cell: { row: 6, col: 6 }, type: 'circle', color: '#00bcd4', strokeWidth: 3, size: 35 },
+            { cells: [{ row: 6, col: 6 }, { row: 8, col: 8 }], type: 'line', color: '#00bcd4', strokeWidth: 3 }
+          ]" mode="display" />
         </div>
       </div>
-    </div>
 
-    <!-- 链绘制示例 -->
-    <div class="bg-white shadow rounded-lg p-6 mb-8">
-      <h2 class="text-xl font-semibold mb-4">链绘制</h2>
-      <div class="flex flex-col items-center gap-4">
-        <p class="text-sm text-gray-600">绘制连接多个单元格的链，支持实线、虚线和箭头</p>
-        <SudokuBoard :board="board" :given="given" :chains="[
-          {
-            cells: [{ row: 0, col: 0 }, { row: 0, col: 3 }, { row: 0, col: 6 }],
-            style: 'solid',
-            color: '#4caf50',
-            strokeWidth: 3,
-            arrow: true
-          },
-          {
-            cells: [{ row: 3, col: 0 }, { row: 3, col: 4 }, { row: 3, col: 8 }],
-            style: 'dashed',
-            color: '#2196f3',
-            strokeWidth: 2
-          },
-          {
-            cells: [{ row: 6, col: 0 }, { row: 7, col: 1 }, { row: 8, col: 2 }],
-            style: 'dotted',
-            color: '#f44336',
-            strokeWidth: 2,
-            arrow: true
-          }
-        ]" mode="display" />
-        <div class="text-xs text-gray-500 space-y-1">
-          <p>• 绿色实线箭头：第 1 行三格连接</p>
-          <p>• 蓝色虚线：第 4 行三格连接</p>
-          <p>• 红色点线箭头：左下角斜向连接</p>
+      <!-- 链绘制示例 -->
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">链绘制</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">绘制连接多个单元格的链，支持实线、虚线和箭头</p>
+          <SudokuBoard :board="board" :given="given" :chains="[
+            {
+              cells: [{ row: 0, col: 0 }, { row: 0, col: 3 }, { row: 0, col: 6 }],
+              style: 'solid',
+              color: '#4caf50',
+              strokeWidth: 3,
+              arrow: true,
+              curve: 'smooth'
+            },
+            {
+              cells: [{ row: 3, col: 0 }, { row: 3, col: 4 }, { row: 3, col: 8 }],
+              style: 'dashed',
+              color: '#2196f3',
+              strokeWidth: 2
+            },
+            {
+              cells: [{ row: 6, col: 0 }, { row: 7, col: 1 }, { row: 8, col: 2 }],
+              style: 'dotted',
+              color: '#f44336',
+              strokeWidth: 2,
+              arrow: true
+            }
+          ]" mode="display" />
         </div>
       </div>
-    </div>
 
-    <!-- 候选到候选的链示例 -->
-    <div class="bg-white shadow rounded-lg p-6 mb-8">
-      <h2 class="text-xl font-semibold mb-4">候选数级链（直线/曲线）</h2>
-      <div class="flex flex-col items-center gap-4">
-        <p class="text-sm text-gray-600">链节点可以定位到单元格中的具体候选数（1-9），支持多节点路径。每相邻两个节点间生成一条箭头线，末端显示箭头。</p>
-        <SudokuBoard :board="board" :given="given" :showCandidates="true" :candidates="candidates" :chains="[
-          {
-            cells: [
-              { row: 0, col: 2, candidate: 3 },
-              { row: 0, col: 2, candidate: 7 }
-            ],
-            style: 'solid',
-            color: '#8e44ad',
-            strokeWidth: 2,
-            arrow: true,
-            curve: 'straight'
-          },
-          {
-            cells: [
-              { row: 2, col: 0, candidate: 1 },
-              { row: 2, col: 3, candidate: 9 },
-              { row: 2, col: 6, candidate: 5 }
-            ],
-            style: 'dashed',
-            color: '#16a085',
-            strokeWidth: 3,
-            arrow: true,
-            curve: 'smooth'
-          },
-          {
-            cells: [
-              { row: 3, col: 5, candidate: 3 },
-              { row: 5, col: 4, candidate: 7 },
-              { row: 7, col: 5, candidate: 2 }
-            ],
-            style: 'solid',
-            color: '#f39c12',
-            strokeWidth: 2.5,
-            arrow: true,
-            curve: 'smooth'
-          }
-        ]" mode="display" />
-        <div class="text-xs text-gray-500 space-y-1">
-          <p>• 紫色直线：同格候选 3 → 7</p>
-          <p>• 绿色平滑虚线（多段）：跨格候选 1 → 9 → 5（每段都有V形箭头）</p>
-          <p>• 橙色平滑线（多段）：竖向S形曲线 3 → 7 → 2（明显的弧度）</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- 候选数强调 + 链综合示例 -->
-    <div class="bg-white shadow rounded-lg p-6 mb-8">
-      <h2 class="text-xl font-semibold mb-4">候选数强调 + 链组合示例</h2>
-      <div class="flex flex-col items-center gap-4">
-        <p class="text-sm text-gray-600">演示候选数显示 + 候选数强调标记 + 链箭头的组合使用</p>
-        <SudokuBoard :board="board" :given="given" :showCandidates="true" :candidates="candidates" :candidateMarkers="[
-          { row: 0, col: 2, candidate: 2, color: '#FF6B6B', opacity: 0.7 },
-          { row: 0, col: 2, candidate: 4, color: '#4ECDC4', opacity: 0.7 },
-          { row: 2, col: 0, candidate: 1, color: '#95E1D3', opacity: 0.7 },
-          { row: 2, col: 3, candidate: 3, color: '#FFE66D', opacity: 0.7 },
-          { row: 2, col: 6, candidate: 4, color: '#C7CEEA', opacity: 0.7 }
-        ]" :chains="[
+      <!-- 候选到候选的链示例 -->
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">候选数级链（直线/曲线）</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">链节点可以定位到单元格中的具体候选数（1-9），支持多节点路径。每相邻两个节点间生成一条箭头线，末端显示箭头。</p>
+          <SudokuBoard :board="board" :given="given" :showCandidates="true" :candidates="candidates" :chains="[
             {
               cells: [
-                { row: 0, col: 2, candidate: 2 },
-                { row: 2, col: 0, candidate: 1 },
-                { row: 2, col: 3, candidate: 3 }
+                { row: 0, col: 2, candidate: 3 },
+                { row: 0, col: 2, candidate: 7 }
               ],
               style: 'solid',
-              color: '#FF6B6B',
-              strokeWidth: 2.5,
+              color: '#8e44ad',
+              strokeWidth: 2,
+              arrow: true,
+              curve: 'straight'
+            },
+            {
+              cells: [
+                { row: 2, col: 0, candidate: 1 },
+                { row: 2, col: 3, candidate: 9 },
+                { row: 2, col: 6, candidate: 5 }
+              ],
+              style: 'dashed',
+              color: '#16a085',
+              strokeWidth: 3,
               arrow: true,
               curve: 'smooth'
             },
             {
               cells: [
-                { row: 0, col: 2, candidate: 4 },
-                { row: 2, col: 6, candidate: 4 }
+                { row: 3, col: 5, candidate: 3 },
+                { row: 5, col: 4, candidate: 7 },
+                { row: 7, col: 5, candidate: 2 }
               ],
-              style: 'dashed',
-              color: '#4ECDC4',
-              strokeWidth: 2,
+              style: 'solid',
+              color: '#f39c12',
+              strokeWidth: 2.5,
               arrow: true,
-              curve: 'straight'
+              curve: 'smooth'
             }
           ]" mode="display" />
-        <div class="text-xs text-gray-500 space-y-1">
-          <p>• 彩色实心圆：候选数强调标记（背景圆圈突出候选数）</p>
-          <p>• 红色平滑线：连接候选 2 → 1 → 3（每段有V形箭头）</p>
-          <p>• 青色虚线：连接候选 4 → 4（直线箭头）</p>
         </div>
       </div>
-    </div>
 
-    <!-- 综合示例 -->
-    <div class="bg-white shadow rounded-lg p-6 mb-8">
-      <h2 class="text-xl font-semibold mb-4">综合绘图示例（教学演示）</h2>
-      <div class="flex flex-col items-center gap-4">
-        <p class="text-sm text-gray-600">结合高亮、标记和链，模拟教学场景</p>
-        <SudokuBoard :board="board" :given="given" :customHighlights="[
-          { cells: [{ row: 0, col: 2 }, { row: 1, col: 2 }, { row: 2, col: 2 }], color: '#E8F4F8', opacity: 0.6 },
-          { cells: [{ row: 2, col: 0 }, { row: 2, col: 1 }, { row: 2, col: 2 }], color: '#FFF9C4', opacity: 0.5 }
-        ]" :markers="[
-            { cell: { row: 2, col: 2 }, type: 'circle', color: '#f44336', strokeWidth: 3 },
-            { cell: { row: 0, col: 2 }, type: 'cross', color: '#2196f3', strokeWidth: 2 },
-            { cells: [{ row: 2, col: 0 }, { row: 2, col: 2 }], type: 'line', color: '#9c27b0', strokeWidth: 2 }
+      <!-- 候选数高亮 + 链综合示例 -->
+      <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">候选数高亮 + 链组合示例</h2>
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-sm text-gray-600">演示候选数显示 + 候选数高亮标记 + 链箭头的组合使用</p>
+          <SudokuBoard :board="board" :given="given" :showCandidates="true" :candidates="candidates" :candidateMarkers="[
+            { row: 0, col: 2, candidate: 2, color: '#FF6B6B', opacity: 0.7 },
+            { row: 0, col: 2, candidate: 4, color: '#4ECDC4', opacity: 0.7 },
+            { row: 2, col: 0, candidate: 1, color: '#95E1D3', opacity: 0.7 },
+            { row: 2, col: 3, candidate: 3, color: '#FFE66D', opacity: 0.7 },
+            { row: 2, col: 6, candidate: 4, color: '#C7CEEA', opacity: 0.7 }
           ]" :chains="[
-            {
-              cells: [{ row: 0, col: 0 }, { row: 2, col: 2 }],
-              style: 'dashed',
-              color: '#4caf50',
-              strokeWidth: 2,
-              arrow: true
-            }
-          ]" mode="display" />
-        <div class="text-xs text-gray-500 space-y-1">
-          <p>• 蓝色背景：第 3 列前三格（相关区域）</p>
-          <p>• 黄色背景：第 3 行前三格（候选数区域）</p>
-          <p>• 红色圆圈：目标格</p>
-          <p>• 紫色摒除线：行内关系</p>
-          <p>• 绿色虚线箭头：推理路径</p>
+          {
+            cells: [
+              { row: 0, col: 2, candidate: 2 },
+              { row: 2, col: 0, candidate: 1 },
+              { row: 2, col: 3, candidate: 3 }
+            ],
+            style: 'solid',
+            color: '#FF6B6B',
+            strokeWidth: 2.5,
+            arrow: true,
+            curve: 'smooth'
+          },
+          {
+            cells: [
+              { row: 0, col: 2, candidate: 4 },
+              { row: 2, col: 6, candidate: 4 }
+            ],
+            style: 'dashed',
+            color: '#4ECDC4',
+            strokeWidth: 2,
+            arrow: true,
+            curve: 'straight'
+          }
+        ]" mode="display" />
         </div>
       </div>
     </div>
-  </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, reactive, onMounted } from 'vue'
 import SudokuBoard from '@/components/SudokuBoard.vue'
-import DrawingExamples from './DrawingExamples.vue'
 import type { CellHighlight, CellMarker, Chain, CandidateMarker } from '@/types/sudoku'
 
 // 数独数据
@@ -422,7 +356,7 @@ function genCandidates() {
 
 
 // 交互式绘图状态
-const currentDrawMode = ref<'highlight' | 'marker' | 'line' | 'chain'>('marker')
+const currentDrawMode = ref<'highlight' | 'marker' | 'line' | 'chain'>('highlight')
 const currentMarkerType = ref<'circle' | 'cross' | 'dot' | 'star'>('circle')
 const currentChainStyle = ref<'solid' | 'dashed' | 'dotted'>('solid')
 const chainArrow = ref(true)
@@ -434,6 +368,7 @@ const drawnChains = ref<Chain[]>([])
 const drawnCandidateMarkers = ref<CandidateMarker[]>([])
 const drawingChain = ref<{ row: number, col: number, candidate?: number }[]>([])
 const lineStartCell = ref<{ row: number, col: number } | null>(null)
+const drawingBoard = ref<any | null>(null)
 
 const drawingModes: Array<{ id: 'highlight' | 'marker' | 'line' | 'chain'; label: string }> = [
   { id: 'highlight', label: '高亮' },
@@ -543,12 +478,43 @@ function toggleHighlight(pos: { row: number, col: number }) {
 }
 
 function addMarker(pos: { row: number, col: number }) {
+  const size = currentMarkerType.value === 'circle' ? 35 : currentMarkerType.value === 'star' ? 45 : 10
+  const strokeWidth = 3
+  const sameTypeIndex = drawnMarkers.value.findIndex(m =>
+    m.cell && m.cell.row === pos.row && m.cell.col === pos.col && m.type === currentMarkerType.value
+  )
+
+  // 若同一格已有同类型标记
+  if (sameTypeIndex >= 0) {
+    const existing = drawnMarkers.value[sameTypeIndex]!
+    const isSameStyle = (existing.color === currentColor.value) &&
+      ((existing.size ?? size) === size) &&
+      ((existing.strokeWidth ?? strokeWidth) === strokeWidth)
+
+    // 样式完全相同：视为切换，删除旧标记
+    if (isSameStyle) {
+      drawnMarkers.value.splice(sameTypeIndex, 1)
+      return
+    }
+
+    // 样式不同：替换为新的样式
+    drawnMarkers.value[sameTypeIndex] = {
+      cell: pos,
+      type: currentMarkerType.value,
+      color: currentColor.value,
+      strokeWidth,
+      size
+    }
+    return
+  }
+
+  // 无同类型标记：新增
   drawnMarkers.value.push({
     cell: pos,
     type: currentMarkerType.value,
     color: currentColor.value,
-    strokeWidth: 3,
-    size: currentMarkerType.value === 'circle' ? 35 : currentMarkerType.value === 'star' ? 45 : 10
+    strokeWidth,
+    size
   })
 }
 
@@ -592,8 +558,8 @@ function addChainPoint(pos: { row: number, col: number }) {
 
 function addChainPointCandidate(pos: { row: number, col: number, candidate: number }) {
   const lastPoint = drawingChain.value[drawingChain.value.length - 1]
-  if (lastPoint && lastPoint.row === pos.row && lastPoint.col === pos.col && 
-      'candidate' in lastPoint && lastPoint.candidate === pos.candidate) {
+  if (lastPoint && lastPoint.row === pos.row && lastPoint.col === pos.col &&
+    'candidate' in lastPoint && lastPoint.candidate === pos.candidate) {
     return
   }
 
@@ -609,16 +575,16 @@ function finishChain() {
     if (index === 0) return true
     const prev = drawingChain.value[index - 1]
     if (!prev) return true
-    
+
     if (prev.row !== point.row || prev.col !== point.col) return true
-    
+
     const prevHasCandidate = 'candidate' in prev && prev.candidate !== undefined
     const pointHasCandidate = 'candidate' in point && point.candidate !== undefined
-    
+
     if (prevHasCandidate && pointHasCandidate) {
       return prev.candidate !== point.candidate
     }
-    
+
     return true
   })
 
@@ -648,5 +614,39 @@ function clearDrawing() {
   drawnCandidateMarkers.value = []
   drawingChain.value = []
   lineStartCell.value = null
+}
+
+async function saveDrawingAsImage() {
+  try {
+    const svgElement = (drawingBoard.value as any)?.$el as SVGElement | null
+    if (!svgElement) {
+      alert('找不到 SVG 元素，请确保数独盘面已正确加载')
+      return
+    }
+
+    const clonedSvg = svgElement.cloneNode(true) as SVGElement
+    clonedSvg.setAttribute('width', '900')
+    clonedSvg.setAttribute('height', '900')
+
+    const serializer = new XMLSerializer()
+    let svgString = serializer.serializeToString(clonedSvg)
+    svgString = `<?xml version="1.0" encoding="UTF-8"?>\n${svgString}`
+
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml' })
+    const url = URL.createObjectURL(svgBlob)
+
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `drawing-${new Date().toISOString().slice(0, 10)}-${Date.now()}.svg`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    alert('绘图已保存为 SVG 文件！')
+  } catch (error: any) {
+    console.error('保存图片时出错:', error)
+    alert('保存图片失败: ' + error.message)
+  }
 }
 </script>

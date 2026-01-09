@@ -1,32 +1,22 @@
 <template>
     <div>
         <div class="bg-white shadow rounded-lg p-6 mb-8">
-            <h2 class="text-xl font-semibold mb-4">唯余练习模式（程序预设目标格）</h2>
+            <h2 class="text-xl font-semibold mb-4">唯余练习模式（程序给定目标格）</h2>
             <div class="flex flex-col items-center gap-4">
-                <p class="text-sm text-gray-600">测试不同的高亮类型：行唯余、列唯余、宫唯余、复杂唯余</p>
-                <div class="flex flex-wrap gap-2 justify-center mb-2">
-                    <button @click="highlightType = 'row'"
-                        :class="['px-3 py-1 text-sm rounded transition-colors', highlightType === 'row' ? 'bg-blue-600 text-white' : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">行唯一数</button>
-                    <button @click="highlightType = 'col'"
-                        :class="['px-3 py-1 text-sm rounded transition-colors', highlightType === 'col' ? 'bg-blue-600 text-white' : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">列唯一数</button>
-                    <button @click="highlightType = 'box'"
-                        :class="['px-3 py-1 text-sm rounded transition-colors', highlightType === 'box' ? 'bg-blue-600 text-white' : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">宫唯一数</button>
-                    <button @click="highlightType = 'all'"
-                        :class="['px-3 py-1 text-sm rounded transition-colors', highlightType === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">唯一余数</button>
-                </div>
+                <p class="text-sm text-gray-600">测试不同的高亮类型：行唯一数、列唯一数、宫唯一数、唯一余数</p>
                 <SudokuBoard :board="board" :given="given" :focusCell="practiceCell" :focusHighlight="highlightType"
-                    @cell-click="onPracticeCellClick" mode="practice" />
+                    mode="practice" />
             </div>
         </div>
 
         <div class="bg-white shadow rounded-lg p-6 mb-8">
-            <h2 class="text-xl font-semibold mb-4">交互模式（用户点击选中）</h2>
+            <h2 class="text-xl font-semibold mb-4">交互模式（用户点击选中目标格）</h2>
             <div class="flex flex-col items-center gap-4">
-                <p class="text-sm text-gray-600">点击单元格选中，选中状态会持续显示（蓝色）</p>
+                <p class="text-sm text-gray-600">点击单元格选中，选中状态会持续显示</p>
                 <SudokuBoard :board="board" :given="given" :selected="selectedCell" @cell-click="onCellSelect"
                     mode="interactive" />
                 <p v-if="selectedCell" class="text-sm text-gray-700">
-                    当前选中: 行 {{ selectedCell.row + 1 }}, 列 {{ selectedCell.col + 1 }}
+                    当前选中: r{{ selectedCell.row + 1 }}c{{ selectedCell.col + 1 }}
                 </p>
             </div>
         </div>
@@ -38,10 +28,11 @@
                 <SudokuBoard :board="board" :given="given" :showCandidates="true" :candidates="candidates"
                     :selectedCandidate="selectedCandidateDemo" @candidate-click="onCandidateSelect" mode="candidate" />
                 <p v-if="selectedCandidateDemo" class="text-sm text-gray-700">
-                    当前选中候选数: 行 {{ selectedCandidateDemo.row + 1 }}, 列 {{ selectedCandidateDemo.col + 1 }}, 数字 {{
-                        selectedCandidateDemo.candidate }}
+                    当前选中候选数: {{
+                        selectedCandidateDemo.candidate }}r{{ selectedCandidateDemo.row + 1 }}c{{ selectedCandidateDemo.col
+                        + 1 }}
                 </p>
-                <p v-else class="text-sm text-gray-500">
+                <p v-else class="text-sm text-gray-700">
                     请点击任意候选数
                 </p>
             </div>
@@ -50,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import SudokuBoard from '@/components/SudokuBoard.vue'
 
 const board = reactive<number[][]>([
@@ -96,8 +87,21 @@ const selectedCandidateDemo = ref<{ row: number, col: number, candidate: number 
 const practiceCell = ref<{ row: number, col: number } | null>({ row: 0, col: 2 })
 const highlightType = ref<'row' | 'col' | 'box' | 'all' | 'none'>('all')
 
+let rotationTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
     genCandidates()
+    randomizePracticeCell()
+    rotationTimer = setInterval(() => {
+        const order = ['row', 'col', 'box', 'all'] as const
+        const idx = order.indexOf(highlightType.value as any)
+        highlightType.value = order[(idx + 1) % order.length]!
+        randomizePracticeCell()
+    }, 1000)
+})
+
+onUnmounted(() => {
+    if (rotationTimer) clearInterval(rotationTimer)
 })
 
 function clearCandidates() {
@@ -144,7 +148,19 @@ function onCandidateSelect(pos: { row: number, col: number, candidate: number })
     selectedCandidateDemo.value = pos
 }
 
-function onPracticeCellClick(pos: { row: number, col: number }) {
-    console.log('唯余练习模式点击', pos)
+function randomizePracticeCell() {
+    const empties: { row: number, col: number }[] = []
+    for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+            if (board[r]![c] === 0) {
+                empties.push({ row: r, col: c })
+            }
+        }
+    }
+    if (empties.length > 0) {
+        const i = Math.floor(Math.random() * empties.length)
+        practiceCell.value = empties[i]!
+    }
 }
+
 </script>
