@@ -1,5 +1,46 @@
+# Dependencies
+node_modules/
+.pnpm-debug.log*
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+/dist
+
+# Cache
+/cache
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*~
+.directory
+.Trash-*
+
+# Environment variables
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+database.db
+dev.db
+local.db
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,30 +48,40 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-.DS_Store
-dist
-dist-ssr
-coverage
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
+# TypeScript
 *.tsbuildinfo
 
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Cache
+.cache/
+.parcel-cache/
+.npm
 .eslintcache
+.stylelintcache
 
-# Cypress
-/cypress/videos/
-/cypress/screenshots/
+# Auth & Sessions
+cookies.txt
+sessions/
 
-# Vitest
-__screenshots__/
+# Package manager lock files (optional - uncomment if you want to ignore them)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Temporary files
+tmp/
+temp/
+
+# Coverage
+coverage/
+*.lcov
+.nyc_output
