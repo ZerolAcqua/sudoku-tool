@@ -56,62 +56,6 @@ function calculateTotalError(hLines: number[], vLines: number[], hGap: number, v
 }
 
 /**
- * 在控制台中可视化 OpenCV Mat 对象
- * @param mat OpenCV Mat 对象
- * @param label 标签名称
- * @param maxWidth 最大显示宽度（像素）
- */
-function visualizeMatInConsole(mat: any, label: string, maxWidth = 400): void {
-  const canvas = document.createElement('canvas')
-  cv.imshow(canvas, mat)
-  
-  // 计算缩放比例
-  const scale = Math.min(1, maxWidth / canvas.width)
-  const displayWidth = Math.floor(canvas.width * scale)
-  const displayHeight = Math.floor(canvas.height * scale)
-  
-  const dataUrl = canvas.toDataURL()
-  
-  const styles = [
-    `font-size: 12px`,
-    `padding: ${displayHeight / 2}px ${displayWidth / 2}px`,
-    `background: url(${dataUrl}) no-repeat center`,
-    `background-size: contain`,
-    `color: transparent`,
-    `line-height: ${displayHeight}px`,
-  ].join(';')
-  
-  console.log(`%c${label}`, styles)
-  console.log(`📐 尺寸: ${canvas.width}x${canvas.height}`)
-}
-
-/**
- * 在控制台中可视化 Canvas 对象
- * @param canvas HTMLCanvasElement
- * @param label 标签名称
- * @param maxWidth 最大显示宽度（像素）
- */
-function visualizeCanvasInConsole(canvas: HTMLCanvasElement, label: string, maxWidth = 400): void {
-  const scale = Math.min(1, maxWidth / canvas.width)
-  const displayWidth = Math.floor(canvas.width * scale)
-  const displayHeight = Math.floor(canvas.height * scale)
-  
-  const dataUrl = canvas.toDataURL()
-  
-  const styles = [
-    `font-size: 12px`,
-    `padding: ${displayHeight / 2}px ${displayWidth / 2}px`,
-    `background: url(${dataUrl}) no-repeat center`,
-    `background-size: contain`,
-    `color: transparent`,
-    `line-height: ${displayHeight}px`,
-  ].join(';')
-  
-  console.log(`%c${label}`, styles)
-  console.log(`📐 尺寸: ${canvas.width}x${canvas.height}`)
-}
-
-/**
  * 检测数独网格的最外层边框
  * 在内部处理原始图像（灰度化、二值化、网格检测）
  * 尝试轮廓检测和直线检测，互相佐证
@@ -291,7 +235,6 @@ function detectGridByHoughLinesWithConstraint(
   // 使用 Canny 边缘检测（在二值化图像上）
   const edges = new cv.Mat()
   cv.Canny(binary, edges, 50, 150)
-  visualizeMatInConsole(edges, '🔲 Canny边缘检测')
   
   // Hough 直线检测
   const lines = new cv.Mat()
