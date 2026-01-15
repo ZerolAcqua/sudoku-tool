@@ -64,6 +64,15 @@
         </p>
       </div>
 
+      <!-- 单元格可视化 -->
+      <div v-if="state.cellsVisualization" class="mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-3">提取的单元格（9×9 预览）</h3>
+        <div class="bg-gray-100 rounded-lg p-4 overflow-auto">
+          <canvas ref="cellsVisualizationCanvas" class="block"></canvas>
+        </div>
+        <p class="text-sm text-gray-600 mt-2">上图显示提取出的 81 个单元格，用于调试网格检测和单元格提取</p>
+      </div>
+
       <!-- 识别结果 -->
       <div v-if="state.result" class="mb-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-3">识别结果</h3>
@@ -128,7 +137,7 @@
         <li>• 确保数独网格是笔直的，不存在透视变形</li>
         <li>• 识别结果中 · 表示空白单元格，数字 1-9 表示识别到的数字</li>
         <li>• 如果识别效果不佳，可以调整图像对比度后重试</li>
-        <li>• 识别使用 TensorFlow.js 的 MNIST 模型，首次加载会下载模型（约 10MB）</li>
+        <li>• 识别使用 Tesseract.js OCR 引擎，首次加载需要下载语言包</li>
       </ul>
     </div>
   </div>
@@ -145,6 +154,7 @@ const isDraggingOver = ref(false)
 const originalCanvas = ref<HTMLCanvasElement>()
 const processedCanvas = ref<HTMLCanvasElement>()
 const gridCanvas = ref<HTMLCanvasElement>()
+const cellsVisualizationCanvas = ref<HTMLCanvasElement>()
 const uploadArea = ref<HTMLDivElement>()
 
 onMounted(() => {
@@ -228,6 +238,14 @@ function drawAllCanvases(): void {
     processedCanvas.value.width = state.processedImage.width
     processedCanvas.value.height = state.processedImage.height
     ctx.drawImage(state.processedImage, 0, 0)
+  }
+
+  // 绘制单元格可视化
+  if (state.cellsVisualization && cellsVisualizationCanvas.value) {
+    const ctx = cellsVisualizationCanvas.value.getContext('2d')!
+    cellsVisualizationCanvas.value.width = state.cellsVisualization.width
+    cellsVisualizationCanvas.value.height = state.cellsVisualization.height
+    ctx.drawImage(state.cellsVisualization, 0, 0)
   }
 }
 

@@ -15,8 +15,8 @@
     "format:ts": "prettier --write \"src/**/*.ts\" \"*.ts\" --ignore-path .prettierignore"
   },
   "dependencies": {
-    "@tensorflow/tfjs": "^4.22.0",
     "opencv.js": "^1.2.1",
+    "tesseract.js": "^7.0.0",
     "vue": "^3.5.22"
   },
   "devDependencies": {

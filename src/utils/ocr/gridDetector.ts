@@ -826,46 +826,210 @@ export function drawGridLines(
   return result
 }
 
+/** * 可视化 9×9 单元格（用于调试）
+ */
+export function visualizeCells(
+  cells: HTMLCanvasElement[][],
+  cellDisplaySize: number = 40,
+  gap: number = 0
+): HTMLCanvasElement {
+  const canvasSize = 9 * cellDisplaySize + 8 * gap
+  const canvas = document.createElement('canvas')
+  canvas.width = canvasSize
+  canvas.height = canvasSize
+  const ctx = canvas.getContext('2d')!
+
+  // 红色背景，任何白色都会明显显示
+  ctx.fillStyle = '#ff0000'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  for (let row = 0; row < 9; row++) {
+    for (let col = 0; col < 9; col++) {
+      const x = col * (cellDisplaySize + gap)
+      const y = row * (cellDisplaySize + gap)
+
+      // 绘制单元格
+      ctx.drawImage(cells[row]![col]!, x, y, cellDisplaySize, cellDisplaySize)
+    }
+  }
+
+  return canvas
+}
+
 /**
- * 从二值化图像中提取 9×9 单元格
+ * 去掉 canvas 外部的白色边界（使用洪水填充找连通区域）
+ */
+function trimWhiteBorder(cellCanvas: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = cellCanvas.getContext('2d')!
+  const imageData = ctx.getImageData(0, 0, cellCanvas.width, cellCanvas.height)
+  const data = imageData.data
+  const width = cellCanvas.width
+  const height = cellCanvas.height
+
+  // 创建标记数组，用于标记边界白色连通区域
+  const borderWhite = new Uint8Array(width * height)
+
+  /**
+   * 判断像素是否为白色（降低阈值以捕获更多白色）
+   */
+  const isWhitePixel = (x: number, y: number): boolean => {
+    if (x < 0 || x >= width || y < 0 || y >= height) return false
+    const idx = (y * width + x) * 4
+    const r = data[idx]!
+    const g = data[idx + 1]!
+    const b = data[idx + 2]!
+    const a = data[idx + 3]!
+    // 降低阈值到 200，捕获更多浅色
+    return r > 200 && g > 200 && b > 200 && a > 200
+  }
+
+  /**
+   * 洪水填充标记边界白色区域（8 方向）
+   */
+  const floodFill = (startX: number, startY: number) => {
+    const queue: Array<[number, number]> = [[startX, startY]]
+    const visited = new Set<string>()
+
+    while (queue.length > 0) {
+      const [x, y] = queue.shift()!
+      const key = `${x},${y}`
+
+      if (visited.has(key)) continue
+      if (x < 0 || x >= width || y < 0 || y >= height) continue
+      if (!isWhitePixel(x, y)) continue
+
+      visited.add(key)
+      borderWhite[y * width + x] = 1
+
+      // 8 方向检查（包括对角线）
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          if (dx !== 0 || dy !== 0) {
+            queue.push([x + dx, y + dy])
+          }
+        }
+      }
+    }
+  }
+
+  // 从四个角点和四边中点开始洪水填充
+  const startPoints: Array<[number, number]> = [
+    // 四个角点
+    [0, 0],
+    [width - 1, 0],
+    [0, height - 1],
+    [width - 1, height - 1],
+    // 四边中点
+    [Math.floor(width / 2), 0],
+    [Math.floor(width / 2), height - 1],
+    [0, Math.floor(height / 2)],
+    [width - 1, Math.floor(height / 2)],
+  ]
+
+  for (const [x, y] of startPoints) {
+    floodFill(x, y)
+  }
+
+  // 统计边界白色像素数（调试用）
+  let borderWhiteCount = 0
+  for (let i = 0; i < borderWhite.length; i++) {
+    if (borderWhite[i] === 1) borderWhiteCount++
+  }
+  console.log(`[trimWhiteBorder] 画布 ${width}x${height}, 边界白色: ${borderWhiteCount} 像素`)
+
+  // 找到非边界白色的内容边界
+  let minX = width
+  let maxX = 0
+  let minY = height
+  let maxY = 0
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const isContentPixel = borderWhite[y * width + x] === 0 // 不是边界白色
+
+      if (isContentPixel) {
+        minX = Math.min(minX, x)
+        maxX = Math.max(maxX, x)
+        minY = Math.min(minY, y)
+        maxY = Math.max(maxY, y)
+      }
+    }
+  }
+
+  console.log(`[trimWhiteBorder] 内容边界: (${minX},${minY}) - (${maxX},${maxY})`)
+
+  // 如果找不到内容，返回原 canvas
+  if (minX > maxX || minY > maxY) {
+    console.log(`[trimWhiteBorder] ⚠️ 找不到非边界内容，返回原 canvas`)
+    return cellCanvas
+  }
+
+  // 创建新 canvas 只包含内容区域
+  const contentWidth = maxX - minX + 1
+  const contentHeight = maxY - minY + 1
+  console.log(`[trimWhiteBorder] 裁剪后: ${contentWidth}x${contentHeight}`)
+
+  const trimmed = document.createElement('canvas')
+  trimmed.width = contentWidth
+  trimmed.height = contentHeight
+  const trimmedCtx = trimmed.getContext('2d')!
+
+  trimmedCtx.drawImage(
+    cellCanvas,
+    minX, minY, contentWidth, contentHeight,
+    0, 0, contentWidth, contentHeight
+  )
+
+  return trimmed
+}
+
+/**
+ * 从图像中提取 9×9 单元格
+ * @param edgeMargin 从单元格边缘内缩的像素数，用于去掉网格线
  */
 export function extractCells(
   canvas: HTMLCanvasElement,
   grid: GridLocation,
+  edgeMargin: number = 2,
 ): HTMLCanvasElement[][] {
-  const ctx = canvas.getContext('2d')!
-  const imageData = ctx.getImageData(grid.x, grid.y, grid.width, grid.height)
-  const data = imageData.data
-
   const cellWidth = Math.round(grid.width / 9)
   const cellHeight = Math.round(grid.height / 9)
+  
+  // 内缩后的实际尺寸
+  const contentWidth = cellWidth - 2 * edgeMargin
+  const contentHeight = cellHeight - 2 * edgeMargin
+  
   const cells: HTMLCanvasElement[][] = []
 
   for (let row = 0; row < 9; row++) {
     cells[row] = []
     for (let col = 0; col < 9; col++) {
+      // 创建 canvas，只保存有效内容尺寸，不留白边
       const cellCanvas = document.createElement('canvas')
-      cellCanvas.width = cellWidth
-      cellCanvas.height = cellHeight
+      cellCanvas.width = contentWidth
+      cellCanvas.height = contentHeight
       const cellCtx = cellCanvas.getContext('2d')!
 
-      const cellImageData = cellCtx.createImageData(cellWidth, cellHeight)
-      const cellData = cellImageData.data
+      // 从原图裁剪单元格区域（已内缩以去掉网格线）
+      const sourceX = grid.x + col * cellWidth + edgeMargin
+      const sourceY = grid.y + row * cellHeight + edgeMargin
 
-      for (let y = 0; y < cellHeight; y++) {
-        for (let x = 0; x < cellWidth; x++) {
-          const sourceIdx = (y * grid.width + col * cellWidth + x) * 4
-          const targetIdx = (y * cellWidth + x) * 4
+      // 直接填充整个 canvas，不留白边
+      cellCtx.drawImage(
+        canvas,
+        sourceX,
+        sourceY,
+        contentWidth,
+        contentHeight,
+        0,
+        0,
+        contentWidth,
+        contentHeight
+      )
 
-          cellData[targetIdx] = data[sourceIdx]!
-          cellData[targetIdx + 1] = data[sourceIdx + 1]!
-          cellData[targetIdx + 2] = data[sourceIdx + 2]!
-          cellData[targetIdx + 3] = data[sourceIdx + 3]!
-        }
-      }
-
-      cellCtx.putImageData(cellImageData, 0, 0)
-      cells[row]![col] = cellCanvas
+      // 去掉外部白色边界
+      const trimmed = trimWhiteBorder(cellCanvas)
+      cells[row]![col] = trimmed
     }
   }
 
