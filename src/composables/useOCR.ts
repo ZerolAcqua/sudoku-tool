@@ -146,7 +146,7 @@ export function useOCR() {
       state.processedImage = binaryImg
 
       // 4. 从二值化图像提取单元格
-      const cells = extractCells(binaryImg, grid)
+      const cells = extractCells(binaryImg, grid, 6)
       state.cells = cells
       console.log('[useOCR] 单元格提取完成:', cells.length, 'x', cells[0]?.length)
 

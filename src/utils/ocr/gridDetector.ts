@@ -118,11 +118,11 @@ function visualizeCanvasInConsole(canvas: HTMLCanvasElement, label: string, maxW
  * 智能误差比较：记录最佳检测结果，继续检测直到误差足够小或尝试完所有版本
  */
 export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
-  console.log('[detectGrid] 开始检测网格，图像尺寸:', canvas.width, 'x', canvas.height)
-  visualizeCanvasInConsole(canvas, '🖼️ 原始图像')
+  // console.log('[detectGrid] 开始检测网格，图像尺寸:', canvas.width, 'x', canvas.height)
+  // visualizeCanvasInConsole(canvas, '🖼️ 原始图像')
   
   const src = cv.imread(canvas)
-  console.log('[detectGrid] 读取图像成功，Mat 尺寸:', src.rows, 'x', src.cols, '通道数:', src.channels())
+  // console.log('[detectGrid] 读取图像成功，Mat 尺寸:', src.rows, 'x', src.cols, '通道数:', src.channels())
   
   // 转换为单通道灰度图
   const gray = new cv.Mat()
@@ -133,8 +133,8 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
   } else {
     src.copyTo(gray)
   }
-  console.log('[detectGrid] 转换为灰度图，通道数:', gray.channels())
-  visualizeMatInConsole(gray, '🔍 灰度图')
+  // console.log('[detectGrid] 转换为灰度图，通道数:', gray.channels())
+  // visualizeMatInConsole(gray, '🔍 灰度图')
   
   // 生成多个二值化版本（不同阈值，以适应淡色线条）
   // 阈值从低到高：30, 100, 150, 220, OTSU
@@ -165,22 +165,22 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
   )
   
   // 可视化前两个版本作为示例
-  if (binaryVersions.length >= 2) {
-    visualizeMatInConsole(binaryVersions[0]!.mat, '⚫ ' + binaryVersions[0]!.name)
-    visualizeMatInConsole(binaryVersions[binaryVersions.length - 1]!.mat, '⚪ ' + binaryVersions[binaryVersions.length - 1]!.name)
-  }
+  // if (binaryVersions.length >= 2) {
+  //   visualizeMatInConsole(binaryVersions[0]!.mat, '⚫ ' + binaryVersions[0]!.name)
+  //   visualizeMatInConsole(binaryVersions[binaryVersions.length - 1]!.mat, '⚪ ' + binaryVersions[binaryVersions.length - 1]!.name)
+  // }
   
   // 记录最佳检测结果
   let bestResult: DetectionResult | null = null
   const errorThreshold = 5.0 // 误差足够小时停止检测
   
   // 尝试轮廓检测（所有二值化版本）
-  console.log('[detectGrid] ====== 尝试轮廓检测 ======')
+  // console.log('[detectGrid] ====== 尝试轮廓检测 ======')
   for (const version of binaryVersions) {
-    console.log(`[detectGrid] 轮廓检测（${version.name}）`)
+    // console.log(`[detectGrid] 轮廓检测（${version.name}）`)
     const rect = detectGridByContours(version.mat, canvas)
     if (rect.width > 0 && rect.height > 0) {
-      console.log(`[detectGrid] 轮廓检测成功（${version.name}）:`, rect)
+      // console.log(`[detectGrid] 轮廓检测成功（${version.name}）:`, rect)
       // 轮廓方法没有直线信息，无法计算误差，记录为 0
       const result: DetectionResult = {
         grid: rect,
@@ -193,20 +193,20 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
       }
       if (!bestResult || result.error < bestResult.error) {
         bestResult = result
-        console.log('[detectGrid] ✓ 更新最佳结果（轮廓法，误差=0）')
+        // console.log('[detectGrid] ✓ 更新最佳结果（轮廓法，误差=0）')
       }
     }
   }
   
   // 尝试直线检测（所有二值化版本）
-  console.log('[detectGrid] ====== 尝试直线检测 ======')
+  // console.log('[detectGrid] ====== 尝试直线检测 ======')
   for (let idx = 0; idx < binaryVersions.length; idx++) {
     const version = binaryVersions[idx]!
-    console.log(`[detectGrid] 直线检测 [${idx + 1}/${binaryVersions.length}]（${version.name}）`)
+    // console.log(`[detectGrid] 直线检测 [${idx + 1}/${binaryVersions.length}]（${version.name}）`)
     
     // 如果已有最佳结果且误差很小，可以跳过后续检测
     if (bestResult && bestResult.error < errorThreshold) {
-      console.log('[detectGrid] 误差已足够小（' + bestResult.error.toFixed(2) + ' < ' + errorThreshold + '），停止继续检测')
+      // console.log('[detectGrid] 误差已足够小（' + bestResult.error.toFixed(2) + ' < ' + errorThreshold + '），停止继续检测')
       break
     }
     
@@ -216,23 +216,23 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
       : detectGridByHoughLinesWithConstraint(version.mat, canvas, 0, 0)
     
     if (result) {
-      console.log(`[detectGrid] 直线检测成功（${version.name}）- 误差:`, result.error.toFixed(2))
+      // console.log(`[detectGrid] 直线检测成功（${version.name}）- 误差:`, result.error.toFixed(2))
       
       // 比较并更新最佳结果
       if (!bestResult || result.error < bestResult.error) {
         bestResult = result
-        console.log('[detectGrid] ✓ 更新最佳结果 - 误差:', result.error.toFixed(2))
+        // console.log('[detectGrid] ✓ 更新最佳结果 - 误差:', result.error.toFixed(2))
       } else {
-        console.log('[detectGrid] ✗ 误差更大，保留前一个结果 - 前:', bestResult.error.toFixed(2), '现:', result.error.toFixed(2))
+        // console.log('[detectGrid] ✗ 误差更大，保留前一个结果 - 前:', bestResult.error.toFixed(2), '现:', result.error.toFixed(2))
       }
     }
   }
   
   // 选择最终结果
   let finalRect = bestResult?.grid || { x: 0, y: 0, width: 0, height: 0 }
-  if (bestResult) {
-    console.log('[detectGrid] 最终选择 (' + bestResult.threshold + ') - 误差:', bestResult.error.toFixed(2), '- 边框:', finalRect)
-  }
+  // if (bestResult) {
+  //   console.log('[detectGrid] 最终选择 (' + bestResult.threshold + ') - 误差:', bestResult.error.toFixed(2), '- 边框:', finalRect)
+  // }
   
   // 清理所有二值化版本
   for (const version of binaryVersions) {
@@ -252,7 +252,7 @@ function detectGridByContours(binary: any, canvas: HTMLCanvasElement): GridLocat
   const hierarchy = new cv.Mat()
 
   cv.findContours(binary, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-  console.log('[detectGridByContours] 找到轮廓数量:', contours.size())
+  // console.log('[detectGridByContours] 找到轮廓数量:', contours.size())
 
   let maxArea = 0
   let bestRect = { x: 0, y: 0, width: 0, height: 0 }
@@ -297,7 +297,7 @@ function detectGridByHoughLinesWithConstraint(
   const lines = new cv.Mat()
   cv.HoughLinesP(edges, lines, 1, Math.PI / 180, 100, 100, 20)
   
-  console.log('[detectGridByHoughLines] 原始检测直线数:', lines.rows)
+  // console.log('[detectGridByHoughLines] 原始检测直线数:', lines.rows)
   
   // 分离水平和垂直线，并按坐标聚类
   const horizontalLines: number[] = [] // y 坐标
@@ -326,7 +326,7 @@ function detectGridByHoughLinesWithConstraint(
     }
   }
   
-  console.log('[detectGridByHoughLines] 过滤后 - 水平线:', horizontalLines.length, '垂直线:', verticalLines.length)
+  // console.log('[detectGridByHoughLines] 过滤后 - 水平线:', horizontalLines.length, '垂直线:', verticalLines.length)
   if (horizontalLines.length >= 2) {
     const sortedH = [...horizontalLines].sort((a, b) => a - b)
     console.log('[detectGridByHoughLines] 水平线位置 (排序):', sortedH.map(x => x.toFixed(1)).slice(0, 3).join(', '), ' ... ', sortedH.map(x => x.toFixed(1)).slice(-3).join(', '))
@@ -857,20 +857,33 @@ export function visualizeCells(
 }
 
 /**
- * 去掉 canvas 外部的白色边界（使用洪水填充找连通区域）
+ * 把 canvas 边界的白色填充为黑色
  */
-function trimWhiteBorder(cellCanvas: HTMLCanvasElement): HTMLCanvasElement {
+function fillBorderWhiteWithBlack(cellCanvas: HTMLCanvasElement): HTMLCanvasElement {
   const ctx = cellCanvas.getContext('2d')!
   const imageData = ctx.getImageData(0, 0, cellCanvas.width, cellCanvas.height)
   const data = imageData.data
   const width = cellCanvas.width
   const height = cellCanvas.height
 
+  // 调试：分析像素值分布（只在前 100 个像素）
+  const samplePixels = []
+  for (let i = 0; i < Math.min(400, data.length); i += 4) {
+    samplePixels.push({
+      r: data[i],
+      g: data[i + 1],
+      b: data[i + 2],
+      a: data[i + 3],
+    })
+  }
+  const uniqueValues = new Set(samplePixels.map(p => `${p.r},${p.g},${p.b},${p.a}`))
+  console.log(`[fillBorderWhiteWithBlack] 画布 ${width}x${height}, 像素值样本:`, Array.from(uniqueValues).slice(0, 5))
+
   // 创建标记数组，用于标记边界白色连通区域
   const borderWhite = new Uint8Array(width * height)
 
   /**
-   * 判断像素是否为白色（降低阈值以捕获更多白色）
+   * 判断像素是否为白色（二值化图片应该是 255,255,255）
    */
   const isWhitePixel = (x: number, y: number): boolean => {
     if (x < 0 || x >= width || y < 0 || y >= height) return false
@@ -879,8 +892,8 @@ function trimWhiteBorder(cellCanvas: HTMLCanvasElement): HTMLCanvasElement {
     const g = data[idx + 1]!
     const b = data[idx + 2]!
     const a = data[idx + 3]!
-    // 降低阈值到 200，捕获更多浅色
-    return r > 200 && g > 200 && b > 200 && a > 200
+    // 二值化图片中白色就是 255
+    return r === 255 && g === 255 && b === 255
   }
 
   /**
@@ -935,52 +948,26 @@ function trimWhiteBorder(cellCanvas: HTMLCanvasElement): HTMLCanvasElement {
   for (let i = 0; i < borderWhite.length; i++) {
     if (borderWhite[i] === 1) borderWhiteCount++
   }
-  console.log(`[trimWhiteBorder] 画布 ${width}x${height}, 边界白色: ${borderWhiteCount} 像素`)
+  console.log(`[fillBorderWhiteWithBlack] 边界白色: ${borderWhiteCount} 像素`)
 
-  // 找到非边界白色的内容边界
-  let minX = width
-  let maxX = 0
-  let minY = height
-  let maxY = 0
-
+  // 将所有边界白色像素填充为黑色
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const isContentPixel = borderWhite[y * width + x] === 0 // 不是边界白色
-
-      if (isContentPixel) {
-        minX = Math.min(minX, x)
-        maxX = Math.max(maxX, x)
-        minY = Math.min(minY, y)
-        maxY = Math.max(maxY, y)
+      if (borderWhite[y * width + x] === 1) {
+        const idx = (y * width + x) * 4
+        data[idx] = 0      // R
+        data[idx + 1] = 0  // G
+        data[idx + 2] = 0  // B
+        data[idx + 3] = 255 // A
       }
     }
   }
 
-  console.log(`[trimWhiteBorder] 内容边界: (${minX},${minY}) - (${maxX},${maxY})`)
+  // 将修改后的数据写回 canvas
+  ctx.putImageData(imageData, 0, 0)
+  console.log(`[fillBorderWhiteWithBlack] 白边填充完成`)
 
-  // 如果找不到内容，返回原 canvas
-  if (minX > maxX || minY > maxY) {
-    console.log(`[trimWhiteBorder] ⚠️ 找不到非边界内容，返回原 canvas`)
-    return cellCanvas
-  }
-
-  // 创建新 canvas 只包含内容区域
-  const contentWidth = maxX - minX + 1
-  const contentHeight = maxY - minY + 1
-  console.log(`[trimWhiteBorder] 裁剪后: ${contentWidth}x${contentHeight}`)
-
-  const trimmed = document.createElement('canvas')
-  trimmed.width = contentWidth
-  trimmed.height = contentHeight
-  const trimmedCtx = trimmed.getContext('2d')!
-
-  trimmedCtx.drawImage(
-    cellCanvas,
-    minX, minY, contentWidth, contentHeight,
-    0, 0, contentWidth, contentHeight
-  )
-
-  return trimmed
+  return cellCanvas
 }
 
 /**
@@ -1028,8 +1015,8 @@ export function extractCells(
       )
 
       // 去掉外部白色边界
-      const trimmed = trimWhiteBorder(cellCanvas)
-      cells[row]![col] = trimmed
+      const processed = fillBorderWhiteWithBlack(cellCanvas)
+      cells[row]![col] = processed
     }
   }
 

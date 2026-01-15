@@ -15,11 +15,11 @@ async function initWorker() {
     return worker
   }
 
-  console.log('[Tesseract] 初始化 OCR Worker...')
+  // console.log('[Tesseract] 初始化 OCR Worker...')
   worker = await createWorker('eng', 1, {
     logger: (m) => {
       if (m.status === 'recognizing text') {
-        console.log(`[Tesseract] 识别进度: ${Math.round(m.progress * 100)}%`)
+        // console.log(`[Tesseract] 识别进度: ${Math.round(m.progress * 100)}%`)
       }
     },
   })
@@ -30,7 +30,7 @@ async function initWorker() {
     tessedit_pageseg_mode: '10' as any, // PSM_SINGLE_CHAR - 单字符模式
   })
 
-  console.log('[Tesseract] OCR Worker 初始化完成')
+  // console.log('[Tesseract] OCR Worker 初始化完成')
   return worker
 }
 
@@ -84,12 +84,12 @@ export async function recognizeDigit(
       digit <= 9 &&
       confidence >= confidenceThreshold * 100
     ) {
-      console.log(`[Tesseract] 识别: ${digit} (置信度: ${confidence.toFixed(1)}%)`)
+      // console.log(`[Tesseract] 识别: ${digit} (置信度: ${confidence.toFixed(1)}%)`)
       return digit
     }
 
     // 低置信度或无效数字，返回 0（空白）
-    console.log(`[Tesseract] 无效/低置信度: "${cleaned}" (${confidence.toFixed(1)}%)`)
+    // console.log(`[Tesseract] 无效/低置信度: "${cleaned}" (${confidence.toFixed(1)}%)`)
     return 0
   } catch (err) {
     console.error('[Tesseract] 识别失败:', err)
@@ -108,7 +108,7 @@ export async function recognizeBoard(
   await initWorker()
   const result: number[] = []
 
-  console.log('[Tesseract] 开始批量识别 81 个单元格...')
+  // console.log('[Tesseract] 开始批量识别 81 个单元格...')
 
   let recognizedCount = 0
   let emptyCount = 0
@@ -121,7 +121,7 @@ export async function recognizeBoard(
       if (isCellEmptyFn && isCellEmptyFn(cell)) {
         result.push(0)
         emptyCount++
-        console.log(`[Tesseract] 单元格 [${row},${col}]: 空白`)
+        // console.log(`[Tesseract] 单元格 [${row},${col}]: 空白`)
         continue
       }
 
@@ -131,15 +131,15 @@ export async function recognizeBoard(
       
       if (digit > 0) {
         recognizedCount++
-        console.log(`[Tesseract] 单元格 [${row},${col}]: ${digit}`)
+        // console.log(`[Tesseract] 单元格 [${row},${col}]: ${digit}`)
       } else {
         emptyCount++
-        console.log(`[Tesseract] 单元格 [${row},${col}]: 识别失败或空白`)
+        // console.log(`[Tesseract] 单元格 [${row},${col}]: 识别失败或空白`)
       }
     }
   }
 
-  console.log(`[Tesseract] 批量识别完成 - 识别出 ${recognizedCount} 个数字，${emptyCount} 个空白`)
+  // console.log(`[Tesseract] 批量识别完成 - 识别出 ${recognizedCount} 个数字，${emptyCount} 个空白`)
   return result.map((d) => (d === 0 ? '0' : d.toString())).join('')
 }
 
@@ -150,7 +150,7 @@ export async function cleanup() {
   if (worker) {
     await worker.terminate()
     worker = null
-    console.log('[Tesseract] Worker 已终止')
+    // console.log('[Tesseract] Worker 已终止')
   }
 }
 
