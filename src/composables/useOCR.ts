@@ -47,20 +47,25 @@ export function useOCR() {
       await waitForOpenCV()
 
       // 1. 加载原始图像
-      originalImage.value = await loadImageToCanvas(imageSource)
+      const img = await loadImageToCanvas(imageSource)
+      originalImage.value = img
+      console.log('[useOCR] 原始图像加载完成:', img.width, 'x', img.height)
 
       // 2. 网格检测（内部处理灰度化、二值化、轮廓/直线检测）
-      const grid = detectGrid(originalImage.value)
+      const grid = detectGrid(img)
+      console.log('[useOCR] 网格检测完成:', grid)
       if (grid.width === 0 || grid.height === 0) {
         throw new Error('未能检测到数独网格，请确保图像清晰且网格完整')
       }
 
       // 3. 绘制网格线到原图
-      state.gridImage = drawGridLines(originalImage.value, grid)
+      state.gridImage = drawGridLines(img, grid)
+      console.log('[useOCR] 网格线绘制完成')
 
       // 4. 提取单元格
-      const cells = extractCells(originalImage.value, grid)
+      const cells = extractCells(img, grid)
       state.cells = cells
+      console.log('[useOCR] 单元格提取完成:', cells.length, 'x', cells[0]?.length)
 
       // 5. 识别数字
       // let result = await recognizeBoard(cells, options.confidenceThreshold)
@@ -85,6 +90,7 @@ export function useOCR() {
       // 临时测试结果
       const result = '0'.repeat(81)
       state.result = result
+      console.log('[useOCR] 识别完成，结果:', result)
 
       if (options.debug) {
         console.log('OCR Result:', result)

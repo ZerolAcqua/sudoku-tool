@@ -12,6 +12,50 @@ interface GridLocation {
 }
 
 /**
+ * 直线检测结果，包含网格位置和误差值
+ */
+interface DetectionResult {
+  grid: GridLocation
+  error: number // 直线间距的误差值之和
+  threshold: string // 使用的二值化方式
+  hLines: number[] // 水平线坐标
+  vLines: number[] // 垂直线坐标
+  hGap: number // 水平线基本间距
+  vGap: number // 垂直线基本间距
+}
+
+/**
+ * 计算直线间距的误差值（所有间距与基准间距的偏离之和）
+ * 误差越小说明检测质量越好
+ */
+function calculateLineSpacingError(lines: number[], baseGap: number): number {
+  if (lines.length < 2) return Infinity
+  
+  let totalError = 0
+  for (let i = 1; i < lines.length; i++) {
+    const gap = lines[i]! - lines[i - 1]!
+    // 计算该间距与基准间距的偏离度
+    const error = Math.abs(gap - baseGap)
+    totalError += error
+  }
+  
+  return totalError / (lines.length - 1) // 平均误差
+}
+
+/**
+ * 计算整体检测误差（水平和垂直方向的误差之和）
+ */
+function calculateTotalError(hLines: number[], vLines: number[], hGap: number, vGap: number): number {
+  const hError = calculateLineSpacingError(hLines, hGap)
+  const vError = calculateLineSpacingError(vLines, vGap)
+  // 还要考虑宽高比的偏离
+  const sizeRatio = Math.max(hGap * 9, vGap * 9) / Math.min(hGap * 9, vGap * 9)
+  const ratioError = Math.abs(sizeRatio - 1.0) * 100
+  
+  return hError + vError + ratioError
+}
+
+/**
  * 在控制台中可视化 OpenCV Mat 对象
  * @param mat OpenCV Mat 对象
  * @param label 标签名称
@@ -71,6 +115,7 @@ function visualizeCanvasInConsole(canvas: HTMLCanvasElement, label: string, maxW
  * 检测数独网格的最外层边框
  * 在内部处理原始图像（灰度化、二值化、网格检测）
  * 尝试轮廓检测和直线检测，互相佐证
+ * 智能误差比较：记录最佳检测结果，继续检测直到误差足够小或尝试完所有版本
  */
 export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
   console.log('[detectGrid] 开始检测网格，图像尺寸:', canvas.width, 'x', canvas.height)
@@ -92,7 +137,7 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
   visualizeMatInConsole(gray, '🔍 灰度图')
   
   // 生成多个二值化版本（不同阈值，以适应淡色线条）
-  // 阈值从低到高：100, 150, 180, 200, OTSU
+  // 阈值从低到高：30, 100, 150, 220, OTSU
   const binaryVersions: Array<{ name: string; mat: any }> = []
   
   // 固定阈值版本（较低的阈值可以保留淡色线条）
@@ -125,66 +170,69 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
     visualizeMatInConsole(binaryVersions[binaryVersions.length - 1]!.mat, '⚪ ' + binaryVersions[binaryVersions.length - 1]!.name)
   }
   
+  // 记录最佳检测结果
+  let bestResult: DetectionResult | null = null
+  const errorThreshold = 5.0 // 误差足够小时停止检测
+  
   // 尝试轮廓检测（所有二值化版本）
-  let rectByContour: GridLocation | null = null
-  let contourThreshold = ''
+  console.log('[detectGrid] ====== 尝试轮廓检测 ======')
   for (const version of binaryVersions) {
-    console.log(`[detectGrid] 尝试轮廓检测（${version.name}）`)
+    console.log(`[detectGrid] 轮廓检测（${version.name}）`)
     const rect = detectGridByContours(version.mat, canvas)
     if (rect.width > 0 && rect.height > 0) {
-      rectByContour = rect
-      contourThreshold = version.name
       console.log(`[detectGrid] 轮廓检测成功（${version.name}）:`, rect)
-      break
+      // 轮廓方法没有直线信息，无法计算误差，记录为 0
+      const result: DetectionResult = {
+        grid: rect,
+        error: 0,
+        threshold: version.name,
+        hLines: [],
+        vLines: [],
+        hGap: 0,
+        vGap: 0
+      }
+      if (!bestResult || result.error < bestResult.error) {
+        bestResult = result
+        console.log('[detectGrid] ✓ 更新最佳结果（轮廓法，误差=0）')
+      }
     }
   }
   
   // 尝试直线检测（所有二值化版本）
-  let rectByLines: GridLocation | null = null
-  let lineThreshold = ''
-  for (const version of binaryVersions) {
-    console.log(`[detectGrid] 尝试直线检测（${version.name}）`)
-    const rect = detectGridByHoughLines(version.mat, canvas)
-    if (rect && rect.width > 0 && rect.height > 0) {
-      rectByLines = rect
-      lineThreshold = version.name
-      console.log(`[detectGrid] 直线检测成功（${version.name}）:`, rect)
+  console.log('[detectGrid] ====== 尝试直线检测 ======')
+  for (let idx = 0; idx < binaryVersions.length; idx++) {
+    const version = binaryVersions[idx]!
+    console.log(`[detectGrid] 直线检测 [${idx + 1}/${binaryVersions.length}]（${version.name}）`)
+    
+    // 如果已有最佳结果且误差很小，可以跳过后续检测
+    if (bestResult && bestResult.error < errorThreshold) {
+      console.log('[detectGrid] 误差已足够小（' + bestResult.error.toFixed(2) + ' < ' + errorThreshold + '），停止继续检测')
       break
     }
-  }
-  
-  // 选择最合适的结果
-  let finalRect = rectByContour || rectByLines || { x: 0, y: 0, width: 0, height: 0 }
-  let detectionMethod = 'none'
-  let detectionThreshold = ''
-  
-  if (rectByContour && rectByLines) {
-    // 两种方法都成功，选择面积更大的
-    const contourArea = rectByContour.width * rectByContour.height
-    const lineArea = rectByLines.width * rectByLines.height
-    if (contourArea > lineArea) {
-      finalRect = rectByContour
-      detectionMethod = '轮廓检测'
-      detectionThreshold = contourThreshold
-    } else {
-      finalRect = rectByLines
-      detectionMethod = '直线检测'
-      detectionThreshold = lineThreshold
+    
+    // 使用上一次的间距作为约束（如果有的话）
+    const result = bestResult 
+      ? detectGridByHoughLinesWithConstraint(version.mat, canvas, bestResult.hGap, bestResult.vGap)
+      : detectGridByHoughLinesWithConstraint(version.mat, canvas, 0, 0)
+    
+    if (result) {
+      console.log(`[detectGrid] 直线检测成功（${version.name}）- 误差:`, result.error.toFixed(2))
+      
+      // 比较并更新最佳结果
+      if (!bestResult || result.error < bestResult.error) {
+        bestResult = result
+        console.log('[detectGrid] ✓ 更新最佳结果 - 误差:', result.error.toFixed(2))
+      } else {
+        console.log('[detectGrid] ✗ 误差更大，保留前一个结果 - 前:', bestResult.error.toFixed(2), '现:', result.error.toFixed(2))
+      }
     }
-    console.log('[detectGrid] 两种方法都成功，选择面积更大的 (' + detectionMethod + ')')
-  } else if (rectByContour) {
-    finalRect = rectByContour
-    detectionMethod = '轮廓检测'
-    detectionThreshold = contourThreshold
-    console.log('[detectGrid] 使用轮廓检测结果')
-  } else if (rectByLines) {
-    finalRect = rectByLines
-    detectionMethod = '直线检测'
-    detectionThreshold = lineThreshold
-    console.log('[detectGrid] 使用直线检测结果')
   }
   
-  console.log('[detectGrid] 最终选择 (' + detectionMethod + ' - ' + detectionThreshold + '):', finalRect)
+  // 选择最终结果
+  let finalRect = bestResult?.grid || { x: 0, y: 0, width: 0, height: 0 }
+  if (bestResult) {
+    console.log('[detectGrid] 最终选择 (' + bestResult.threshold + ') - 误差:', bestResult.error.toFixed(2), '- 边框:', finalRect)
+  }
   
   // 清理所有二值化版本
   for (const version of binaryVersions) {
@@ -230,10 +278,16 @@ function detectGridByContours(binary: any, canvas: HTMLCanvasElement): GridLocat
 }
 
 /**
- * 通过 Hough 直线检测找到网格边框
+ * 通过 Hough 直线检测找到网格边框（带间距约束版本）
  * 利用数独的特点：平行垂直的直线，均匀间距（单元格大小的整数倍）
+ * 如果提供了上一次的间距约束，先尝试用该约束检测
  */
-function detectGridByHoughLines(binary: any, canvas: HTMLCanvasElement): GridLocation | null {
+function detectGridByHoughLinesWithConstraint(
+  binary: any,
+  canvas: HTMLCanvasElement,
+  lastHGap: number = 0,
+  lastVGap: number = 0
+): DetectionResult | null {
   // 使用 Canny 边缘检测（在二值化图像上）
   const edges = new cv.Mat()
   cv.Canny(binary, edges, 50, 150)
@@ -273,6 +327,14 @@ function detectGridByHoughLines(binary: any, canvas: HTMLCanvasElement): GridLoc
   }
   
   console.log('[detectGridByHoughLines] 过滤后 - 水平线:', horizontalLines.length, '垂直线:', verticalLines.length)
+  if (horizontalLines.length >= 2) {
+    const sortedH = [...horizontalLines].sort((a, b) => a - b)
+    console.log('[detectGridByHoughLines] 水平线位置 (排序):', sortedH.map(x => x.toFixed(1)).slice(0, 3).join(', '), ' ... ', sortedH.map(x => x.toFixed(1)).slice(-3).join(', '))
+  }
+  if (verticalLines.length >= 2) {
+    const sortedV = [...verticalLines].sort((a, b) => a - b)
+    console.log('[detectGridByHoughLines] 垂直线位置 (排序):', sortedV.map(x => x.toFixed(1)).slice(0, 3).join(', '), ' ... ', sortedV.map(x => x.toFixed(1)).slice(-3).join(', '))
+  }
   
   if (horizontalLines.length < 2 || verticalLines.length < 2) {
     edges.delete()
@@ -286,55 +348,114 @@ function detectGridByHoughLines(binary: any, canvas: HTMLCanvasElement): GridLoc
   
   console.log('[detectGridByHoughLines] 聚类后 - 水平线:', clusteredH.length, '垂直线:', clusteredV.length)
   
-  // 验证均匀间距并获取基本间距
-  // 该函数已内置容错机制，可处理干扰直线
-  const hResult = validateLineSpacingWithGap(clusteredH)
-  const vResult = validateLineSpacingWithGap(clusteredV)
+  let result: DetectionResult | null = null
   
-  console.log('[detectGridByHoughLines] 水平线检验:', hResult ? '✓' : '✗', hResult ? '间距=' + hResult.toFixed(1) : '')
-  console.log('[detectGridByHoughLines] 垂直线检验:', vResult ? '✓' : '✗', vResult ? '间距=' + vResult.toFixed(1) : '')
-  
-  let rect: GridLocation | null = null
-  
-  // 同时验证两个方向都成功且间距相近（数独是正方形）
-  if (hResult && vResult) {
-    const gapRatio = hResult / vResult
-    const tolerance = 0.15 // ±15% 容差
-    const isSquare = Math.abs(gapRatio - 1.0) < tolerance
+  // 策略 1: 如果有上一次的间距约束，先尝试用那个间距
+  if (lastHGap > 0 && lastVGap > 0) {
+    console.log('[detectGridByHoughLines] 尝试使用上一次约束间距:', lastHGap.toFixed(1), 'x', lastVGap.toFixed(1))
     
-    console.log('[detectGridByHoughLines] 间距比例 (H/V):', gapRatio.toFixed(3), '正方形检验:', isSquare ? '✓' : '✗')
+    // 尝试用上一次的间距约束当前检测
+    const constrainedH = findOptimalLineSubsetWithGapConstraint(clusteredH, lastHGap)
+    const constrainedV = findOptimalLineSubsetWithGapConstraint(clusteredV, lastVGap)
     
-    if (isSquare) {
-      // 完美情况：两个方向都通过验证，且间距相等
-      rect = buildRectFromLinesSquare(clusteredH, clusteredV)
+    if (constrainedH && constrainedV) {
+      const hGap = lastHGap
+      const vGap = lastVGap
+      const error = calculateTotalError(constrainedH, constrainedV, hGap, vGap)
+      
+      console.log('[detectGridByHoughLines] ✓ 用约束间距成功，误差:', error.toFixed(2))
+      result = {
+        grid: buildRectFromLinesSquare(constrainedH, constrainedV),
+        error,
+        threshold: '',
+        hLines: constrainedH,
+        vLines: constrainedV,
+        hGap,
+        vGap
+      }
     } else {
-      console.log('[detectGridByHoughLines] 间距比例异常，不符合正方形网格特性')
+      console.log('[detectGridByHoughLines] ✗ 约束间距失败，转为自适应检测')
     }
-  } else if (hResult && !vResult) {
-    // 水平线通过，垂直线失败，尝试优化垂直线
-    console.log('[detectGridByHoughLines] 垂直直线异常，尝试消除干扰')
-    const optimizedV = findOptimalLineSubsetWithGapConstraint(clusteredV, hResult)
-    if (optimizedV) {
-      console.log('[detectGridByHoughLines] 优化后垂直线条通过验证')
-      rect = buildRectFromLinesSquare(clusteredH, optimizedV)
+  }
+  
+  // 策略 2: 如果策略 1 失败或没有约束，进行自适应检测
+  if (!result) {
+    console.log('[detectGridByHoughLines] 尝试自适应检测间距')
+    
+    // 验证均匀间距并获取基本间距
+    const hResult = validateLineSpacingWithGap(clusteredH)
+    const vResult = validateLineSpacingWithGap(clusteredV)
+    
+    console.log('[detectGridByHoughLines] 水平线检验:', hResult ? '✓' : '✗', hResult ? '间距=' + hResult.toFixed(1) : '')
+    console.log('[detectGridByHoughLines] 垂直线检验:', vResult ? '✓' : '✗', vResult ? '间距=' + vResult.toFixed(1) : '')
+    
+    // 同时验证两个方向都成功且间距相近（数独是正方形）
+    if (hResult && vResult) {
+      const gapRatio = hResult / vResult
+      const tolerance = 0.15 // ±15% 容差
+      const isSquare = Math.abs(gapRatio - 1.0) < tolerance
+      
+      console.log('[detectGridByHoughLines] 间距比例 (H/V):', gapRatio.toFixed(3), '正方形检验:', isSquare ? '✓' : '✗')
+      
+      if (isSquare) {
+        // 完美情况：两个方向都通过验证，且间距相等
+        const error = calculateTotalError(clusteredH, clusteredV, hResult, vResult)
+        result = {
+          grid: buildRectFromLinesSquare(clusteredH, clusteredV),
+          error,
+          threshold: '',
+          hLines: clusteredH,
+          vLines: clusteredV,
+          hGap: hResult,
+          vGap: vResult
+        }
+      } else {
+        console.log('[detectGridByHoughLines] 间距比例异常，不符合正方形网格特性')
+      }
+    } else if (hResult && !vResult) {
+      // 水平线通过，垂直线失败，尝试优化垂直线
+      console.log('[detectGridByHoughLines] 垂直直线异常，尝试消除干扰')
+      const optimizedV = findOptimalLineSubsetWithGapConstraint(clusteredV, hResult)
+      if (optimizedV) {
+        console.log('[detectGridByHoughLines] 优化后垂直线条通过验证')
+        const error = calculateTotalError(clusteredH, optimizedV, hResult, hResult)
+        result = {
+          grid: buildRectFromLinesSquare(clusteredH, optimizedV),
+          error,
+          threshold: '',
+          hLines: clusteredH,
+          vLines: optimizedV,
+          hGap: hResult,
+          vGap: hResult
+        }
+      }
+    } else if (!hResult && vResult) {
+      // 垂直线通过，水平线失败，尝试优化水平线
+      console.log('[detectGridByHoughLines] 水平直线异常，尝试消除干扰')
+      const optimizedH = findOptimalLineSubsetWithGapConstraint(clusteredH, vResult)
+      if (optimizedH) {
+        console.log('[detectGridByHoughLines] 优化后水平线条通过验证')
+        const error = calculateTotalError(optimizedH, clusteredV, vResult, vResult)
+        result = {
+          grid: buildRectFromLinesSquare(optimizedH, clusteredV),
+          error,
+          threshold: '',
+          hLines: optimizedH,
+          vLines: clusteredV,
+          hGap: vResult,
+          vGap: vResult
+        }
+      }
+    } else {
+      // 两个方向都失败了
+      console.log('[detectGridByHoughLines] 直线检测失败：两个方向都不符合数独特性')
     }
-  } else if (!hResult && vResult) {
-    // 垂直线通过，水平线失败，尝试优化水平线
-    console.log('[detectGridByHoughLines] 水平直线异常，尝试消除干扰')
-    const optimizedH = findOptimalLineSubsetWithGapConstraint(clusteredH, vResult)
-    if (optimizedH) {
-      console.log('[detectGridByHoughLines] 优化后水平线条通过验证')
-      rect = buildRectFromLinesSquare(optimizedH, clusteredV)
-    }
-  } else {
-    // 两个方向都失败了
-    console.log('[detectGridByHoughLines] 直线检测失败：两个方向都不符合数独特性')
   }
   
   edges.delete()
   lines.delete()
   
-  return rect
+  return result
 }
 
 /**
@@ -518,10 +639,31 @@ function tryRemoveInterferingLinesWithGap(lines: number[]): number | null {
  * 从水平和垂直直线构建矩形边框（强制正方形）
  */
 function buildRectFromLinesSquare(horizontalLines: number[], verticalLines: number[]): GridLocation {
-  const top = Math.min(...horizontalLines)
-  const bottom = Math.max(...horizontalLines)
-  const left = Math.min(...verticalLines)
-  const right = Math.max(...verticalLines)
+  // 排序线条
+  const sortedH = [...horizontalLines].sort((a, b) => a - b)
+  const sortedV = [...verticalLines].sort((a, b) => a - b)
+  
+  // 计算线条之间的间距（单元格宽度/高度）
+  const hGaps = []
+  for (let i = 1; i < sortedH.length; i++) {
+    hGaps.push(sortedH[i]! - sortedH[i - 1]!)
+  }
+  const vGaps = []
+  for (let i = 1; i < sortedV.length; i++) {
+    vGaps.push(sortedV[i]! - sortedV[i - 1]!)
+  }
+  
+  // 计算平均间距
+  const avgHGap = hGaps.reduce((a, b) => a + b, 0) / hGaps.length
+  const avgVGap = vGaps.reduce((a, b) => a + b, 0) / vGaps.length
+  
+  console.log('[buildRectFromLinesSquare] 平均间距: H=', avgHGap.toFixed(1), ' V=', avgVGap.toFixed(1))
+  
+  // 使用排序后的第一条和最后一条线条作为边界
+  const top = sortedH[0]!
+  const bottom = sortedH[sortedH.length - 1]!
+  const left = sortedV[0]!
+  const right = sortedV[sortedV.length - 1]!
   
   const rawWidth = right - left
   const rawHeight = bottom - top

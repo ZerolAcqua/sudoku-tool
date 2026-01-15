@@ -39,24 +39,24 @@
       <!-- 原始图像预览 -->
       <div v-if="originalImage" class="mb-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-3">原始图像</h3>
-        <div class="bg-gray-100 rounded-lg p-4 max-h-96 overflow-auto flex items-center justify-center">
-          <canvas ref="originalCanvas" class="max-w-full h-auto"></canvas>
+        <div class="bg-gray-100 rounded-lg p-4 max-h-[600px] overflow-auto">
+          <canvas ref="originalCanvas" class="max-w-full h-auto block"></canvas>
         </div>
       </div>
 
       <!-- 处理后的图像预览 -->
       <div v-if="state.processedImage" class="mb-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-3">二值化处理后</h3>
-        <div class="bg-gray-100 rounded-lg p-4 max-h-96 overflow-auto flex items-center justify-center">
-          <canvas ref="processedCanvas" class="max-w-full h-auto"></canvas>
+        <div class="bg-gray-100 rounded-lg p-4 max-h-[600px] overflow-auto">
+          <canvas ref="processedCanvas" class="max-w-full h-auto block"></canvas>
         </div>
       </div>
 
       <!-- 网格线标注 -->
       <div v-if="state.gridImage" class="mb-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-3">识别的网格线（红色标注）</h3>
-        <div class="bg-gray-100 rounded-lg p-4 max-h-96 overflow-auto flex items-center justify-center">
-          <canvas ref="gridCanvas" class="max-w-full h-auto"></canvas>
+        <div class="bg-gray-100 rounded-lg p-4 max-h-[600px] overflow-auto">
+          <canvas ref="gridCanvas" class="max-w-full h-auto block"></canvas>
         </div>
         <p class="text-sm text-gray-600 mt-2">
           • 粗红线：外框和宫线（3×3分割线）<br>
@@ -135,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, nextTick } from 'vue'
 import { useOCR } from '@/composables/useOCR'
 
 const { state, originalImage, recognize, reset: resetOCR } = useOCR()
@@ -156,7 +156,7 @@ onMounted(() => {
   }
 })
 
-watch(originalImage, (newImage) => {
+watch(originalImage, async (newImage) => {
   if (newImage && originalCanvas.value) {
     const ctx = originalCanvas.value.getContext('2d')!
     originalCanvas.value.width = newImage.width
@@ -193,7 +193,41 @@ async function handleFileSelect(event: Event): Promise<void> {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   if (file) {
-    await recognize(file, { confidenceThreshold: 0.5, debug: true })
+    try {
+      await recognize(file, { confidenceThreshold: 0.5, debug: true })
+      // 确保所有状态更新完成后再刷新 DOM
+      await nextTick()
+      // 手动刷新所有画布
+      drawAllCanvases()
+    } catch (err) {
+      console.error('识别失败:', err)
+    }
+  }
+}
+
+function drawAllCanvases(): void {
+  // 绘制原始图像
+  if (originalImage.value && originalCanvas.value) {
+    const ctx = originalCanvas.value.getContext('2d')!
+    originalCanvas.value.width = originalImage.value.width
+    originalCanvas.value.height = originalImage.value.height
+    ctx.drawImage(originalImage.value, 0, 0)
+  }
+  
+  // 绘制网格图像
+  if (state.gridImage && gridCanvas.value) {
+    const ctx = gridCanvas.value.getContext('2d')!
+    gridCanvas.value.width = state.gridImage.width
+    gridCanvas.value.height = state.gridImage.height
+    ctx.drawImage(state.gridImage, 0, 0)
+  }
+  
+  // 绘制处理后的图像
+  if (state.processedImage && processedCanvas.value) {
+    const ctx = processedCanvas.value.getContext('2d')!
+    processedCanvas.value.width = state.processedImage.width
+    processedCanvas.value.height = state.processedImage.height
+    ctx.drawImage(state.processedImage, 0, 0)
   }
 }
 
@@ -201,7 +235,13 @@ async function handleDrop(event: DragEvent): Promise<void> {
   isDraggingOver.value = false
   const file = event.dataTransfer?.files[0]
   if (file && file.type.startsWith('image/')) {
-    await recognize(file, { confidenceThreshold: 0.5, debug: true })
+    try {
+      await recognize(file, { confidenceThreshold: 0.5, debug: true })
+      await nextTick()
+      drawAllCanvases()
+    } catch (err) {
+      console.error('识别失败:', err)
+    }
   }
 }
 
@@ -213,7 +253,13 @@ async function handlePaste(event: ClipboardEvent): Promise<void> {
     if (item.type.startsWith('image/')) {
       const file = item.getAsFile()
       if (file) {
-        await recognize(file, { confidenceThreshold: 0.5, debug: true })
+        try {
+          await recognize(file, { confidenceThreshold: 0.5, debug: true })
+          await nextTick()
+          drawAllCanvases()
+        } catch (err) {
+          console.error('识别失败:', err)
+        }
         return
       }
     }
