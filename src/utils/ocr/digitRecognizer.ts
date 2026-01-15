@@ -36,26 +36,37 @@ async function initWorker() {
 
 /**
  * 预处理单个数字单元格图像（增强对比度）
+ * 使用 OpenCV 进行图像处理
  */
 function preprocessCell(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  // 使用 OpenCV 处理
+  const src = (window as any).cv.imread(canvas)
+  const gray = new (window as any).cv.Mat()
+  
+  // 转灰度
+  if (src.channels() === 4) {
+    (window as any).cv.cvtColor(src, gray, (window as any).cv.COLOR_RGBA2GRAY)
+  } else if (src.channels() === 3) {
+    (window as any).cv.cvtColor(src, gray, (window as any).cv.COLOR_RGB2GRAY)
+  } else {
+    src.copyTo(gray)
+  }
+  
+  // 二值化
+  const binary = new (window as any).cv.Mat()
+  ;(window as any).cv.threshold(gray, binary, 127, 255, (window as any).cv.THRESH_BINARY)
+  
+  // 输出到 canvas
   const preprocessed = document.createElement('canvas')
   preprocessed.width = canvas.width
   preprocessed.height = canvas.height
+  ;(window as any).cv.imshow(preprocessed, binary)
   
-  const ctx = preprocessed.getContext('2d')!
-  ctx.drawImage(canvas, 0, 0)
+  // 清理
+  src.delete()
+  gray.delete()
+  binary.delete()
   
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-  const data = imageData.data
-  
-  // 增强对比度：转为纯黑白
-  for (let i = 0; i < data.length; i += 4) {
-    const avg = (data[i]! + data[i + 1]! + data[i + 2]!) / 3
-    const value = avg > 127 ? 255 : 0
-    data[i] = data[i + 1] = data[i + 2] = value
-  }
-  
-  ctx.putImageData(imageData, 0, 0)
   return preprocessed
 }
 
