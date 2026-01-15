@@ -12,10 +12,11 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
-		"format:ts": "prettier --write \"src/**/*.ts\" \"*.ts\" --ignore-path .prettierignore"
-    
+    "format:ts": "prettier --write \"src/**/*.ts\" \"*.ts\" --ignore-path .prettierignore"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
+    "opencv.js": "^1.2.1",
     "vue": "^3.5.22"
   },
   "devDependencies": {
