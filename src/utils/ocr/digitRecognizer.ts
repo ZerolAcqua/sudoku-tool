@@ -1,167 +1,97 @@
-/**
- * 使用 Tesseract.js 进行数字识别
- * OCR 识别数独数字
- */
+import * as tf from '@tensorflow/tfjs'
+import { loadMnistModel, disposeMnistModel } from './mnistModel'
 
-import { createWorker } from 'tesseract.js'
-
-let worker: Awaited<ReturnType<typeof createWorker>> | null = null
-
-/**
- * 初始化 Tesseract OCR Worker
- */
-async function initWorker() {
-  if (worker) {
-    return worker
-  }
-
-  // console.log('[Tesseract] 初始化 OCR Worker...')
-  worker = await createWorker('eng', 1, {
-    logger: (m) => {
-      if (m.status === 'recognizing text') {
-        // console.log(`[Tesseract] 识别进度: ${Math.round(m.progress * 100)}%`)
-      }
-    },
-  })
-
-  // 配置 Tesseract 仅识别数字
-  await worker.setParameters({
-    tessedit_char_whitelist: '123456789', // 只识别 1-9
-    tessedit_pageseg_mode: '10' as any, // PSM_SINGLE_CHAR - 单字符模式
-  })
-
-  // console.log('[Tesseract] OCR Worker 初始化完成')
-  return worker
-}
-
-/**
- * 预处理单个数字单元格图像（增强对比度）
- * 使用 OpenCV 进行图像处理
- */
-function preprocessCell(canvas: HTMLCanvasElement): HTMLCanvasElement {
-  // 使用 OpenCV 处理
-  const src = (window as any).cv.imread(canvas)
-  const gray = new (window as any).cv.Mat()
-  
-  // 转灰度
-  if (src.channels() === 4) {
-    (window as any).cv.cvtColor(src, gray, (window as any).cv.COLOR_RGBA2GRAY)
-  } else if (src.channels() === 3) {
-    (window as any).cv.cvtColor(src, gray, (window as any).cv.COLOR_RGB2GRAY)
-  } else {
-    src.copyTo(gray)
-  }
-  
-  // 二值化
-  const binary = new (window as any).cv.Mat()
-  ;(window as any).cv.threshold(gray, binary, 127, 255, (window as any).cv.THRESH_BINARY)
-  
-  // 输出到 canvas
-  const preprocessed = document.createElement('canvas')
-  preprocessed.width = canvas.width
-  preprocessed.height = canvas.height
-  ;(window as any).cv.imshow(preprocessed, binary)
-  
-  // 清理
-  src.delete()
-  gray.delete()
-  binary.delete()
-  
-  return preprocessed
-}
-
-/**
- * 识别单个数字单元格
- */
+// =====================
+// 单格识别
+// =====================
 export async function recognizeDigit(
   canvas: HTMLCanvasElement,
   confidenceThreshold = 0.6,
 ): Promise<number> {
-  const worker_ = await initWorker()
-  const preprocessed = preprocessCell(canvas)
+  const model = await loadMnistModel()
 
-  try {
-    const {
-      data: { text, confidence },
-    } = await worker_.recognize(preprocessed)
+  const input = tf.tidy(() => {
+    let t = tf.browser.fromPixels(canvas, 1)
+    console.log('[recognizeDigit] fromPixels shape:', t.shape)
+    
+    t = t.resizeBilinear([28, 28])
+    console.log('[recognizeDigit] after resizeBilinear:', t.shape)
+    
+    t = t.toFloat()
+    t = t.div(255)
+    t = tf.sub(1, t) // 反色，黑字白底
+    console.log('[recognizeDigit] after processing:', t.shape)
 
-    const cleaned = text.trim()
-    const digit = parseInt(cleaned, 10)
+    return t.reshape([1, 28, 28, 1])
+  })
 
-    // 验证结果
-    if (
-      !isNaN(digit) &&
-      digit >= 1 &&
-      digit <= 9 &&
-      confidence >= confidenceThreshold * 100
-    ) {
-      // console.log(`[Tesseract] 识别: ${digit} (置信度: ${confidence.toFixed(1)}%)`)
-      return digit
+  console.log('[recognizeDigit] final input shape:', input.shape)
+  
+  const output = model.predict(input) as tf.Tensor
+  const probs = await output.data()
+
+  tf.dispose([input, output])
+
+  let maxProb = 0
+  let digit = 0
+
+  for (let i = 0; i < probs.length; i++) {
+    if (probs[i]! > maxProb) {
+      maxProb = probs[i]!
+      digit = i
     }
-
-    // 低置信度或无效数字，返回 0（空白）
-    // console.log(`[Tesseract] 无效/低置信度: "${cleaned}" (${confidence.toFixed(1)}%)`)
-    return 0
-  } catch (err) {
-    console.error('[Tesseract] 识别失败:', err)
-    return 0
   }
+
+  return maxProb >= confidenceThreshold ? digit : 0
 }
 
 /**
- * 批量识别 9×9 的数字单元格
+ * 将 canvas 缩放到目标尺寸
  */
+function resizeCanvasTo(canvas: HTMLCanvasElement, size: number): HTMLCanvasElement {
+  const result = document.createElement('canvas')
+  result.width = size
+  result.height = size
+  const ctx = result.getContext('2d')!
+  ctx.imageSmoothingEnabled = true
+  ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, size, size)
+  return result
+}
+
+// =====================
+// 批量识别 9×9
+// =====================
 export async function recognizeBoard(
   cells: HTMLCanvasElement[][],
-  confidenceThreshold = 0.6,
-  isCellEmptyFn?: (canvas: HTMLCanvasElement) => boolean
+  confidenceThreshold = 0.7,
+  isCellEmptyFn?: (canvas: HTMLCanvasElement) => boolean,
 ): Promise<string> {
-  await initWorker()
+  // 只需确保模型加载一次
+  await loadMnistModel()
+
   const result: number[] = []
-
-  // console.log('[Tesseract] 开始批量识别 81 个单元格...')
-
-  let recognizedCount = 0
-  let emptyCount = 0
 
   for (let row = 0; row < 9; row++) {
     for (let col = 0; col < 9; col++) {
       const cell = cells[row]![col]!
-      
-      // 先检查单元格是否为空
-      if (isCellEmptyFn && isCellEmptyFn(cell)) {
+
+      if (isCellEmptyFn?.(cell)) {
         result.push(0)
-        emptyCount++
-        // console.log(`[Tesseract] 单元格 [${row},${col}]: 空白`)
         continue
       }
 
-      // 有内容才识别
+      // 直接传原始单元格，recognizeDigit 中会用 resizeBilinear 处理
       const digit = await recognizeDigit(cell, confidenceThreshold)
       result.push(digit)
-      
-      if (digit > 0) {
-        recognizedCount++
-        // console.log(`[Tesseract] 单元格 [${row},${col}]: ${digit}`)
-      } else {
-        emptyCount++
-        // console.log(`[Tesseract] 单元格 [${row},${col}]: 识别失败或空白`)
-      }
     }
   }
 
-  // console.log(`[Tesseract] 批量识别完成 - 识别出 ${recognizedCount} 个数字，${emptyCount} 个空白`)
-  return result.map((d) => (d === 0 ? '0' : d.toString())).join('')
+  return result.map(d => (d === 0 ? '0' : d.toString())).join('')
 }
 
-/**
- * 清理资源
- */
-export async function cleanup() {
-  if (worker) {
-    await worker.terminate()
-    worker = null
-    // console.log('[Tesseract] Worker 已终止')
-  }
+// =====================
+// 清理（可选）
+// =====================
+export function cleanup() {
+  disposeMnistModel()
 }
-
