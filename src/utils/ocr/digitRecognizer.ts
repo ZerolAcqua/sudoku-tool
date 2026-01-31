@@ -16,8 +16,9 @@ export async function recognizeDigit(
     t = t.resizeBilinear([28, 28])
     
     t = t.toFloat()
-    t = t.div(255)
-    // 不进行反色，保持白色数字 = 高值，黑色背景 = 低值
+    // 二值化处理：阈值 127，保持与训练数据一致
+    t = tf.step(t.sub(127.5)).mul(255) // 转换为 0 或 255
+    t = t.div(255) // 归一化到 [0, 1]
 
     return t.reshape([1, 28, 28, 1])
   })

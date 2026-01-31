@@ -268,6 +268,61 @@ async function loadMNISTDataset(): Promise<{
 }
 
 /**
+ * 加载预生成的合成数据集（PNG 精灵图 + one-hot 标签）
+ */
+async function loadPreGeneratedSyntheticDataset(): Promise<{
+  images: tf.Tensor4D
+  labels: tf.Tensor2D
+} | null> {
+  const dataDir = path.join(__dirname, 'data')
+  const imagesPath = path.join(dataDir, 'synthetic_images.png')
+  const labelsPath = path.join(dataDir, 'synthetic_labels_uint8')
+
+  if (!fs.existsSync(imagesPath) || !fs.existsSync(labelsPath)) {
+    return null
+  }
+
+  // 读取标签（one-hot）
+  const labelsBuffer = fs.readFileSync(labelsPath)
+  const labelsArray = new Uint8Array(labelsBuffer)
+  const NUM_CLASSES = 11
+  const numSamples = Math.floor(labelsArray.length / NUM_CLASSES)
+
+  if (numSamples <= 0) {
+    return null
+  }
+
+  // 读取 PNG 精灵图
+  const imgBuffer = fs.readFileSync(imagesPath)
+  const png = PNG.sync.read(imgBuffer)
+
+  const DIGIT_SIZE = 28
+  const IMAGE_SIZE = DIGIT_SIZE * DIGIT_SIZE
+  const spriteWidth = png.width
+  const datasetBytesView = new Float32Array(numSamples * IMAGE_SIZE)
+
+  // 正确读取 PNG 精灵图（考虑行优先顺序）
+  // 样本按水平排列：样本0在x=[0,27]，样本1在x=[28,55]，等等
+  for (let sample = 0; sample < numSamples; sample++) {
+    for (let py = 0; py < DIGIT_SIZE; py++) {
+      for (let px = 0; px < DIGIT_SIZE; px++) {
+        // PNG 中的像素位置：(py, sample*DIGIT_SIZE + px)
+        const pngPixelIdx = (py * spriteWidth + sample * DIGIT_SIZE + px) * 4
+        // datasetBytesView 中的位置：样本内的线性位置
+        const dataIdx = sample * IMAGE_SIZE + py * DIGIT_SIZE + px
+        // 读取 R 通道（灰度值）
+        datasetBytesView[dataIdx] = png.data[pngPixelIdx] / 255
+      }
+    }
+  }
+
+  const imagesTensor = tf.tensor4d(datasetBytesView, [numSamples, 28, 28, 1])
+  const labelsTensor = tf.tensor2d(labelsArray, [numSamples, NUM_CLASSES])
+
+  return { images: imagesTensor, labels: labelsTensor }
+}
+
+/**
  * 只使用合成数据集（数字字体 + 无数字）
  */
 async function createSyntheticDataset(): Promise<{
@@ -276,31 +331,20 @@ async function createSyntheticDataset(): Promise<{
   testImages: tf.Tensor4D
   testLabels: tf.Tensor2D
 }> {
-  console.log('生成合成数据集...')
-  
-  // 生成合成数据集（11 类：0-9 + 无数字）
-  const { images, labels } = generateSyntheticDataset(500) // 每类 500 个样本（共 5500）
-  console.log(`✅ 合成数据生成完成: ${images.length / 784} 个样本, ${labels.length} 个标签`)
+  console.log('加载预生成合成数据集...')
 
-  // 转换为 Float32Array 并归一化
-  const float32Images = new Float32Array(images.length)
-  for (let i = 0; i < images.length; i++) {
-    float32Images[i] = images[i] / 255
+  const synthData = await loadPreGeneratedSyntheticDataset()
+  if (!synthData) {
+    console.error('❌ 未找到预生成的合成数据集')
+    console.error('请先运行: npm run generate:synthetic')
+    throw new Error('合成数据集不存在')
   }
 
-  // 转换标签为 one-hot 编码 (11 类)
   const NUM_CLASSES = 11
-  const onehotLabels = new Uint8Array(labels.length * NUM_CLASSES)
-  for (let i = 0; i < labels.length; i++) {
-    const labelIdx = labels[i]!
-    onehotLabels[i * NUM_CLASSES + labelIdx] = 1
-  }
+  let allImages = synthData.images as tf.Tensor4D
+  let allLabels = synthData.labels as tf.Tensor2D
 
-  // 转换为张量
-  let allImages = tf.tensor4d(float32Images, [labels.length, 28, 28, 1]) as tf.Tensor4D
-  let allLabels = tf.tensor2d(onehotLabels, [labels.length, NUM_CLASSES]) as tf.Tensor2D
-
-  console.log(`加载完成: ${allImages.shape[0]} 个样本`)
+  console.log(`加载完成: ${allImages.shape[0]} 个样本`) 
 
   // 打乱数据
   const indices = tf.util.createShuffledIndices(allImages.shape[0])

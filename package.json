@@ -13,6 +13,7 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
     "format:ts": "prettier --write \"src/**/*.ts\" \"*.ts\" --ignore-path .prettierignore",
+    "generate:synthetic": "tsx ml/generate-synthetic-data.ts",
     "train:digit": "tsx ml/train-digit-model.ts"
   },
   "dependencies": {
