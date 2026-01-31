@@ -18,6 +18,9 @@
                 <p v-if="selectedCell" class="text-sm text-gray-700">
                     当前选中: r{{ selectedCell.row + 1 }}c{{ selectedCell.col + 1 }}
                 </p>
+                    <p v-else class="text-sm text-gray-700">
+                    请点击任意单元格
+                </p>
             </div>
         </div>
 

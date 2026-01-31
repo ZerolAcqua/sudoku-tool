@@ -6,7 +6,7 @@
     <div class="bg-white shadow rounded-lg mb-8">
       <div class="border-b border-gray-200">
         <nav class="flex -mb-px">
-          <button v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id" :class="[
+          <button v-for="tab in tabs" :key="tab.id" @click="handleTabChange(tab.id)" :class="[
             'px-6 py-4 text-sm font-medium border-b-2 transition-colors',
             activeTab === tab.id
               ? 'border-blue-600 text-blue-600'
@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import BasicDemo from './demo/BasicDemo.vue'
 import InteractiveDemo from './demo/InteractiveDemo.vue'
 import DrawingDemo from './demo/DrawingDemo.vue'
@@ -48,4 +48,25 @@ const tabs = [
   { id: 'full', label: 'IO 功能' },
   { id: 'ocr', label: '数独识别' }
 ]
+
+// Handle hash-based navigation
+const handleHashNavigation = () => {
+  const hash = window.location.hash.slice(1) // Remove '#'
+  if (hash && tabs.some(tab => tab.id === hash)) {
+    activeTab.value = hash
+  }
+}
+
+// Update hash when tab changes
+const handleTabChange = (tabId: string) => {
+  activeTab.value = tabId
+  window.location.hash = tabId
+}
+
+onMounted(() => {
+  handleHashNavigation()
+})
+
+// Listen to hash changes (e.g., browser back/forward buttons)
+window.addEventListener('hashchange', handleHashNavigation)
 </script>
