@@ -63,15 +63,18 @@
 
             <!-- 识别结果 -->
             <div v-if="state.result" class="mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-3">识别结果</h3>
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">识别结果（可手动修改）</h3>
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-4">
                     <div class="grid grid-cols-9 gap-1 w-fit">
-                        <div v-for="(digit, idx) in state.result" :key="idx"
-                            class="w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded text-sm font-semibold"
-                            :class="{ 'text-gray-400': digit === '0' }">
-                            {{ digit === '0' ? '·' : digit }}
-                        </div>
+                        <input v-for="(digit, idx) in editableDigits" :key="idx"
+                            class="w-10 h-10 text-center bg-white border border-gray-300 rounded text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            :class="{ 'text-gray-400': digit === '0' }"
+                            maxlength="1"
+                            inputmode="numeric"
+                            :value="digit === '0' ? '' : digit"
+                            @input="updateDigit(idx, ($event.target as HTMLInputElement).value)" />
                     </div>
+                    <p class="text-xs text-gray-500 mt-2">留空表示空格（0）</p>
                 </div>
 
                 <div class="flex gap-3">
@@ -135,6 +138,7 @@ const processedCanvas = ref<HTMLCanvasElement>()
 const gridCanvas = ref<HTMLCanvasElement>()
 const cellsVisualizationCanvas = ref<HTMLCanvasElement>()
 const uploadArea = ref<HTMLDivElement>()
+const editableDigits = ref<string[]>([])
 
 onMounted(() => {
     // 监听全局粘贴事件
@@ -153,6 +157,18 @@ watch(originalImage, async (newImage) => {
         ctx.drawImage(newImage, 0, 0)
     }
 })
+
+watch(
+        () => state.result,
+        (newResult) => {
+                if (!newResult) {
+                        editableDigits.value = []
+                        return
+                }
+                editableDigits.value = newResult.split('')
+        },
+        { immediate: true },
+)
 
 watch(
     () => state.processedImage,
@@ -226,6 +242,20 @@ function drawAllCanvases(): void {
         cellsVisualizationCanvas.value.height = state.cellsVisualization.height
         ctx.drawImage(state.cellsVisualization, 0, 0)
     }
+}
+
+function normalizeDigitInput(value: string): string {
+    const digits = value.replace(/[^0-9]/g, '')
+    if (!digits) return '0'
+    const last = digits[digits.length - 1]!
+    return last
+}
+
+function updateDigit(index: number, value: string): void {
+    const normalized = normalizeDigitInput(value)
+    if (!editableDigits.value.length) return
+    editableDigits.value[index] = normalized
+    state.result = editableDigits.value.join('')
 }
 
 async function handleDrop(event: DragEvent): Promise<void> {
