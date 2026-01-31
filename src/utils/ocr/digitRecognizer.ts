@@ -1,9 +1,9 @@
 import * as tf from '@tensorflow/tfjs'
 import { loadMnistModel, disposeMnistModel } from './mnistModel'
 
-// =====================
-// 单格识别
-// =====================
+/**
+ * 单格识别（11 分类：0-9 + 无数字）
+ */
 export async function recognizeDigit(
   canvas: HTMLCanvasElement,
   confidenceThreshold = 0.6,
@@ -12,37 +12,46 @@ export async function recognizeDigit(
 
   const input = tf.tidy(() => {
     let t = tf.browser.fromPixels(canvas, 1)
-    console.log('[recognizeDigit] fromPixels shape:', t.shape)
     
     t = t.resizeBilinear([28, 28])
-    console.log('[recognizeDigit] after resizeBilinear:', t.shape)
     
     t = t.toFloat()
     t = t.div(255)
-    t = tf.sub(1, t) // 反色，黑字白底
-    console.log('[recognizeDigit] after processing:', t.shape)
+    // 不进行反色，保持白色数字 = 高值，黑色背景 = 低值
 
     return t.reshape([1, 28, 28, 1])
   })
 
-  console.log('[recognizeDigit] final input shape:', input.shape)
-  
   const output = model.predict(input) as tf.Tensor
   const probs = await output.data()
 
   tf.dispose([input, output])
 
   let maxProb = 0
-  let digit = 0
+  let classIdx = 0
 
   for (let i = 0; i < probs.length; i++) {
     if (probs[i]! > maxProb) {
       maxProb = probs[i]!
-      digit = i
+      classIdx = i
     }
   }
 
-  return maxProb >= confidenceThreshold ? digit : 0
+  // 调试输出
+  console.log('[recognizeDigit] 预测: 类别=', classIdx, '置信度=', maxProb.toFixed(4), '所有概率=', Array.from(probs).map((p: any) => p.toFixed(3)).join(','))
+
+  // 如果低于置信度阈值，返回 0（空白）
+  if (maxProb < confidenceThreshold) {
+    return 0
+  }
+
+  // 类别 10 表示无数字，返回 0
+  if (classIdx === 10) {
+    return 0
+  }
+
+  // 返回 1-9 的数字
+  return classIdx
 }
 
 /**

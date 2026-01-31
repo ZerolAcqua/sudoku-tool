@@ -6,7 +6,9 @@ export async function loadMnistModel() {
   if (!model) {
     try {
       console.log('[loadMnistModel] 开始加载模型...')
-      model = await tf.loadLayersModel('/models/model.json')
+      // 添加时间戳参数，防止浏览器缓存
+      const timestamp = new Date().getTime()
+      model = await tf.loadLayersModel(`/models/sudoku-digit/model.json?t=${timestamp}`)
       console.log('[loadMnistModel] 模型加载成功')
       console.log('[loadMnistModel] 模型输入形状:', model.inputs[0]?.shape)
       console.log('[loadMnistModel] 模型输出形状:', model.outputs[0]?.shape)
