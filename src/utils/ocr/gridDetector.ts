@@ -911,7 +911,7 @@ export function visualizeCells(
  * 把 canvas 边界的白色填充为黑色
  */
 function fillBorderWhiteWithBlack(cellCanvas: HTMLCanvasElement): HTMLCanvasElement {
-  const ctx = cellCanvas.getContext('2d')!;
+  const ctx = cellCanvas.getContext('2d', { willReadFrequently: true })!;
   const imageData = ctx.getImageData(0, 0, cellCanvas.width, cellCanvas.height);
   const data = imageData.data;
   const width = cellCanvas.width;
@@ -1049,7 +1049,7 @@ export function extractCells(
       const cellCanvas = document.createElement('canvas');
       cellCanvas.width = contentWidth;
       cellCanvas.height = contentHeight;
-      const cellCtx = cellCanvas.getContext('2d')!;
+      const cellCtx = cellCanvas.getContext('2d', { willReadFrequently: true })!;
 
       // 从原图裁剪单元格区域（已内缩以去掉网格线）
       const sourceX = grid.x + col * cellWidth + edgeMargin;
@@ -1081,7 +1081,7 @@ export function extractCells(
  * 检测单元格是否为空
  */
 export function isCellEmpty(canvas: HTMLCanvasElement, emptyThreshold = 0.05): boolean {
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
 
