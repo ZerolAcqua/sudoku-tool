@@ -123,30 +123,6 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
   let bestResult: DetectionResult | null = null;
   const errorThreshold = 5.0; // 误差足够小时停止检测
 
-  // 尝试轮廓检测（所有二值化版本）
-  // console.log('[detectGrid] ====== 尝试轮廓检测 ======')
-  for (const version of binaryVersions) {
-    // console.log(`[detectGrid] 轮廓检测（${version.name}）`)
-    const rect = detectGridByContours(version.mat, canvas);
-    if (rect.width > 0 && rect.height > 0) {
-      // console.log(`[detectGrid] 轮廓检测成功（${version.name}）:`, rect)
-      // 轮廓方法没有直线信息，无法计算误差，记录为 0
-      const result: DetectionResult = {
-        grid: rect,
-        error: 0,
-        threshold: version.name,
-        hLines: [],
-        vLines: [],
-        hGap: 0,
-        vGap: 0,
-      };
-      if (!bestResult || result.error < bestResult.error) {
-        bestResult = result;
-        // console.log('[detectGrid] ✓ 更新最佳结果（轮廓法，误差=0）')
-      }
-    }
-  }
-
   // 尝试直线检测（所有二值化版本）
   // console.log('[detectGrid] ====== 尝试直线检测 ======')
   for (let idx = 0; idx < binaryVersions.length; idx++) {
@@ -160,7 +136,7 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
     }
 
     // 使用上一次的间距作为约束（如果有的话）
-    const result = bestResult
+    const result: DetectionResult | null = bestResult
       ? detectGridByHoughLinesWithConstraint(version.mat, canvas, bestResult.hGap, bestResult.vGap)
       : detectGridByHoughLinesWithConstraint(version.mat, canvas, 0, 0);
 
@@ -191,44 +167,6 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
   src.delete();
 
   return finalRect;
-}
-
-/**
- * 通过轮廓检测找到网格边框
- */
-function detectGridByContours(binary: any, canvas: HTMLCanvasElement): GridLocation {
-  const contours = new cv.MatVector();
-  const hierarchy = new cv.Mat();
-
-  cv.findContours(binary, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-  // console.log('[detectGridByContours] 找到轮廓数量:', contours.size())
-
-  let maxArea = 0;
-  let bestRect = { x: 0, y: 0, width: 0, height: 0 };
-
-  for (let i = 0; i < contours.size(); i++) {
-    const contour = contours.get(i);
-    const rect = cv.boundingRect(contour);
-    const area = rect.width * rect.height;
-    const aspectRatio = rect.width / rect.height;
-    const isNotFullImage = rect.width < canvas.width * 0.98 && rect.height < canvas.height * 0.98;
-    const isSquarish = aspectRatio > 0.8 && aspectRatio < 1.2;
-
-    if (
-      area > canvas.width * canvas.height * 0.2 &&
-      isNotFullImage &&
-      isSquarish &&
-      area > maxArea
-    ) {
-      maxArea = area;
-      bestRect = rect;
-    }
-  }
-
-  contours.delete();
-  hierarchy.delete();
-
-  return bestRect;
 }
 
 /**
