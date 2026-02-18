@@ -7,7 +7,7 @@
             </p>
 
             <!-- 上传区域 -->
-            <div ref="uploadArea"
+            <div v-if="!uploadedImageSrc" ref="uploadArea"
                 class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6 transition-colors"
                 :class="{ 'border-blue-500 bg-blue-50': isDraggingOver }" @dragover.prevent="isDraggingOver = true"
                 @dragleave.prevent="isDraggingOver = false" @drop.prevent="handleDrop">
@@ -24,9 +24,35 @@
                 </div>
             </div>
 
+            <!-- 图像裁剪区域 -->
+            <div v-if="uploadedImageSrc && !originalImage" class="mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">裁剪图像</h3>
+                <p class="text-gray-600 mb-3 text-sm">拖动边框调整裁剪区域，确保包含完整的数独网格</p>
+                <div class="bg-gray-100 rounded-lg p-4">
+                    <Cropper
+                        ref="cropperRef"
+                        :src="uploadedImageSrc"
+                        :stencil-props="{
+                            aspectRatio: 1
+                        }"
+                        class="cropper"
+                    />
+                </div>
+                <div class="flex gap-3 mt-4">
+                    <button @click="confirmCrop"
+                        class="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700">
+                        确认裁剪并识别
+                    </button>
+                    <button @click="cancelCrop"
+                        class="bg-gray-200 text-gray-900 px-4 py-2 rounded-lg font-medium hover:bg-gray-300">
+                        取消
+                    </button>
+                </div>
+            </div>
+
             <!-- 原始图像预览 -->
             <div v-if="originalImage" class="mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-3">原始图像</h3>
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">裁剪后的图像</h3>
                 <div class="bg-gray-100 rounded-lg p-4 max-h-[600px] overflow-auto">
                     <canvas ref="originalCanvas" class="max-w-full h-auto block"></canvas>
                 </div>
@@ -127,6 +153,8 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, nextTick } from 'vue'
+import { Cropper } from 'vue-advanced-cropper'
+import 'vue-advanced-cropper/dist/style.css'
 import { useOCR } from '@/composables/useOCR'
 
 const { state, originalImage, recognize, reset: resetOCR } = useOCR()
@@ -139,6 +167,10 @@ const gridCanvas = ref<HTMLCanvasElement>()
 const cellsVisualizationCanvas = ref<HTMLCanvasElement>()
 const uploadArea = ref<HTMLDivElement>()
 const editableDigits = ref<string[]>([])
+
+// 图像裁剪相关
+const uploadedImageSrc = ref<string>('')
+const cropperRef = ref<InstanceType<typeof Cropper>>()
 
 onMounted(() => {
     // 监听全局粘贴事件
@@ -198,15 +230,44 @@ async function handleFileSelect(event: Event): Promise<void> {
     const target = event.target as HTMLInputElement
     const file = target.files?.[0]
     if (file) {
+        loadImageForCrop(file)
+    }
+}
+
+function loadImageForCrop(file: File): void {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+        uploadedImageSrc.value = e.target?.result as string
+    }
+    reader.readAsDataURL(file)
+}
+
+async function confirmCrop(): Promise<void> {
+    if (!cropperRef.value) return
+    
+    const { canvas } = cropperRef.value.getResult()
+    if (!canvas) return
+
+    // 将裁剪后的 canvas 转换为 Blob 然后转为 File
+    canvas.toBlob(async (blob) => {
+        if (!blob) return
+        
+        const croppedFile = new File([blob], 'cropped-image.png', { type: 'image/png' })
+        
         try {
-            await recognize(file, { confidenceThreshold: 0.5, debug: true })
-            // 确保所有状态更新完成后再刷新 DOM
+            await recognize(croppedFile, { confidenceThreshold: 0.5, debug: true })
             await nextTick()
-            // 手动刷新所有画布
             drawAllCanvases()
         } catch (err) {
             console.error('识别失败:', err)
         }
+    }, 'image/png')
+}
+
+function cancelCrop(): void {
+    uploadedImageSrc.value = ''
+    if (fileInput.value) {
+        fileInput.value.value = ''
     }
 }
 
@@ -262,13 +323,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
     isDraggingOver.value = false
     const file = event.dataTransfer?.files[0]
     if (file && file.type.startsWith('image/')) {
-        try {
-            await recognize(file, { confidenceThreshold: 0.5, debug: true })
-            await nextTick()
-            drawAllCanvases()
-        } catch (err) {
-            console.error('识别失败:', err)
-        }
+        loadImageForCrop(file)
     }
 }
 
@@ -280,13 +335,7 @@ async function handlePaste(event: ClipboardEvent): Promise<void> {
         if (item.type.startsWith('image/')) {
             const file = item.getAsFile()
             if (file) {
-                try {
-                    await recognize(file, { confidenceThreshold: 0.5, debug: true })
-                    await nextTick()
-                    drawAllCanvases()
-                } catch (err) {
-                    console.error('识别失败:', err)
-                }
+                loadImageForCrop(file)
                 return
             }
         }
@@ -317,8 +366,15 @@ function downloadResult(): void {
 
 function reset(): void {
     resetOCR()
+    uploadedImageSrc.value = ''
     if (fileInput.value) {
         fileInput.value.value = ''
     }
 }
 </script>
+
+<style scoped>
+.cropper {
+    max-height: 600px;
+}
+</style>
