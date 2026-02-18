@@ -25,19 +25,20 @@
 
     <DrawingDemo v-show="activeTab === 'drawing'" />
 
-    <IODemo v-show="activeTab === 'full'" />
+    <IODemo v-show="activeTab === 'io'" />
 
     <OCRDemo v-show="activeTab === 'ocr'" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, defineAsyncComponent, onMounted, watch } from 'vue'
 import BasicDemo from './demo/BasicDemo.vue'
 import InteractiveDemo from './demo/InteractiveDemo.vue'
 import DrawingDemo from './demo/DrawingDemo.vue'
 import IODemo from './demo/IODemo.vue'
-import OCRDemo from './demo/OCRDemo.vue'
+
+const OCRDemo = defineAsyncComponent(() => import('./demo/OCRDemo.vue'))
 
 // Tab state
 const activeTab = ref('basic')
@@ -45,7 +46,7 @@ const tabs = [
   { id: 'basic', label: '基础展示' },
   { id: 'interactive', label: '交互模式' },
   { id: 'drawing', label: '绘图功能' },
-  { id: 'full', label: 'IO 功能' },
+  { id: 'io', label: 'IO 功能' },
   { id: 'ocr', label: '数独识别' }
 ]
 
