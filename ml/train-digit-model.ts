@@ -35,7 +35,7 @@ async function loadMNISTDataset(): Promise<{
     console.log('加载标签...')
     const labelsBuffer = fs.readFileSync(labelsPath)
     const datasetLabels = new Uint8Array(labelsBuffer)
-    console.log(`✅ 标签加载完成: ${datasetLabels.length} 个`)
+    console.log(`- 标签加载完成: ${datasetLabels.length} 个`)
 
     // 加载 PNG 图像
     console.log('加载 MNIST 图像...')
@@ -49,7 +49,7 @@ async function loadMNISTDataset(): Promise<{
       data: png.data
     }
 
-    console.log(`✅ 图像加载完成: ${img.width}x${img.height}`)
+    console.log(`- 图像加载完成: ${img.width}x${img.height}`)
 
     // 提取像素数据（直接从 PNG 数据）
     const pixelData = img.data
@@ -61,13 +61,13 @@ async function loadMNISTDataset(): Promise<{
       datasetBytesView[j] = pixelData[j * 4] / 255
     }
 
-    console.log(`✅ 图像数据提取完成: ${NUM_DATASET_ELEMENTS} 个样本`)
+    console.log(`- 图像数据提取完成: ${NUM_DATASET_ELEMENTS} 个样本`)
 
     // 获取训练集数据
     const trainImages = datasetBytesView.slice(0, IMAGE_SIZE * NUM_TRAIN_ELEMENTS)
     const trainLabels = datasetLabels.slice(0, NUM_TRAIN_ELEMENTS * NUM_CLASSES)
 
-    console.log(`✅ MNIST 数据准备完成: ${NUM_TRAIN_ELEMENTS} 个训练样本`)
+    console.log(`- MNIST 数据准备完成: ${NUM_TRAIN_ELEMENTS} 个训练样本`)
 
     // 转换为张量
     const imagesTensor = tf.tensor4d(trainImages, [NUM_TRAIN_ELEMENTS, 28, 28, 1])
@@ -75,7 +75,7 @@ async function loadMNISTDataset(): Promise<{
 
     return { images: imagesTensor, labels: labelsTensor }
   } catch (err) {
-    console.warn('⚠️  MNIST 数据加载失败:', err instanceof Error ? err.message : err)
+    console.warn('- MNIST 数据加载失败:', err instanceof Error ? err.message : err)
     console.log('请确保 mnist_images.png 和 mnist_labels_uint8 在 ml/data 目录中')
     // 返回空张量
     return {
@@ -114,7 +114,7 @@ async function loadTMNISTDataset(): Promise<{
     }
   }
   if (!csvPath) {
-    console.warn('⚠️  TMNIST CSV 未找到')
+    console.warn('- TMNIST CSV 未找到')
     console.log('   请从 Kaggle 下载 TMNIST 数据:')
     console.log('   https://www.kaggle.com/datasets/nimishmagre/tmnist-typeface-mnist')
     console.log('   将解压后的 CSV 文件放到 ml/data/ 目录')
@@ -168,12 +168,56 @@ async function loadTMNISTDataset(): Promise<{
     }
   }
 
-  console.log(`✅ TMNIST 加载完成: ${validSamples} 个有效样本`)
+  console.log(`- TMNIST 加载完成: ${validSamples} 个有效样本`)
 
   const imagesTensor = tf.tensor4d(imagesArray.slice(0, validSamples * IMAGE_SIZE), [validSamples, 28, 28, 1])
   const labelsTensor = tf.tensor2d(labelsArray.slice(0, validSamples * NUM_CLASSES), [validSamples, NUM_CLASSES])
 
   return { images: imagesTensor, labels: labelsTensor }
+}
+
+// ========================
+// 数据增强：二值化
+// ========================
+
+/** 二值化阈值列表：模拟不同 OCR 预处理强度 */
+const BINARIZATION_THRESHOLDS = [0.3, 0.45, 0.6, 0.8]
+
+/**
+ * 对图像张量应用二值化阈值
+ * pixel ≥ threshold → 1.0, pixel < threshold → 0.0
+ */
+function binarizeTensor(images: tf.Tensor4D, threshold: number): tf.Tensor4D {
+  return tf.where(
+    images.greaterEqual(tf.scalar(threshold)),
+    tf.onesLike(images),
+    tf.zerosLike(images),
+  ) as tf.Tensor4D
+}
+
+/**
+ * 使用多个二值化阈值扩充数据集
+ * 原始数据 + 每个阈值一份二值化副本
+ */
+function augmentWithBinarization(
+  images: tf.Tensor4D,
+  labels: tf.Tensor2D,
+  thresholds: number[],
+): { images: tf.Tensor4D; labels: tf.Tensor2D } {
+  const augmentedImages: tf.Tensor4D[] = [images]
+  const augmentedLabels: tf.Tensor2D[] = [labels]
+
+  for (const t of thresholds) {
+    console.log(`  二值化阈值 ${t.toFixed(2)} ...`)
+    const binarized = binarizeTensor(images, t)
+    augmentedImages.push(binarized)
+    augmentedLabels.push(labels)
+  }
+
+  return {
+    images: tf.concat(augmentedImages, 0) as tf.Tensor4D,
+    labels: tf.concat(augmentedLabels, 0) as tf.Tensor2D,
+  }
 }
 
 /**
@@ -221,8 +265,22 @@ async function createCombinedDataset(): Promise<{
   let allImages = tf.concat(imageTensors, 0) as tf.Tensor4D
   let allLabels = tf.concat(labelTensors, 0) as tf.Tensor2D
 
-  const totalSamples = allImages.shape[0]
+  let totalSamples = allImages.shape[0]
   console.log(`合并后总样本数: ${totalSamples}`)
+
+  // 拼接后立即释放中间张量
+  imageTensors.forEach(t => { if (t !== allImages) t.dispose() })
+  labelTensors.forEach(t => { if (t !== allLabels) t.dispose() })
+
+  // 二值化数据增强：用多个阈值二值化以模拟不同 OCR 预处理
+  console.log('\n======== 二值化增强 ========')
+  const augmented = augmentWithBinarization(allImages, allLabels, BINARIZATION_THRESHOLDS)
+  allImages.dispose()
+  allLabels.dispose()
+  allImages = augmented.images
+  allLabels = augmented.labels
+  totalSamples = allImages.shape[0]
+  console.log(`增强后总样本数: ${totalSamples} (${BINARIZATION_THRESHOLDS.length + 1}x)`)
 
   // 统计各类别分布
   const labelArgMax = allLabels.argMax(1).dataSync()
@@ -411,7 +469,7 @@ async function trainDigitModel() {
           // 保存检查点
           if ((epoch + 1) % CHECKPOINT_INTERVAL === 0) {
             const checkpointPath = 'file://' + path.join(checkpointDir, `checkpoint-epoch-${epoch + 1}`)
-            console.log(`💾 保存检查点: ${checkpointPath}`)
+            console.log(`- 保存检查点: ${checkpointPath}`)
             await model.save(checkpointPath)
           }
         },
@@ -442,11 +500,11 @@ async function trainDigitModel() {
 // 运行训练
 trainDigitModel()
   .then(() => {
-    console.log('✅ 训练成功完成')
+    console.log('训练成功完成')
     process.exit(0)
   })
   .catch(err => {
-    console.error('❌ 训练过程中出错:')
+    console.error('训练过程中出错:')
     console.error(err)
     if (err.stack) {
       console.error(err.stack)
