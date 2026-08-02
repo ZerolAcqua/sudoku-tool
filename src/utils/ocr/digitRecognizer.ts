@@ -2,66 +2,103 @@ import * as tf from '@tensorflow/tfjs';
 import { loadMnistModel, disposeMnistModel } from './mnistModel';
 
 /**
- * 单格识别（11 分类：0-9 + 无数字）
+ * 预处理：将 canvas 转为模型输入张量，并返回 28x28 的调试 canvas
+ */
+function preprocessForModel(
+  canvas: HTMLCanvasElement,
+): { tensor: tf.Tensor4D; debugCanvas: HTMLCanvasElement } {
+  const debugCanvas = document.createElement('canvas')
+  debugCanvas.width = 28
+  debugCanvas.height = 28
+  const debugCtx = debugCanvas.getContext('2d')!
+
+  const input = tf.tidy(() => {
+    let t = tf.browser.fromPixels(canvas, 1)
+    t = t.resizeBilinear([28, 28])
+    t = t.toFloat()
+    // 二值化处理：阈值 127，保持与训练数据一致
+    t = tf.step(t.sub(127.5)).mul(255)
+    t = t.div(255)
+    return t.reshape([1, 28, 28, 1])
+  })
+
+  // 将预处理后的张量绘制到调试 canvas
+  const pixels = input.dataSync()
+  const imageData = debugCtx.createImageData(28, 28)
+  for (let i = 0; i < 28 * 28; i++) {
+    const val = Math.round(pixels[i]! * 255)
+    imageData.data[i * 4] = val
+    imageData.data[i * 4 + 1] = val
+    imageData.data[i * 4 + 2] = val
+    imageData.data[i * 4 + 3] = 255
+  }
+  debugCtx.putImageData(imageData, 0, 0)
+
+  return { tensor: input as tf.Tensor4D, debugCanvas }
+}
+
+/**
+ * 单格识别（10 分类：0-9）
  */
 export async function recognizeDigit(
   canvas: HTMLCanvasElement,
-  confidenceThreshold = 0.6
+  confidenceThreshold = 0.6,
 ): Promise<number> {
-  const model = await loadMnistModel();
+  const model = await loadMnistModel()
 
-  const input = tf.tidy(() => {
-    let t = tf.browser.fromPixels(canvas, 1);
+  const { tensor: input } = preprocessForModel(canvas)
+  const output = model.predict(input) as tf.Tensor
+  const probs = await output.data()
 
-    t = t.resizeBilinear([28, 28]);
+  tf.dispose([input, output])
 
-    t = t.toFloat();
-    // 二值化处理：阈值 127，保持与训练数据一致
-    t = tf.step(t.sub(127.5)).mul(255); // 转换为 0 或 255
-    t = t.div(255); // 归一化到 [0, 1]
-
-    return t.reshape([1, 28, 28, 1]);
-  });
-
-  const output = model.predict(input) as tf.Tensor;
-  const probs = await output.data();
-
-  tf.dispose([input, output]);
-
-  let maxProb = 0;
-  let classIdx = 0;
+  let maxProb = 0
+  let classIdx = 0
 
   for (let i = 0; i < probs.length; i++) {
     if (probs[i]! > maxProb) {
-      maxProb = probs[i]!;
-      classIdx = i;
+      maxProb = probs[i]!
+      classIdx = i
     }
   }
 
-  // 调试输出
   console.log(
-    '[recognizeDigit] 预测: 类别=',
-    classIdx,
-    '置信度=',
-    maxProb.toFixed(4),
-    '所有概率=',
-    Array.from(probs)
-      .map((p: any) => p.toFixed(3))
-      .join(',')
-  );
+    '[recognizeDigit] 预测=', classIdx,
+    '置信度=', maxProb.toFixed(4),
+    '概率=', Array.from(probs).map((p) => p.toFixed(3)).join(','),
+  )
 
-  // 如果低于置信度阈值，返回 0（空白）
   if (maxProb < confidenceThreshold) {
-    return 0;
+    return 0
   }
 
-  // 类别 10 表示无数字，返回 0
-  if (classIdx === 10) {
-    return 0;
+  return classIdx
+}
+
+/**
+ * 带调试输出的单格识别：返回预测结果 + 28x28 预处理后的 canvas
+ */
+export async function recognizeDigitWithDebug(
+  canvas: HTMLCanvasElement,
+): Promise<{ digit: number; confidence: number; allProbs: number[]; debugCanvas: HTMLCanvasElement }> {
+  const model = await loadMnistModel()
+
+  const { tensor: input, debugCanvas } = preprocessForModel(canvas)
+  const output = model.predict(input) as tf.Tensor
+  const probs = Array.from(await output.data())
+
+  tf.dispose([input, output])
+
+  let maxProb = 0
+  let classIdx = 0
+  for (let i = 0; i < probs.length; i++) {
+    if (probs[i]! > maxProb) {
+      maxProb = probs[i]!
+      classIdx = i
+    }
   }
 
-  // 返回 1-9 的数字
-  return classIdx;
+  return { digit: classIdx, confidence: maxProb, allProbs: probs, debugCanvas }
 }
 
 /**

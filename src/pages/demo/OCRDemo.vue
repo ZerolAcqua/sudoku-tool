@@ -137,6 +137,71 @@
             </div>
         </div>
 
+        <!-- 单数字识别测试 -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">单数字识别测试</h2>
+            <p class="text-gray-600 mb-4 text-sm">
+                上传裁剪好的单个数字图片，查看预处理结果和模型预测。用于调试识别效果。
+            </p>
+
+            <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">上传数字图片</label>
+                    <div
+                        class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                        @click="digitFileInput?.click()"
+                        @dragover.prevent
+                        @drop.prevent="handleDigitDrop"
+                    >
+                        <input
+                            ref="digitFileInput"
+                            type="file"
+                            accept="image/*"
+                            class="hidden"
+                            @change="handleDigitFileSelect"
+                        />
+                        <p v-if="!digitImageSrc" class="text-gray-500 text-sm">点击选择或拖拽图片</p>
+                        <img v-else :src="digitImageSrc" class="max-h-32 mx-auto object-contain" />
+                    </div>
+                </div>
+
+                <div v-if="digitDebugCanvas" class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">预处理后 (28x28)</label>
+                    <div class="border border-gray-300 rounded p-2 inline-block bg-gray-50">
+                        <canvas ref="digitDebugCanvasRef" class="block" width="140" height="140"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <button
+                v-if="digitImageSrc"
+                @click="recognizeSingleDigit"
+                :disabled="digitLoading"
+                class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 mb-4"
+            >
+                {{ digitLoading ? '识别中...' : '识别数字' }}
+            </button>
+
+            <div v-if="digitResult" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 class="font-semibold text-gray-900 mb-2">识别结果</h4>
+                <p class="text-2xl font-bold text-blue-600">{{ digitResult.digit }} (0-9)</p>
+                <p class="text-sm text-gray-600 mt-1">置信度: {{ (digitResult.confidence * 100).toFixed(1) }}%</p>
+                <details class="mt-2">
+                    <summary class="text-xs text-gray-500 cursor-pointer">各类别概率</summary>
+                    <div class="mt-1 space-y-0.5">
+                        <div v-for="(prob, idx) in digitResult.allProbs" :key="idx"
+                            class="flex items-center gap-2 text-xs">
+                            <span class="w-6 text-right text-gray-500">{{ idx }}</span>
+                            <div class="flex-1 bg-gray-200 rounded h-3">
+                                <div class="bg-blue-500 rounded h-3" :style="{ width: (prob * 100) + '%' }"></div>
+                            </div>
+                            <span class="w-12 text-gray-600">{{ (prob * 100).toFixed(1) }}%</span>
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </div>
+
         <!-- 说明 -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
             <h3 class="text-lg font-semibold text-blue-900 mb-3">使用说明</h3>
@@ -145,7 +210,7 @@
                 <li>• 确保数独网格是笔直的，不存在透视变形</li>
                 <li>• 识别结果中 · 表示空白单元格，数字 1-9 表示识别到的数字</li>
                 <li>• 如果识别效果不佳，可以调整图像对比度后重试</li>
-                <li>• 识别使用 Tesseract.js OCR 引擎，首次加载需要下载语言包</li>
+                <li>• 识别使用了自训练的卷积神经网络模型，支持单数字识别调试</li>
             </ul>
         </div>
     </div>
@@ -156,6 +221,7 @@ import { ref, watch, onMounted, nextTick } from 'vue'
 import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
 import { useOCR } from '@/composables/useOCR'
+import { recognizeDigitWithDebug } from '@/utils/ocr/digitRecognizer'
 
 const { state, originalImage, recognize, reset: resetOCR } = useOCR()
 
@@ -171,6 +237,14 @@ const editableDigits = ref<string[]>([])
 // 图像裁剪相关
 const uploadedImageSrc = ref<string>('')
 const cropperRef = ref<InstanceType<typeof Cropper>>()
+
+// 单数字识别测试
+const digitFileInput = ref<HTMLInputElement>()
+const digitImageSrc = ref<string>('')
+const digitDebugCanvasRef = ref<HTMLCanvasElement>()
+const digitDebugCanvas = ref<HTMLCanvasElement | null>(null)
+const digitLoading = ref(false)
+const digitResult = ref<{ digit: number; confidence: number; allProbs: number[] } | null>(null)
 
 onMounted(() => {
     // 监听全局粘贴事件
@@ -362,6 +436,64 @@ function downloadResult(): void {
         element.click()
         document.body.removeChild(element)
     }
+}
+
+function handleDigitFileSelect(event: Event): void {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (file) loadDigitImage(file)
+}
+
+function handleDigitDrop(event: DragEvent): void {
+  const file = event.dataTransfer?.files[0]
+  if (file && file.type.startsWith('image/')) loadDigitImage(file)
+}
+
+function loadDigitImage(file: File): void {
+  digitResult.value = null
+  digitDebugCanvas.value = null
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    digitImageSrc.value = e.target?.result as string
+  }
+  reader.readAsDataURL(file)
+}
+
+async function recognizeSingleDigit(): Promise<void> {
+  if (!digitImageSrc.value) return
+
+  digitLoading.value = true
+  digitResult.value = null
+  digitDebugCanvas.value = null
+
+  try {
+    const img = new Image()
+    img.src = digitImageSrc.value
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = reject
+    })
+
+    const canvas = document.createElement('canvas')
+    canvas.width = img.width
+    canvas.height = img.height
+    canvas.getContext('2d')!.drawImage(img, 0, 0)
+
+    const result = await recognizeDigitWithDebug(canvas)
+    digitResult.value = { digit: result.digit, confidence: result.confidence, allProbs: result.allProbs }
+    digitDebugCanvas.value = result.debugCanvas
+
+    await nextTick()
+    if (digitDebugCanvasRef.value && result.debugCanvas) {
+      const ctx = digitDebugCanvasRef.value.getContext('2d')!
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(result.debugCanvas, 0, 0, 140, 140)
+    }
+  } catch (err) {
+    console.error('识别失败:', err)
+  } finally {
+    digitLoading.value = false
+  }
 }
 
 function reset(): void {
