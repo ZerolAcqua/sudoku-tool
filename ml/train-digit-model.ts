@@ -1,5 +1,4 @@
 import * as tf from '@tensorflow/tfjs-node'
-import { createCanvas } from 'canvas'
 import * as fs from 'fs'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
@@ -8,188 +7,8 @@ import { PNG } from 'pngjs'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // ========================
-// 工具函数：生成数字字体图片
+// 数据集加载
 // ========================
-
-/**
- * 使用 Canvas 生成数字字体图片
- * @param digit 数字 0-9 或 -1 (代表无数字)
- * @param width 图片宽度
- * @param height 图片高度
- * @returns Uint8Array 灰度图片数据
- */
-function generateDigitImage(digit: number, width: number = 28, height: number = 28): Uint8Array {
-  const canvas = createCanvas(width, height)
-  const ctx = canvas.getContext('2d')
-
-  // 黑色背景
-  ctx.fillStyle = 'black'
-  ctx.fillRect(0, 0, width, height)
-
-  // 无数字情况下返回空白图片（黑色背景，加入轻微噪声/网格线）
-  if (digit === -1) {
-    const imageData = ctx.getImageData(0, 0, width, height)
-    const data = imageData.data
-
-    // 随机加入轻微噪声（模拟拍照噪点）
-    const noiseProbability = 0.02
-    for (let i = 0; i < width * height; i++) {
-      if (Math.random() < noiseProbability) {
-        const idx = i * 4
-        const value = Math.floor(Math.random() * 30) // 低亮度噪声
-        data[idx] = value
-        data[idx + 1] = value
-        data[idx + 2] = value
-        data[idx + 3] = 255
-      }
-    }
-
-    // 随机绘制一条极细网格线（模拟真实网格干扰）
-    if (Math.random() < 0.5) {
-      ctx.strokeStyle = 'rgba(40, 40, 40, 0.6)'
-      ctx.lineWidth = 1
-      const horizontal = Math.random() > 0.5
-      if (horizontal) {
-        const y = Math.floor(Math.random() * height)
-        ctx.beginPath()
-        ctx.moveTo(0, y)
-        ctx.lineTo(width, y)
-        ctx.stroke()
-      } else {
-        const x = Math.floor(Math.random() * width)
-        ctx.beginPath()
-        ctx.moveTo(x, 0)
-        ctx.lineTo(x, height)
-        ctx.stroke()
-      }
-    }
-
-    // 转换为灰度数据
-    const finalData = ctx.getImageData(0, 0, width, height).data
-    const grayData = new Uint8Array(width * height)
-    for (let i = 0; i < width * height; i++) {
-      const idx = i * 4
-      const r = finalData[idx]
-      const g = finalData[idx + 1]
-      const b = finalData[idx + 2]
-      const gray = (r + g + b) / 3
-      grayData[i] = Math.round(gray) // 黑底为低值
-    }
-
-    return grayData
-  }
-
-  // 绘制数字（白色数字，黑色背景）
-  ctx.fillStyle = 'white'
-  // 随机化字体、大小、粗细与几何变换以增加多样性
-  const fontSizes = [0.55, 0.6, 0.65, 0.7, 0.75, 0.8]
-  const fontSize = fontSizes[Math.floor(Math.random() * fontSizes.length)]
-  const fonts = ['Arial', 'Courier New', 'Verdana', 'Times New Roman', 'Georgia', 'Tahoma']
-  const font = fonts[Math.floor(Math.random() * fonts.length)]
-  const isBold = Math.random() > 0.4
-  ctx.font = `${isBold ? 'bold' : ''} ${Math.floor(width * fontSize)}px ${font}`.trim()
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-
-  // 随机仿射变换
-  const translateX = (Math.random() - 0.5) * 4
-  const translateY = (Math.random() - 0.5) * 4
-  const rotate = (Math.random() - 0.5) * (Math.PI / 10)
-  const scale = 0.9 + Math.random() * 0.2
-
-  ctx.save()
-  ctx.translate(width / 2 + translateX, height / 2 + translateY)
-  ctx.rotate(rotate)
-  ctx.scale(scale, scale)
-  ctx.fillText(digit.toString(), 0, 0)
-  ctx.restore()
-
-  // 转换为灰度数据
-  const imageData = ctx.getImageData(0, 0, width, height)
-  const data = imageData.data
-  const grayData = new Uint8Array(width * height)
-
-  for (let i = 0; i < width * height; i++) {
-    // 从 RGBA 转换为灰度 (R + G + B) / 3
-    // 白色数字 = 高值，黑色背景 = 低值
-    const idx = i * 4
-    const r = data[idx]
-    const g = data[idx + 1]
-    const b = data[idx + 2]
-    const gray = (r + g + b) / 3
-    grayData[i] = Math.round(gray) // 白色数字 = 高值，黑色背景 = 低值
-  }
-
-  return grayData
-}
-
-/**
- * 批量生成数字字体数据集
- * @param samplesPerDigit 每个数字生成的样本数
- * @returns { images: Uint8Array, labels: Uint8Array }
- */
-function generateSyntheticDataset(samplesPerDigit: number = 100): { images: Uint8Array; labels: number[] } {
-  const imageSize = 28
-  const numClasses = 11 // 0-9 + 无数字
-  const totalSamples = samplesPerDigit * numClasses
-  const images = new Uint8Array(totalSamples * imageSize * imageSize)
-  const labels: number[] = [] // 改为普通数组
-
-  console.log(`生成合成数据集: ${samplesPerDigit} 样本 x ${numClasses} 类...`)
-
-  let idx = 0
-  for (let digit = 0; digit <= 10; digit++) {
-    const actualDigit = digit === 10 ? -1 : digit // 最后一类是无数字
-
-    for (let sample = 0; sample < samplesPerDigit; sample++) {
-      const digitImage = generateDigitImage(actualDigit, imageSize, imageSize)
-
-      // 添加轻微的旋转和缩放变化
-      let processedImage = digitImage
-      if (actualDigit !== -1 && Math.random() > 0.5) {
-        // 对数字应用轻微变形
-        processedImage = applyTransformation(digitImage, imageSize)
-      }
-
-      images.set(processedImage, idx * imageSize * imageSize)
-      labels.push(digit)
-      idx++
-    }
-
-    if ((digit + 1) % 5 === 0) {
-      process.stdout.write(`\r已生成: ${digit + 1}/${numClasses} 类`)
-    }
-  }
-  console.log('\n合成数据集生成完成!')
-
-  return { images, labels }
-}
-
-/**
- * 应用轻微的几何变换
- */
-function applyTransformation(imageData: Uint8Array, size: number): Uint8Array {
-  // 简单实现：轻微缩放和位移
-  const transformed = new Uint8Array(size * size)
-  const scale = 0.9 + Math.random() * 0.2
-  const offsetX = Math.floor((Math.random() - 0.5) * 2)
-  const offsetY = Math.floor((Math.random() - 0.5) * 2)
-
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const srcX = Math.floor((x - offsetX) / scale + size / 2 - size / (2 * scale))
-      const srcY = Math.floor((y - offsetY) / scale + size / 2 - size / (2 * scale))
-
-      if (srcX >= 0 && srcX < size && srcY >= 0 && srcY < size) {
-        transformed[y * size + x] = imageData[srcY * size + srcX]
-      } else {
-        transformed[y * size + x] = 0 // 黑色背景
-      }
-    }
-  }
-
-  return transformed
-}
 
 /**
  * 加载 MNIST 数据集
@@ -212,16 +31,16 @@ async function loadMNISTDataset(): Promise<{
     const imagesPath = path.join(dataDir, 'mnist_images.png')
     const labelsPath = path.join(dataDir, 'mnist_labels_uint8')
 
-    // 加载标签（二进制文件）
+    // 加载标签（二进制文件，10 类 one-hot）
     console.log('加载标签...')
     const labelsBuffer = fs.readFileSync(labelsPath)
     const datasetLabels = new Uint8Array(labelsBuffer)
-    console.log(`✅ 标签加载完成: ${datasetLabels.length} 个`)
+    console.log(`- 标签加载完成: ${datasetLabels.length} 个`)
 
     // 加载 PNG 图像
     console.log('加载 MNIST 图像...')
     const imgBuffer = fs.readFileSync(imagesPath)
-    
+
     // 使用 pngjs 解析 PNG 文件
     const png = PNG.sync.read(imgBuffer)
     const img = {
@@ -230,7 +49,7 @@ async function loadMNISTDataset(): Promise<{
       data: png.data
     }
 
-    console.log(`✅ 图像加载完成: ${img.width}x${img.height}`)
+    console.log(`- 图像加载完成: ${img.width}x${img.height}`)
 
     // 提取像素数据（直接从 PNG 数据）
     const pixelData = img.data
@@ -242,22 +61,21 @@ async function loadMNISTDataset(): Promise<{
       datasetBytesView[j] = pixelData[j * 4] / 255
     }
 
-    console.log(`✅ 图像数据提取完成: ${NUM_DATASET_ELEMENTS} 个样本`)
+    console.log(`- 图像数据提取完成: ${NUM_DATASET_ELEMENTS} 个样本`)
 
     // 获取训练集数据
-    const NUM_TRAIN_LABELS = NUM_TRAIN_ELEMENTS * NUM_CLASSES
     const trainImages = datasetBytesView.slice(0, IMAGE_SIZE * NUM_TRAIN_ELEMENTS)
-    const trainLabels = datasetLabels.slice(0, NUM_TRAIN_LABELS)
+    const trainLabels = datasetLabels.slice(0, NUM_TRAIN_ELEMENTS * NUM_CLASSES)
 
-    console.log(`✅ MNIST 数据准备完成: ${NUM_TRAIN_ELEMENTS} 个训练样本`)
+    console.log(`- MNIST 数据准备完成: ${NUM_TRAIN_ELEMENTS} 个训练样本`)
 
     // 转换为张量
     const imagesTensor = tf.tensor4d(trainImages, [NUM_TRAIN_ELEMENTS, 28, 28, 1])
-    const labelsTensor = tf.tensor2d(trainLabels, [NUM_TRAIN_ELEMENTS, NUM_CLASSES])
+    const labelsTensor = tf.tensor2d(trainLabels, [NUM_TRAIN_ELEMENTS, NUM_CLASSES], 'float32')
 
     return { images: imagesTensor, labels: labelsTensor }
   } catch (err) {
-    console.warn('⚠️  MNIST 数据加载失败:', err instanceof Error ? err.message : err)
+    console.warn('- MNIST 数据加载失败:', err instanceof Error ? err.message : err)
     console.log('请确保 mnist_images.png 和 mnist_labels_uint8 在 ml/data 目录中')
     // 返回空张量
     return {
@@ -268,93 +86,224 @@ async function loadMNISTDataset(): Promise<{
 }
 
 /**
- * 加载预生成的合成数据集（PNG 精灵图 + one-hot 标签）
+ * 加载 TMNIST CSV 数据集
+ * TMNIST (Typeface MNIST): 不同字体的数字图片，CSV 格式
+ * Kaggle: https://www.kaggle.com/datasets/nimishmagre/tmnist-typeface-mnist
+ *
+ * CSV 格式:
+ *   names,labels,1,2,3,...,784
+ *   每行: 字体名,数字(0-9),像素1,像素2,...,像素784
+ *
+ * 将 CSV 文件放到 ml/data/ 目录，文件名为 tmnist.csv
  */
-async function loadPreGeneratedSyntheticDataset(): Promise<{
+async function loadTMNISTDataset(): Promise<{
   images: tf.Tensor4D
   labels: tf.Tensor2D
-} | null> {
-  const dataDir = path.join(__dirname, 'data')
-  const imagesPath = path.join(dataDir, 'synthetic_images.png')
-  const labelsPath = path.join(dataDir, 'synthetic_labels_uint8')
+}> {
+  const NUM_CLASSES = 10
+  const IMAGE_SIZE = 28 * 28
 
-  if (!fs.existsSync(imagesPath) || !fs.existsSync(labelsPath)) {
-    return null
+  // 按优先级查找 TMNIST CSV 文件
+  const candidateFiles = ['TMNIST_Data.csv', 'tmnist.csv']
+  let csvPath = ''
+  for (const f of candidateFiles) {
+    const p = path.join(__dirname, 'data', f)
+    if (fs.existsSync(p)) {
+      csvPath = p
+      break
+    }
   }
-
-  // 读取标签（one-hot）
-  const labelsBuffer = fs.readFileSync(labelsPath)
-  const labelsArray = new Uint8Array(labelsBuffer)
-  const NUM_CLASSES = 11
-  const numSamples = Math.floor(labelsArray.length / NUM_CLASSES)
-
-  if (numSamples <= 0) {
-    return null
-  }
-
-  // 读取 PNG 精灵图
-  const imgBuffer = fs.readFileSync(imagesPath)
-  const png = PNG.sync.read(imgBuffer)
-
-  const DIGIT_SIZE = 28
-  const IMAGE_SIZE = DIGIT_SIZE * DIGIT_SIZE
-  const spriteWidth = png.width
-  const datasetBytesView = new Float32Array(numSamples * IMAGE_SIZE)
-
-  // 正确读取 PNG 精灵图（考虑行优先顺序）
-  // 样本按水平排列：样本0在x=[0,27]，样本1在x=[28,55]，等等
-  for (let sample = 0; sample < numSamples; sample++) {
-    for (let py = 0; py < DIGIT_SIZE; py++) {
-      for (let px = 0; px < DIGIT_SIZE; px++) {
-        // PNG 中的像素位置：(py, sample*DIGIT_SIZE + px)
-        const pngPixelIdx = (py * spriteWidth + sample * DIGIT_SIZE + px) * 4
-        // datasetBytesView 中的位置：样本内的线性位置
-        const dataIdx = sample * IMAGE_SIZE + py * DIGIT_SIZE + px
-        // 读取 R 通道（灰度值）
-        datasetBytesView[dataIdx] = png.data[pngPixelIdx] / 255
-      }
+  if (!csvPath) {
+    console.warn('- TMNIST CSV 未找到')
+    console.log('   请从 Kaggle 下载 TMNIST 数据:')
+    console.log('   https://www.kaggle.com/datasets/nimishmagre/tmnist-typeface-mnist')
+    console.log('   将解压后的 CSV 文件放到 ml/data/ 目录')
+    return {
+      images: tf.tensor4d([], [0, 28, 28, 1]),
+      labels: tf.tensor2d([], [0, NUM_CLASSES]),
     }
   }
 
-  const imagesTensor = tf.tensor4d(datasetBytesView, [numSamples, 28, 28, 1])
-  const labelsTensor = tf.tensor2d(labelsArray, [numSamples, NUM_CLASSES])
+  console.log('加载 TMNIST CSV 数据集...')
+
+  // 读取 CSV 文件
+  const csvContent = fs.readFileSync(csvPath, 'utf-8')
+  const lines = csvContent.trim().split('\n')
+
+  // 跳过标题行
+  const dataLines = lines.slice(1)
+  const numSamples = dataLines.length
+
+  console.log(`  总行数(含标题): ${lines.length}, 样本数: ${numSamples}`)
+
+  const imagesArray = new Float32Array(numSamples * IMAGE_SIZE)
+  const labelsArray = new Float32Array(numSamples * NUM_CLASSES) // 11 类 one-hot
+
+  let validSamples = 0
+  for (let i = 0; i < dataLines.length; i++) {
+    const line = dataLines[i]
+    if (!line || line.trim() === '') continue
+
+    const parts = line.split(',')
+    if (parts.length < 786) continue // names(1) + labels(1) + pixels(784) = 786
+
+    // parts[0] = font name, parts[1] = digit label, parts[2..785] = pixels
+    const digit = parseInt(parts[1], 10)
+    if (isNaN(digit) || digit < 0 || digit > 9) continue
+
+    // 读取像素值 (columns 2-785)
+    for (let p = 0; p < IMAGE_SIZE; p++) {
+      const pixelVal = parseInt(parts[2 + p], 10)
+      // TMNIST 与 MNIST 一样是黑底白字，直接归一化即可
+      imagesArray[validSamples * IMAGE_SIZE + p] = (isNaN(pixelVal) ? 0 : pixelVal) / 255
+    }
+
+    // One-hot 编码: 10 类
+    labelsArray[validSamples * NUM_CLASSES + digit] = 1
+
+    validSamples++
+
+    if ((validSamples) % 50000 === 0) {
+      console.log(`  已处理: ${validSamples} 个样本...`)
+    }
+  }
+
+  console.log(`- TMNIST 加载完成: ${validSamples} 个有效样本`)
+
+  const imagesTensor = tf.tensor4d(imagesArray.slice(0, validSamples * IMAGE_SIZE), [validSamples, 28, 28, 1])
+  const labelsTensor = tf.tensor2d(labelsArray.slice(0, validSamples * NUM_CLASSES), [validSamples, NUM_CLASSES])
 
   return { images: imagesTensor, labels: labelsTensor }
 }
 
+// ========================
+// 数据增强：二值化
+// ========================
+
+/** 二值化阈值列表：模拟不同 OCR 预处理强度 */
+const BINARIZATION_THRESHOLDS = [0.3, 0.45, 0.6, 0.8]
+
 /**
- * 只使用合成数据集（数字字体 + 无数字）
+ * 对图像张量应用二值化阈值
+ * pixel ≥ threshold → 1.0, pixel < threshold → 0.0
  */
-async function createSyntheticDataset(): Promise<{
+function binarizeTensor(images: tf.Tensor4D, threshold: number): tf.Tensor4D {
+  return tf.where(
+    images.greaterEqual(tf.scalar(threshold)),
+    tf.onesLike(images),
+    tf.zerosLike(images),
+  ) as tf.Tensor4D
+}
+
+/**
+ * 使用多个二值化阈值扩充数据集
+ * 原始数据 + 每个阈值一份二值化副本
+ */
+function augmentWithBinarization(
+  images: tf.Tensor4D,
+  labels: tf.Tensor2D,
+  thresholds: number[],
+): { images: tf.Tensor4D; labels: tf.Tensor2D } {
+  const augmentedImages: tf.Tensor4D[] = [images]
+  const augmentedLabels: tf.Tensor2D[] = [labels]
+
+  for (const t of thresholds) {
+    console.log(`  二值化阈值 ${t.toFixed(2)} ...`)
+    const binarized = binarizeTensor(images, t)
+    augmentedImages.push(binarized)
+    augmentedLabels.push(labels)
+  }
+
+  return {
+    images: tf.concat(augmentedImages, 0) as tf.Tensor4D,
+    labels: tf.concat(augmentedLabels, 0) as tf.Tensor2D,
+  }
+}
+
+/**
+ * 合并 MNIST + TMNIST 数据集，随机打乱并分割训练/测试集
+ */
+async function createCombinedDataset(): Promise<{
   trainImages: tf.Tensor4D
   trainLabels: tf.Tensor2D
   testImages: tf.Tensor4D
   testLabels: tf.Tensor2D
 }> {
-  console.log('加载预生成合成数据集...')
+  const NUM_CLASSES = 10
+  console.log('\n======== 加载数据集 ========\n')
 
-  const synthData = await loadPreGeneratedSyntheticDataset()
-  if (!synthData) {
-    console.error('❌ 未找到预生成的合成数据集')
-    console.error('请先运行: npm run generate:synthetic')
-    throw new Error('合成数据集不存在')
+  // 1. 加载 MNIST 数据集
+  console.log('[1/2] MNIST 数据集')
+  const mnistData = await loadMNISTDataset()
+  console.log(`  MNIST: ${mnistData.images.shape[0]} 个样本`)
+
+  // 2. 加载 TMNIST 数据集
+  console.log('\n[2/2] TMNIST 数据集')
+  const tmnistData = await loadTMNISTDataset()
+  console.log(`  TMNIST: ${tmnistData.images.shape[0]} 个样本`)
+
+  // 合并数据集
+  console.log('\n======== 合并数据集 ========')
+  const imageTensors: tf.Tensor4D[] = []
+  const labelTensors: tf.Tensor2D[] = []
+
+  if (mnistData.images.shape[0] > 0) {
+    imageTensors.push(mnistData.images)
+    labelTensors.push(mnistData.labels)
   }
 
-  const NUM_CLASSES = 11
-  let allImages = synthData.images as tf.Tensor4D
-  let allLabels = synthData.labels as tf.Tensor2D
+  if (tmnistData.images.shape[0] > 0) {
+    imageTensors.push(tmnistData.images)
+    labelTensors.push(tmnistData.labels)
+  }
 
-  console.log(`加载完成: ${allImages.shape[0]} 个样本`) 
+  if (imageTensors.length === 0) {
+    throw new Error('没有可用的数据集！请确保 MNIST 或 TMNIST 数据在 ml/data/ 目录中')
+  }
+
+  // 沿第 0 维拼接
+  let allImages = tf.concat(imageTensors, 0) as tf.Tensor4D
+  let allLabels = tf.concat(labelTensors, 0) as tf.Tensor2D
+
+  let totalSamples = allImages.shape[0]
+  console.log(`合并后总样本数: ${totalSamples}`)
+
+  // 拼接后立即释放中间张量
+  imageTensors.forEach(t => { if (t !== allImages) t.dispose() })
+  labelTensors.forEach(t => { if (t !== allLabels) t.dispose() })
+
+  // 二值化数据增强：用多个阈值二值化以模拟不同 OCR 预处理
+  console.log('\n======== 二值化增强 ========')
+  const augmented = augmentWithBinarization(allImages, allLabels, BINARIZATION_THRESHOLDS)
+  allImages.dispose()
+  allLabels.dispose()
+  allImages = augmented.images
+  allLabels = augmented.labels
+  totalSamples = allImages.shape[0]
+  console.log(`增强后总样本数: ${totalSamples} (${BINARIZATION_THRESHOLDS.length + 1}x)`)
+
+  // 统计各类别分布
+  const labelArgMax = allLabels.argMax(1).dataSync()
+  const classCount: Record<number, number> = {}
+  for (let i = 0; i < labelArgMax.length; i++) {
+    const c = labelArgMax[i]
+    classCount[c] = (classCount[c] || 0) + 1
+  }
+  console.log('类别分布:')
+  for (let c = 0; c < NUM_CLASSES; c++) {
+    console.log(`  数字 ${c}: ${classCount[c] || 0} 个样本`)
+  }
 
   // 打乱数据
-  const indices = tf.util.createShuffledIndices(allImages.shape[0])
+  console.log('\n打乱数据...')
+  const indices = tf.util.createShuffledIndices(totalSamples)
   const indicesTensor = tf.tensor1d(Array.from(indices), 'int32')
   allImages = tf.gather(allImages, indicesTensor, 0) as tf.Tensor4D
   allLabels = tf.gather(allLabels, indicesTensor, 0) as tf.Tensor2D
   indicesTensor.dispose()
 
   // 分割为训练集和测试集 (80/20)
-  const trainSize = Math.floor(allImages.shape[0] * 0.8)
+  const trainSize = Math.floor(totalSamples * 0.8)
   const trainImages = allImages.slice([0, 0, 0, 0], [trainSize, 28, 28, 1]) as tf.Tensor4D
   const trainLabels = allLabels.slice([0, 0], [trainSize, NUM_CLASSES]) as tf.Tensor2D
   const testImages = allImages.slice([trainSize, 0, 0, 0], [-1, 28, 28, 1]) as tf.Tensor4D
@@ -362,6 +311,7 @@ async function createSyntheticDataset(): Promise<{
 
   console.log(`训练集: ${trainImages.shape[0]} 个样本`)
   console.log(`测试集: ${testImages.shape[0]} 个样本`)
+  console.log('================================\n')
 
   return { trainImages, trainLabels, testImages, testLabels }
 }
@@ -405,7 +355,7 @@ function buildModel(): tf.LayersModel {
       tf.layers.batchNormalization(),
       tf.layers.dropout({ rate: 0.5 }),
       tf.layers.dense({
-        units: 11, // 11 个分类：0-9 + 无数字
+        units: 10, // 10 个分类：0-9
         activation: 'softmax',
       }),
     ],
@@ -468,8 +418,8 @@ async function trainDigitModel() {
     console.log(`创建检查点目录: ${checkpointDir}`)
   }
 
-  // 创建数据集（使用合成数据）
-  const { trainImages, trainLabels, testImages, testLabels } = await createSyntheticDataset()
+  // 创建数据集（合并 MNIST + TMNIST + 合成数据）
+  const { trainImages, trainLabels, testImages, testLabels } = await createCombinedDataset()
 
   const TOTAL_EPOCHS = 30
   const CHECKPOINT_INTERVAL = 1 // 每个 epoch 保存一次检查点
@@ -519,7 +469,7 @@ async function trainDigitModel() {
           // 保存检查点
           if ((epoch + 1) % CHECKPOINT_INTERVAL === 0) {
             const checkpointPath = 'file://' + path.join(checkpointDir, `checkpoint-epoch-${epoch + 1}`)
-            console.log(`💾 保存检查点: ${checkpointPath}`)
+            console.log(`- 保存检查点: ${checkpointPath}`)
             await model.save(checkpointPath)
           }
         },
@@ -550,11 +500,11 @@ async function trainDigitModel() {
 // 运行训练
 trainDigitModel()
   .then(() => {
-    console.log('✅ 训练成功完成')
+    console.log('训练成功完成')
     process.exit(0)
   })
   .catch(err => {
-    console.error('❌ 训练过程中出错:')
+    console.error('训练过程中出错:')
     console.error(err)
     if (err.stack) {
       console.error(err.stack)

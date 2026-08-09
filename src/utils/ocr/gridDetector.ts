@@ -1,77 +1,270 @@
 /**
  * 数独网格检测与单元格提取
+ *
+ * 前提假设：输入图片为横平竖直的电子数独截图（无透视变形）
  */
 
-declare const cv: any // OpenCV.js 全局对象（由 useOCR 在首次调用时设置）
+declare const cv: any // OpenCV.js 全局对象（由 preprocessor 在首次调用时设置）
+
+/** 最近一次 detectGrid 的逐版本检测结果（调试用） */
+let lastVersionResults: Array<{ name: string; hLines: number[]; vLines: number[] }> = [];
 
 interface GridLocation {
   x: number;
   y: number;
   width: number;
   height: number;
+  /** 水平线 y 坐标（已排序，相对原图）；空数组表示无精确数据 */
+  hLines: number[];
+  /** 垂直线 x 坐标（已排序，相对原图）；空数组表示无精确数据 */
+  vLines: number[];
 }
 
-/**
- * 直线检测结果，包含网格位置和误差值
- */
-interface DetectionResult {
-  grid: GridLocation;
-  error: number; // 直线间距的误差值之和
-  threshold: string; // 使用的二值化方式
-  hLines: number[]; // 水平线坐标
-  vLines: number[]; // 垂直线坐标
-  hGap: number; // 水平线基本间距
-  vGap: number; // 垂直线基本间距
+/** HoughLinesP 检测到的原始线段 */
+interface LineSegment {
+  start: number;   // 沿主轴方向的起点（水平线为 min x，垂直线为 min y）
+  end: number;     // 沿主轴方向的终点（水平线为 max x，垂直线为 max y）
+  position: number; // 垂直主轴方向的位置（水平线为 y，垂直线为 x）
 }
 
-/**
- * 计算直线间距的误差值（所有间距与基准间距的偏离之和）
- * 误差越小说明检测质量越好
- */
-function calculateLineSpacingError(lines: number[], baseGap: number): number {
-  if (lines.length < 2) return Infinity;
+// =====================
+// 线段处理
+// =====================
 
-  let totalError = 0;
-  for (let i = 1; i < lines.length; i++) {
-    const gap = lines[i]! - lines[i - 1]!;
-    // 计算该间距与基准间距的偏离度
-    const error = Math.abs(gap - baseGap);
-    totalError += error;
+/**
+ * 连接断裂的共线线段
+ * 将同一直线上因数字遮挡等原因分离的多个线段连接为一条完整直线
+ *
+ * @param segments 原始线段（已按 H/V 分类）
+ * @param collinearTol 同线判定容差（px），位置差在此范围内的视为同一行/列
+ * @param mergeGap 合并容差（px），两段端点间距小于此值时连接
+ * @param minLengthRatio 连接后线段的最小长度比例（相对图像尺寸）
+ * @param imageSize 图像最小边长
+ * @returns 合并后的直线位置数组（水平线返回 y，垂直线返回 x）
+ */
+function joinBrokenSegments(
+  segments: LineSegment[],
+  collinearTol: number,
+  mergeGap: number,
+  minLengthRatio: number,
+  imageSize: number,
+): number[] {
+  if (segments.length === 0) return [];
+
+  // 1. 按 position 分组（同一直线上的线段）
+  const sorted = [...segments].sort((a, b) => a.position - b.position);
+  const groups: LineSegment[][] = [];
+  let currentGroup: LineSegment[] = [sorted[0]!];
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (Math.abs(sorted[i]!.position - currentGroup[0]!.position) <= collinearTol) {
+      currentGroup.push(sorted[i]!);
+    } else {
+      groups.push(currentGroup);
+      currentGroup = [sorted[i]!];
+    }
+  }
+  groups.push(currentGroup);
+
+  // 2. 每组内按起点排序，连接有重叠或间距小于 mergeGap 的线段
+  const minLength = imageSize * minLengthRatio;
+  const result: number[] = [];
+
+  for (const group of groups) {
+    group.sort((a, b) => a.start - b.start);
+
+    const merged: LineSegment[] = [{ ...group[0]! }];
+    for (let i = 1; i < group.length; i++) {
+      const last = merged[merged.length - 1]!;
+      const seg = group[i]!;
+      if (seg.start <= last.end + mergeGap) {
+        // 连接：扩展终点
+        last.end = Math.max(last.end, seg.end);
+      } else {
+        merged.push({ ...seg });
+      }
+    }
+
+    // 取组内所有线段的平均位置
+    const avgPosition = group.reduce((s, g) => s + g.position, 0) / group.length;
+
+    // 只保留足够长的合并线段（贯穿盘面的长直线）
+    const longestMerged = merged.reduce((best, m) =>
+      (m.end - m.start) > (best.end - best.start) ? m : best
+    );
+    if (longestMerged.end - longestMerged.start >= minLength) {
+      result.push(avgPosition);
+    }
   }
 
-  return totalError / (lines.length - 1); // 平均误差
+  return result;
 }
 
 /**
- * 计算整体检测误差（水平和垂直方向的误差之和）
+ * 合并位置相近的直线（处理粗线双边缘）
+ * 将间距 ≤ threshold 的相邻直线合并为中点
+ * 支持链式合并：如果三条线间距都在阈值内，合并为一条
  */
-function calculateTotalError(
-  hLines: number[],
-  vLines: number[],
-  hGap: number,
-  vGap: number
-): number {
-  const hError = calculateLineSpacingError(hLines, hGap);
-  const vError = calculateLineSpacingError(vLines, vGap);
-  // 还要考虑宽高比的偏离
-  const sizeRatio = Math.max(hGap * 9, vGap * 9) / Math.min(hGap * 9, vGap * 9);
-  const ratioError = Math.abs(sizeRatio - 1.0) * 100;
+function mergeNearbyLines(positions: number[], threshold: number): number[] {
+  if (positions.length <= 1) return positions;
 
-  return hError + vError + ratioError;
+  const sorted = [...positions].sort((a, b) => a - b);
+  const result: number[] = [];
+  let groupStart = 0;
+
+  for (let i = 1; i <= sorted.length; i++) {
+    if (i === sorted.length || sorted[i]! - sorted[i - 1]! > threshold) {
+      // 闭合当前组
+      const group = sorted.slice(groupStart, i);
+      result.push(group.reduce((a, b) => a + b, 0) / group.length);
+      groupStart = i;
+    }
+  }
+
+  return result;
 }
+
+// =====================
+// 线条数量修正
+// =====================
+
+/**
+ * 将检测线数量修正为恰好 expectedCount 条。
+ *
+ * 合并：优先合并间距 < cellSize*0.4 的线（重复检测），仍不够再合并最近邻。
+ * 插入：用总跨度/格数估算预期格宽，每个间隙插 round(gap/cellSize)-1 条，均匀分布。
+ */
+function refineLinePositions(
+  detectedLines: number[],
+  expectedCount: number,
+): number[] {
+  const lines = [...detectedLines].sort((a, b) => a - b);
+  if (lines.length === 0) return [];
+  if (lines.length === expectedCount) return lines;
+
+  const first = lines[0]!;
+  const last = lines[lines.length - 1]!;
+  const totalSpan = last - first;
+  const cellSize = totalSpan / (expectedCount - 1);
+
+  console.log(
+    `[refineLinePositions] 输入: ${lines.length}条 → 目标: ${expectedCount}条, ` +
+    `跨度=${totalSpan.toFixed(0)}, 预期格宽=${cellSize.toFixed(1)}, ` +
+    `位置: ${lines.map(v => v.toFixed(1)).join(', ')}`,
+  );
+
+  // --- 多了：合并重复检测 ---
+  while (lines.length > expectedCount) {
+    // 优先合并明显是重复的线对（间距远小于格宽）
+    let bestIdx = 0;
+    let bestGap = Infinity;
+    for (let i = 1; i < lines.length; i++) {
+      const gap = lines[i]! - lines[i - 1]!;
+      // 重复线权重：间距越小越好，但格宽 40% 以下的优先
+      const weight = gap < cellSize * 0.4 ? gap / 1000 : gap;
+      if (weight < bestGap) { bestGap = weight; bestIdx = i; }
+    }
+    const a = lines[bestIdx - 1]!;
+    const b = lines[bestIdx]!;
+    const mid = (a + b) / 2;
+    console.log(
+      `[refineLinePositions] 合并: ${a.toFixed(1)}+${b.toFixed(1)} → ${mid.toFixed(1)} (间距=${(b-a).toFixed(1)})`,
+    );
+    lines.splice(bestIdx - 1, 2, mid);
+  }
+
+  // --- 少了：按预期格宽在间隙中均匀插入 ---
+  while (lines.length < expectedCount) {
+    let bestIdx = 0;
+    let bestNeed = 0;
+    let bestGap = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const gap = lines[i]! - lines[i - 1]!;
+      const need = Math.round(gap / cellSize) - 1;
+      if (need > bestNeed) {
+        bestNeed = need;
+        bestGap = gap;
+        bestIdx = i;
+      }
+    }
+
+    if (bestNeed <= 0) {
+      // 所有间隙都只需要 0-1 条线，在最大间隙插 1 条兜底
+      for (let i = 1; i < lines.length; i++) {
+        const gap = lines[i]! - lines[i - 1]!;
+        if (gap > bestGap) { bestGap = gap; bestIdx = i; }
+      }
+      bestNeed = 1;
+    }
+
+    const toInsert = Math.min(bestNeed, expectedCount - lines.length);
+    const a = lines[bestIdx - 1]!;
+    const b = lines[bestIdx]!;
+
+    console.log(
+      `[refineLinePositions] 间隙 ${a.toFixed(1)}–${b.toFixed(1)} (${bestGap.toFixed(1)}px, ` +
+      `${(bestGap/cellSize).toFixed(2)}格), 插入${toInsert}条`,
+    );
+
+    for (let k = 1; k <= toInsert; k++) {
+      lines.splice(bestIdx - 1 + k, 0, a + (k * bestGap) / (toInsert + 1));
+    }
+  }
+
+  console.log(
+    `[refineLinePositions] 输出: ${lines.length}条, ` +
+    `位置: ${lines.map(v => v.toFixed(1)).join(', ')}`,
+  );
+
+  return lines;
+}
+
+// =====================
+// 构建网格矩形
+// =====================
+
+/**
+ * 从检测到的线条构建网格矩形（强制正方形，居中裁剪）
+ */
+function buildRectFromLines(horizontalLines: number[], verticalLines: number[]): GridLocation {
+  const sortedH = [...horizontalLines].sort((a, b) => a - b);
+  const sortedV = [...verticalLines].sort((a, b) => a - b);
+
+  const top = sortedH[0]!;
+  const bottom = sortedH[sortedH.length - 1]!;
+  const left = sortedV[0]!;
+  const right = sortedV[sortedV.length - 1]!;
+
+  const rawWidth = right - left;
+  const rawHeight = bottom - top;
+  const sideLength = Math.min(rawWidth, rawHeight);
+
+  // 正方形居中
+  const offsetX = (rawWidth - sideLength) / 2;
+  const offsetY = (rawHeight - sideLength) / 2;
+
+  return {
+    x: Math.round(left + offsetX),
+    y: Math.round(top + offsetY),
+    width: Math.round(sideLength),
+    height: Math.round(sideLength),
+    hLines: [],
+    vLines: [],
+  };
+}
+
+// =====================
+// 主入口
+// =====================
 
 /**
  * 检测数独网格的最外层边框
- * 在内部处理原始图像（灰度化、二值化、网格检测）
- * 尝试轮廓检测和直线检测，互相佐证
- * 智能误差比较：记录最佳检测结果，继续检测直到误差足够小或尝试完所有版本
+ * 使用多阈值二值化 + Hough 直线检测
+ * 对不同二值化版本分别检测，选择评分最优的结果
  */
 export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
-  // console.log('[detectGrid] 开始检测网格，图像尺寸:', canvas.width, 'x', canvas.height)
-  // visualizeCanvasInConsole(canvas, '🖼️ 原始图像')
-
   const src = cv.imread(canvas);
-  // console.log('[detectGrid] 读取图像成功，Mat 尺寸:', src.rows, 'x', src.cols, '通道数:', src.channels())
 
   // 转换为单通道灰度图
   const gray = new cv.Mat();
@@ -82,882 +275,173 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
   } else {
     src.copyTo(gray);
   }
-  // console.log('[detectGrid] 转换为灰度图，通道数:', gray.channels())
-  // visualizeMatInConsole(gray, '🔍 灰度图')
 
-  // 生成多个二值化版本（不同阈值，以适应淡色线条）
-  // 阈值从低到高：30, 100, 150, 220, OTSU
+  // 生成多个二值化版本（不同阈值，以适应不同颜色/粗细的线条）
   const binaryVersions: Array<{ name: string; mat: any }> = [];
 
-  // 固定阈值版本（较低的阈值可以保留淡色线条）
-  for (const threshold of [30, 100, 150, 220]) {
-    const bin_normal = new cv.Mat();
-    const bin_inv = new cv.Mat();
-    cv.threshold(gray, bin_normal, threshold, 255, cv.THRESH_BINARY);
-    cv.threshold(gray, bin_inv, threshold, 255, cv.THRESH_BINARY_INV);
-
+  for (const threshold of [15, 30, 100, 150, 220]) {
+    const binNormal = new cv.Mat();
+    const binInv = new cv.Mat();
+    cv.threshold(gray, binNormal, threshold, 255, cv.THRESH_BINARY);
+    cv.threshold(gray, binInv, threshold, 255, cv.THRESH_BINARY_INV);
     binaryVersions.push(
-      { name: `二值化_阈值${threshold}_正常`, mat: bin_normal },
-      { name: `二值化_阈值${threshold}_反转`, mat: bin_inv }
+      { name: `thresh_${threshold}_normal`, mat: binNormal },
+      { name: `thresh_${threshold}_inv`, mat: binInv },
     );
   }
 
-  // Otsu自适应阈值版本（最后尝试）
-  const binaryOtsuNormal = new cv.Mat();
-  const binaryOtsuInv = new cv.Mat();
-  cv.threshold(gray, binaryOtsuNormal, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
-  cv.threshold(gray, binaryOtsuInv, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
-
+  // Otsu 自适应阈值
+  const binOtsuNormal = new cv.Mat();
+  const binOtsuInv = new cv.Mat();
+  cv.threshold(gray, binOtsuNormal, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
+  cv.threshold(gray, binOtsuInv, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
   binaryVersions.push(
-    { name: '二值化_Otsu_正常', mat: binaryOtsuNormal },
-    { name: '二值化_Otsu_反转', mat: binaryOtsuInv }
+    { name: 'otsu_normal', mat: binOtsuNormal },
+    { name: 'otsu_inv', mat: binOtsuInv },
   );
 
-  // 可视化前两个版本作为示例
-  // if (binaryVersions.length >= 2) {
-  //   visualizeMatInConsole(binaryVersions[0]!.mat, '⚫ ' + binaryVersions[0]!.name)
-  //   visualizeMatInConsole(binaryVersions[binaryVersions.length - 1]!.mat, '⚪ ' + binaryVersions[binaryVersions.length - 1]!.name)
-  // }
+  const imgSize = Math.min(canvas.width, canvas.height);
+  const allHPositions: number[] = [];
+  const allVPositions: number[] = [];
+  lastVersionResults = [];
 
-  // 记录最佳检测结果
-  let bestResult: DetectionResult | null = null;
-  const errorThreshold = 5.0; // 误差足够小时停止检测
+  for (const version of binaryVersions) {
 
-  // 尝试直线检测（所有二值化版本）
-  // console.log('[detectGrid] ====== 尝试直线检测 ======')
-  for (let idx = 0; idx < binaryVersions.length; idx++) {
-    const version = binaryVersions[idx]!;
-    // console.log(`[detectGrid] 直线检测 [${idx + 1}/${binaryVersions.length}]（${version.name}）`)
+    // Canny 边缘检测
+    const edges = new cv.Mat();
+    cv.Canny(version.mat, edges, 50, 150);
 
-    // 如果已有最佳结果且误差很小，可以跳过后续检测
-    if (bestResult && bestResult.error < errorThreshold) {
-      // console.log('[detectGrid] 误差已足够小（' + bestResult.error.toFixed(2) + ' < ' + errorThreshold + '），停止继续检测')
-      break;
-    }
+    const hSegments: LineSegment[] = [];
+    const vSegments: LineSegment[] = [];
+    const minLen = imgSize * 0.3;
 
-    // 使用上一次的间距作为约束（如果有的话）
-    const result: DetectionResult | null = bestResult
-      ? detectGridByHoughLinesWithConstraint(version.mat, canvas, bestResult.hGap, bestResult.vGap)
-      : detectGridByHoughLinesWithConstraint(version.mat, canvas, 0, 0);
-
-    if (result) {
-      // console.log(`[detectGrid] 直线检测成功（${version.name}）- 误差:`, result.error.toFixed(2))
-
-      // 比较并更新最佳结果
-      if (!bestResult || result.error < bestResult.error) {
-        bestResult = result;
-        // console.log('[detectGrid] ✓ 更新最佳结果 - 误差:', result.error.toFixed(2))
-      } else {
-        // console.log('[detectGrid] ✗ 误差更大，保留前一个结果 - 前:', bestResult.error.toFixed(2), '现:', result.error.toFixed(2))
+    // 从 HoughLinesP 结果中提取线段
+    const extractSegments = (linesMat: any) => {
+      for (let i = 0; i < linesMat.rows; i++) {
+        const x1 = linesMat.intAt(i, 0);
+        const y1 = linesMat.intAt(i, 1);
+        const x2 = linesMat.intAt(i, 2);
+        const y2 = linesMat.intAt(i, 3);
+        const dx = Math.abs(x2 - x1);
+        const dy = Math.abs(y2 - y1);
+        const length = Math.sqrt(dx * dx + dy * dy);
+        if (length < minLen) continue;
+        if (dx < 10) {
+          vSegments.push({ start: Math.min(y1, y2), end: Math.max(y1, y2), position: (x1 + x2) / 2 });
+        } else if (dy < 10) {
+          hSegments.push({ start: Math.min(x1, x2), end: Math.max(x1, x2), position: (y1 + y2) / 2 });
+        }
       }
-    }
+    };
+
+    // Pass 1: 标准参数
+    const lines1 = new cv.Mat();
+    cv.HoughLinesP(edges, lines1, 1, Math.PI / 180, 100, 100, 20);
+    extractSegments(lines1);
+    lines1.delete();
+
+    // Pass 2: 宽松参数，检测低对比度线条
+    const lines2 = new cv.Mat();
+    cv.HoughLinesP(edges, lines2, 1, Math.PI / 180, 50, Math.round(imgSize * 0.2), 30);
+    extractSegments(lines2);
+    lines2.delete();
+
+    edges.delete();
+
+    if (hSegments.length < 2 || vSegments.length < 2) continue;
+
+    // 断裂线段连接
+    const hPositions = joinBrokenSegments(hSegments, 5, 30, 0.5, imgSize);
+    const vPositions = joinBrokenSegments(vSegments, 5, 30, 0.5, imgSize);
+
+    if (hPositions.length === 0 || vPositions.length === 0) continue;
+
+    console.log(
+      `[detectGrid] ${version.name}: H=${hPositions.length} V=${vPositions.length}`,
+    );
+
+    lastVersionResults.push({ name: version.name, hLines: hPositions, vLines: vPositions });
+    allHPositions.push(...hPositions);
+    allVPositions.push(...vPositions);
   }
 
-  // 选择最终结果
-  let finalRect = bestResult?.grid || { x: 0, y: 0, width: 0, height: 0 };
-  // if (bestResult) {
-  //   console.log('[detectGrid] 最终选择 (' + bestResult.threshold + ') - 误差:', bestResult.error.toFixed(2), '- 边框:', finalRect)
-  // }
-
-  // 清理所有二值化版本
+  // 清理
   for (const version of binaryVersions) {
     version.mat.delete();
   }
   gray.delete();
   src.delete();
 
-  return finalRect;
-}
-
-/**
- * 通过 Hough 直线检测找到网格边框（带间距约束版本）
- * 利用数独的特点：平行垂直的直线，均匀间距（单元格大小的整数倍）
- * 如果提供了上一次的间距约束，先尝试用该约束检测
- */
-function detectGridByHoughLinesWithConstraint(
-  binary: any,
-  canvas: HTMLCanvasElement,
-  lastHGap: number = 0,
-  lastVGap: number = 0
-): DetectionResult | null {
-  // 使用 Canny 边缘检测（在二值化图像上）
-  const edges = new cv.Mat();
-  cv.Canny(binary, edges, 50, 150);
-
-  // Hough 直线检测
-  const lines = new cv.Mat();
-  cv.HoughLinesP(edges, lines, 1, Math.PI / 180, 100, 100, 20);
-
-  // console.log('[detectGridByHoughLines] 原始检测直线数:', lines.rows)
-
-  // 分离水平和垂直线，并按坐标聚类
-  const horizontalLines: number[] = []; // y 坐标
-  const verticalLines: number[] = []; // x 坐标
-
-  for (let i = 0; i < lines.rows; i++) {
-    const x1 = lines.intAt(i, 0);
-    const y1 = lines.intAt(i, 1);
-    const x2 = lines.intAt(i, 2);
-    const y2 = lines.intAt(i, 3);
-
-    const dx = Math.abs(x2 - x1);
-    const dy = Math.abs(y2 - y1);
-    const length = Math.sqrt(dx * dx + dy * dy);
-
-    // 足够长的直线才考虑（> 30% 图像尺寸）
-    const minLen = Math.min(canvas.width, canvas.height) * 0.3;
-    if (length < minLen) continue;
-
-    if (dx < 20) {
-      // 垂直线：保存 x 坐标（取中点）
-      verticalLines.push((x1 + x2) / 2);
-    } else if (dy < 20) {
-      // 水平线：保存 y 坐标（取中点）
-      horizontalLines.push((y1 + y2) / 2);
-    }
-  }
-
-  // console.log('[detectGridByHoughLines] 过滤后 - 水平线:', horizontalLines.length, '垂直线:', verticalLines.length)
-  if (horizontalLines.length >= 2) {
-    const sortedH = [...horizontalLines].sort((a, b) => a - b);
-    console.log(
-      '[detectGridByHoughLines] 水平线位置 (排序):',
-      sortedH
-        .map((x) => x.toFixed(1))
-        .slice(0, 3)
-        .join(', '),
-      ' ... ',
-      sortedH
-        .map((x) => x.toFixed(1))
-        .slice(-3)
-        .join(', ')
-    );
-  }
-  if (verticalLines.length >= 2) {
-    const sortedV = [...verticalLines].sort((a, b) => a - b);
-    console.log(
-      '[detectGridByHoughLines] 垂直线位置 (排序):',
-      sortedV
-        .map((x) => x.toFixed(1))
-        .slice(0, 3)
-        .join(', '),
-      ' ... ',
-      sortedV
-        .map((x) => x.toFixed(1))
-        .slice(-3)
-        .join(', ')
-    );
-  }
-
-  if (horizontalLines.length < 2 || verticalLines.length < 2) {
-    edges.delete();
-    lines.delete();
-    return null;
-  }
-
-  // 聚类直线（相距很近的直线视为同一条，移除噪声）
-  const clusteredH = clusterLines(horizontalLines);
-  const clusteredV = clusterLines(verticalLines);
-
   console.log(
-    '[detectGridByHoughLines] 聚类后 - 水平线:',
-    clusteredH.length,
-    '垂直线:',
-    clusteredV.length
+    '[detectGrid] 全量汇总 — H: ' + allHPositions.length + '条, V: ' + allVPositions.length + '条',
   );
 
-  let result: DetectionResult | null = null;
+  let finalGrid: GridLocation;
 
-  // 策略 1: 如果有上一次的间距约束，先尝试用那个间距
-  if (lastHGap > 0 && lastVGap > 0) {
-    console.log(
-      '[detectGridByHoughLines] 尝试使用上一次约束间距:',
-      lastHGap.toFixed(1),
-      'x',
-      lastVGap.toFixed(1)
-    );
-
-    // 尝试用上一次的间距约束当前检测
-    const constrainedH = findOptimalLineSubsetWithGapConstraint(clusteredH, lastHGap);
-    const constrainedV = findOptimalLineSubsetWithGapConstraint(clusteredV, lastVGap);
-
-    if (constrainedH && constrainedV) {
-      const hGap = lastHGap;
-      const vGap = lastVGap;
-      const error = calculateTotalError(constrainedH, constrainedV, hGap, vGap);
-
-      console.log('[detectGridByHoughLines] ✓ 用约束间距成功，误差:', error.toFixed(2));
-      result = {
-        grid: buildRectFromLinesSquare(constrainedH, constrainedV),
-        error,
-        threshold: '',
-        hLines: constrainedH,
-        vLines: constrainedV,
-        hGap,
-        vGap,
-      };
-    } else {
-      console.log('[detectGridByHoughLines] ✗ 约束间距失败，转为自适应检测');
-    }
-  }
-
-  // 策略 2: 如果策略 1 失败或没有约束，进行自适应检测
-  if (!result) {
-    console.log('[detectGridByHoughLines] 尝试自适应检测间距');
-
-    // 验证均匀间距并获取基本间距
-    const hResult = validateLineSpacingWithGap(clusteredH);
-    const vResult = validateLineSpacingWithGap(clusteredV);
+  if (allHPositions.length >= 2 && allVPositions.length >= 2) {
+    // 全量合并：跨阈值版本的同一物理线位置可能有 10-15px 偏差
+    // 用自适应阈值（图像尺寸的 2%），确保合且不误合相邻网格线
+    const mergeThreshold = Math.max(10, Math.round(imgSize * 0.02));
+    console.log(`[detectGrid] 合并阈值: ${mergeThreshold}px (imgSize=${imgSize})`);
+    const mergedH = mergeNearbyLines(allHPositions, mergeThreshold);
+    const mergedV = mergeNearbyLines(allVPositions, mergeThreshold);
 
     console.log(
-      '[detectGridByHoughLines] 水平线检验:',
-      hResult ? '✓' : '✗',
-      hResult ? '间距=' + hResult.toFixed(1) : ''
+      '[detectGrid] 合并后 — H: ' + mergedH.length + '条, V: ' + mergedV.length + '条',
+    );
+
+    // 参考网格修正 → 精确 10 条
+    console.log('[detectGrid] === refine H ===');
+    const refinedH = refineLinePositions(mergedH, 10);
+    console.log('[detectGrid] === refine V ===');
+    const refinedV = refineLinePositions(mergedV, 10);
+
+    console.log(
+      '[detectGrid] refine 后 H(10条):',
+      refinedH.map(v => v.toFixed(1)).join(', '),
     );
     console.log(
-      '[detectGridByHoughLines] 垂直线检验:',
-      vResult ? '✓' : '✗',
-      vResult ? '间距=' + vResult.toFixed(1) : ''
+      '[detectGrid] refine 后 V(10条):',
+      refinedV.map(v => v.toFixed(1)).join(', '),
     );
 
-    // 同时验证两个方向都成功且间距相近（数独是正方形）
-    if (hResult && vResult) {
-      const gapRatio = hResult / vResult;
-      const tolerance = 0.15; // ±15% 容差
-      const isSquare = Math.abs(gapRatio - 1.0) < tolerance;
-
-      console.log(
-        '[detectGridByHoughLines] 间距比例 (H/V):',
-        gapRatio.toFixed(3),
-        '正方形检验:',
-        isSquare ? '✓' : '✗'
-      );
-
-      if (isSquare) {
-        // 完美情况：两个方向都通过验证，且间距相等
-        const error = calculateTotalError(clusteredH, clusteredV, hResult, vResult);
-        result = {
-          grid: buildRectFromLinesSquare(clusteredH, clusteredV),
-          error,
-          threshold: '',
-          hLines: clusteredH,
-          vLines: clusteredV,
-          hGap: hResult,
-          vGap: vResult,
-        };
-      } else {
-        console.log('[detectGridByHoughLines] 间距比例异常，不符合正方形网格特性');
-      }
-    } else if (hResult && !vResult) {
-      // 水平线通过，垂直线失败，尝试优化垂直线
-      console.log('[detectGridByHoughLines] 垂直直线异常，尝试消除干扰');
-      const optimizedV = findOptimalLineSubsetWithGapConstraint(clusteredV, hResult);
-      if (optimizedV) {
-        console.log('[detectGridByHoughLines] 优化后垂直线条通过验证');
-        const error = calculateTotalError(clusteredH, optimizedV, hResult, hResult);
-        result = {
-          grid: buildRectFromLinesSquare(clusteredH, optimizedV),
-          error,
-          threshold: '',
-          hLines: clusteredH,
-          vLines: optimizedV,
-          hGap: hResult,
-          vGap: hResult,
-        };
-      }
-    } else if (!hResult && vResult) {
-      // 垂直线通过，水平线失败，尝试优化水平线
-      console.log('[detectGridByHoughLines] 水平直线异常，尝试消除干扰');
-      const optimizedH = findOptimalLineSubsetWithGapConstraint(clusteredH, vResult);
-      if (optimizedH) {
-        console.log('[detectGridByHoughLines] 优化后水平线条通过验证');
-        const error = calculateTotalError(optimizedH, clusteredV, vResult, vResult);
-        result = {
-          grid: buildRectFromLinesSquare(optimizedH, clusteredV),
-          error,
-          threshold: '',
-          hLines: optimizedH,
-          vLines: clusteredV,
-          hGap: vResult,
-          vGap: vResult,
-        };
-      }
-    } else {
-      // 两个方向都失败了
-      console.log('[detectGridByHoughLines] 直线检测失败：两个方向都不符合数独特性');
-    }
+    finalGrid = {
+      ...buildRectFromLines(refinedH, refinedV),
+      hLines: refinedH,
+      vLines: refinedV,
+    };
+    console.log('[detectGrid] 最终结果:', finalGrid);
+  } else {
+    finalGrid = { x: 0, y: 0, width: 0, height: 0, hLines: [], vLines: [] };
+    console.log('[detectGrid] 未能检测到足够线条');
   }
 
-  edges.delete();
-  lines.delete();
-
-  return result;
+  return finalGrid;
 }
+
+// =====================
+// 单元格提取
+// =====================
 
 /**
- * 找到直线的最优子集合（去除干扰直线）
+ * 把 canvas 四边的白边/网格线残留强制涂黑
+ * 直接覆写固定宽度的边框区域，比洪水填充更彻底：
+ * 无论白色像素是否与边界连通，都能被清除
  */
-function findOptimalLineSubset(lines: number[]): number[] | null {
-  const expectedCount = 10;
-
-  // 尝试不同的子集合策略
-  const strategies = [
-    // 从开头移除 1, 2, 3 条
-    { start: 1, end: lines.length },
-    { start: 2, end: lines.length },
-    { start: 3, end: lines.length },
-    // 从结尾移除 1, 2, 3 条
-    { start: 0, end: lines.length - 1 },
-    { start: 0, end: lines.length - 2 },
-    { start: 0, end: lines.length - 3 },
-    // 从两端各移除
-    { start: 1, end: lines.length - 1 },
-    { start: 1, end: lines.length - 2 },
-    { start: 2, end: lines.length - 1 },
-  ];
-
-  for (const strategy of strategies) {
-    const subset = lines.slice(strategy.start, strategy.end);
-    if (subset.length === expectedCount && validateLineSpacingWithGap(subset)) {
-      console.log(
-        '[findOptimalLineSubset] 找到最优子集：移除[',
-        strategy.start,
-        ':',
-        lines.length - strategy.end,
-        ']'
-      );
-      return subset;
-    }
-  }
-
-  return null;
-}
-
-/**
- * 找到最优子集合，同时满足间距约束
- * 用于一个方向通过验证，另一方向需要优化的情况
- */
-function findOptimalLineSubsetWithGapConstraint(
-  lines: number[],
-  targetGap: number
-): number[] | null {
-  const expectedCount = 10;
-  const tolerance = targetGap * 0.15; // ±15% 容差
-
-  // 尝试不同的子集合策略
-  const strategies = [
-    { start: 1, end: lines.length },
-    { start: 2, end: lines.length },
-    { start: 3, end: lines.length },
-    { start: 0, end: lines.length - 1 },
-    { start: 0, end: lines.length - 2 },
-    { start: 0, end: lines.length - 3 },
-    { start: 1, end: lines.length - 1 },
-    { start: 1, end: lines.length - 2 },
-    { start: 2, end: lines.length - 1 },
-  ];
-
-  for (const strategy of strategies) {
-    const subset = lines.slice(strategy.start, strategy.end);
-    if (subset.length === expectedCount) {
-      const gap = validateLineSpacingWithGap(subset);
-      if (gap && Math.abs(gap - targetGap) < tolerance) {
-        console.log(
-          '[findOptimalLineSubsetWithGapConstraint] 找到匹配间距的子集，间距:',
-          gap.toFixed(1)
-        );
-        return subset;
-      }
-    }
-  }
-
-  return null;
-}
-
-/**
- * 验证直线间距并返回基本间距（返回 null 表示验证失败，数字表示基本间距）
- */
-function validateLineSpacingWithGap(lines: number[]): number | null {
-  const expectedCount = 10;
-
-  // 情况1：直线数量接近正常（8-12条）
-  if (lines.length >= expectedCount - 1 && lines.length <= expectedCount + 2) {
-    return validateLineSpacingDetails(lines);
-  }
-
-  // 情况2：直线数量过多（11-15条）
-  if (lines.length > expectedCount + 2 && lines.length <= 15) {
-    console.log(`[validateLineSpacingWithGap] 检测到 ${lines.length} 条直线，尝试消除干扰`);
-    return tryRemoveInterferingLinesWithGap(lines);
-  }
-
-  console.log(`[validateLineSpacingWithGap] 直线数量过多或过少: ${lines.length}`);
-  return null;
-}
-
-/**
- * 验证间距详情，返回基本间距
- */
-function validateLineSpacingDetails(lines: number[]): number | null {
-  const gaps: number[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    gaps.push(lines[i]! - lines[i - 1]!);
-  }
-
-  // 找到最常见的间距（基本间距）
-  const baseGap = findBasicGap(gaps);
-  if (baseGap <= 0) {
-    console.log('[validateLineSpacingDetails] 无法找到基本间距');
-    return null;
-  }
-
-  console.log(
-    '[validateLineSpacingDetails] 基本间距:',
-    baseGap.toFixed(1),
-    '检测线条数:',
-    lines.length
-  );
-
-  // 检验所有间距是否为基本间距的倍数（允许 ±20% 误差）
-  const tolerance = baseGap * 0.2;
-  for (let i = 0; i < gaps.length; i++) {
-    const gap = gaps[i]!;
-    const remainder = gap % baseGap;
-    const isValidMultiple = remainder < tolerance || baseGap - remainder < tolerance;
-
-    if (!isValidMultiple) {
-      console.log(
-        `[validateLineSpacingDetails] 间距 ${i} 异常: ${gap.toFixed(1)} (基本: ${baseGap.toFixed(1)})`
-      );
-      return null;
-    }
-  }
-
-  console.log('[validateLineSpacingDetails] 间距检验通过');
-  return baseGap;
-}
-
-/**
- * 尝试移除干扰直线，找到最符合数独特性的子集合，返回基本间距
- */
-function tryRemoveInterferingLinesWithGap(lines: number[]): number | null {
-  const expectedCount = 10;
-  const linesToRemove = lines.length - expectedCount;
-
-  // 尝试策略：移除开头、结尾、中间的直线
-  const strategies: Array<{ start: number; count: number; name: string }> = [];
-
-  // 从开头移除
-  for (let i = 1; i <= Math.min(linesToRemove, 3); i++) {
-    strategies.push({ start: 0, count: i, name: `移除前${i}条直线` });
-  }
-
-  // 从结尾移除
-  for (let i = 1; i <= Math.min(linesToRemove, 3); i++) {
-    strategies.push({ start: lines.length - i, count: i, name: `移除后${i}条直线` });
-  }
-
-  // 从两端各移除一些
-  if (linesToRemove >= 2) {
-    strategies.push({ start: 0, count: 1, name: `移除前1条+后1条` });
-    strategies.push({ start: lines.length - 1, count: 1, name: `移除后1条（已上移）` });
-  }
-
-  console.log('[tryRemoveInterferingLinesWithGap] 尝试', strategies.length, '种移除策略');
-
-  // 尝试每种策略
-  for (const strategy of strategies) {
-    const subset = lines.filter((_, idx) => {
-      if (strategy.start === 0 && strategy.count > 0) {
-        return idx >= strategy.count;
-      }
-      if (strategy.start > 0) {
-        return idx < lines.length - strategy.count;
-      }
-      return true;
-    });
-
-    if (subset.length === expectedCount) {
-      const gap = validateLineSpacingDetails(subset);
-      if (gap) {
-        console.log(
-          '[tryRemoveInterferingLinesWithGap] 策略:',
-          strategy.name,
-          '成功！间距:',
-          gap.toFixed(1)
-        );
-        return gap;
-      }
-    }
-  }
-
-  console.log('[tryRemoveInterferingLinesWithGap] 所有策略都失败');
-  return null;
-}
-
-/**
- * 从水平和垂直直线构建矩形边框（强制正方形）
- */
-function buildRectFromLinesSquare(
-  horizontalLines: number[],
-  verticalLines: number[]
-): GridLocation {
-  // 排序线条
-  const sortedH = [...horizontalLines].sort((a, b) => a - b);
-  const sortedV = [...verticalLines].sort((a, b) => a - b);
-
-  // 计算线条之间的间距（单元格宽度/高度）
-  const hGaps = [];
-  for (let i = 1; i < sortedH.length; i++) {
-    hGaps.push(sortedH[i]! - sortedH[i - 1]!);
-  }
-  const vGaps = [];
-  for (let i = 1; i < sortedV.length; i++) {
-    vGaps.push(sortedV[i]! - sortedV[i - 1]!);
-  }
-
-  // 计算平均间距
-  const avgHGap = hGaps.reduce((a, b) => a + b, 0) / hGaps.length;
-  const avgVGap = vGaps.reduce((a, b) => a + b, 0) / vGaps.length;
-
-  console.log(
-    '[buildRectFromLinesSquare] 平均间距: H=',
-    avgHGap.toFixed(1),
-    ' V=',
-    avgVGap.toFixed(1)
-  );
-
-  // 使用排序后的第一条和最后一条线条作为边界
-  const top = sortedH[0]!;
-  const bottom = sortedH[sortedH.length - 1]!;
-  const left = sortedV[0]!;
-  const right = sortedV[sortedV.length - 1]!;
-
-  const rawWidth = right - left;
-  const rawHeight = bottom - top;
-
-  // 强制正方形：使用较小的维度
-  const sideLength = Math.min(rawWidth, rawHeight);
-
-  // 如果宽高差异很大，记录警告
-  const sizeRatio = Math.max(rawWidth, rawHeight) / sideLength;
-  if (sizeRatio > 1.1) {
-    console.log(
-      '[buildRectFromLinesSquare] ⚠️ 尺寸不均匀，宽/高比:',
-      (rawWidth / rawHeight).toFixed(3),
-      '将强制调整为正方形'
-    );
-  }
-
-  const rect = {
-    x: Math.round(left),
-    y: Math.round(top),
-    width: Math.round(sideLength),
-    height: Math.round(sideLength),
-  };
-
-  console.log(
-    '[buildRectFromLinesSquare] 原始尺寸:',
-    rawWidth.toFixed(1),
-    'x',
-    rawHeight.toFixed(1),
-    '→ 正方形:',
-    sideLength.toFixed(1),
-    'x',
-    sideLength.toFixed(1)
-  );
-  console.log(
-    '[buildRectFromLinesSquare] 最终边框:',
-    rect,
-    '线条数: ' + horizontalLines.length + 'x' + verticalLines.length
-  );
-  return rect;
-}
-
-/**
- * 从水平和垂直直线构建矩形边框
- */
-function buildRectFromLines(horizontalLines: number[], verticalLines: number[]): GridLocation {
-  const top = Math.min(...horizontalLines);
-  const bottom = Math.max(...horizontalLines);
-  const left = Math.min(...verticalLines);
-  const right = Math.max(...verticalLines);
-
-  const rect = {
-    x: Math.round(left),
-    y: Math.round(top),
-    width: Math.round(right - left),
-    height: Math.round(bottom - top),
-  };
-
-  console.log(
-    '[buildRectFromLines] 直线检测成功 - 边框:',
-    rect,
-    '线条数: ' + horizontalLines.length + 'x' + verticalLines.length
-  );
-  return rect;
-}
-
-/**
- * 聚类相似的直线位置
- * 相距 < 15px 的直线视为同一条
- */
-function clusterLines(lines: number[]): number[] {
-  if (lines.length === 0) return [];
-
-  lines.sort((a, b) => a - b);
-  const clusters: number[] = [lines[0]!];
-
-  for (let i = 1; i < lines.length; i++) {
-    const dist = lines[i]! - clusters[clusters.length - 1]!;
-    if (dist < 15) {
-      // 合并到前一个聚类：取平均值
-      clusters[clusters.length - 1] = (clusters[clusters.length - 1]! + lines[i]!) / 2;
-    } else {
-      // 新的聚类
-      clusters.push(lines[i]!);
-    }
-  }
-
-  return clusters;
-}
-
-/**
- * 找到最常见的间距（基本间距）
- * 用频率统计方法，考虑 ±20% 的浮动范围
- */
-function findBasicGap(gaps: number[]): number {
-  if (gaps.length === 0) return -1;
-
-  // 先排序找出中位数作为初始估计
-  const sorted = [...gaps].sort((a, b) => a - b);
-  const median = sorted[Math.floor(sorted.length / 2)]!;
-
-  // 统计在 median ±30% 范围内的间距频率
-  const tolerance = median * 0.3;
-  const candidates = gaps.filter((g) => Math.abs(g - median) < tolerance);
-
-  if (candidates.length === 0) return -1;
-
-  // 返回候选间距的平均值
-  const avgGap = candidates.reduce((a, b) => a + b, 0) / candidates.length;
-  return avgGap;
-}
-
-/**
- * 在原图上绘制识别到的网格线
- * @param originalCanvas 原始图像
- * @param grid 识别到的网格位置
- * @returns 标注了网格线的新 canvas
- */
-export function drawGridLines(
-  originalCanvas: HTMLCanvasElement,
-  grid: GridLocation
-): HTMLCanvasElement {
-  const result = document.createElement('canvas');
-  result.width = originalCanvas.width;
-  result.height = originalCanvas.height;
-  const ctx = result.getContext('2d')!;
-
-  // 绘制原图
-  ctx.drawImage(originalCanvas, 0, 0);
-
-  // 设置绘制样式
-  ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)'; // 红色半透明
-  ctx.lineWidth = 2;
-
-  const cellWidth = grid.width / 9;
-  const cellHeight = grid.height / 9;
-
-  // 绘制外框（粗线）
-  ctx.lineWidth = 3;
-  ctx.strokeRect(grid.x, grid.y, grid.width, grid.height);
-
-  // 绘制宫线（粗线，每3格一条）
-  ctx.lineWidth = 2;
-  for (let i = 1; i < 3; i++) {
-    // 垂直宫线
-    const x = grid.x + i * 3 * cellWidth;
-    ctx.beginPath();
-    ctx.moveTo(x, grid.y);
-    ctx.lineTo(x, grid.y + grid.height);
-    ctx.stroke();
-
-    // 水平宫线
-    const y = grid.y + i * 3 * cellHeight;
-    ctx.beginPath();
-    ctx.moveTo(grid.x, y);
-    ctx.lineTo(grid.x + grid.width, y);
-    ctx.stroke();
-  }
-
-  // 绘制普通格线（细线）
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)'; // 红色更透明
-  for (let i = 1; i < 9; i++) {
-    if (i % 3 === 0) continue; // 跳过宫线位置
-
-    // 垂直线
-    const x = grid.x + i * cellWidth;
-    ctx.beginPath();
-    ctx.moveTo(x, grid.y);
-    ctx.lineTo(x, grid.y + grid.height);
-    ctx.stroke();
-
-    // 水平线
-    const y = grid.y + i * cellHeight;
-    ctx.beginPath();
-    ctx.moveTo(grid.x, y);
-    ctx.lineTo(grid.x + grid.width, y);
-    ctx.stroke();
-  }
-
-  return result;
-}
-
-/** * 可视化 9×9 单元格（用于调试）
- */
-export function visualizeCells(
-  cells: HTMLCanvasElement[][],
-  cellDisplaySize: number = 40,
-  gap: number = 0
-): HTMLCanvasElement {
-  const canvasSize = 9 * cellDisplaySize + 8 * gap;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvasSize;
-  canvas.height = canvasSize;
-  const ctx = canvas.getContext('2d')!;
-
-  // 红色背景，任何白色都会明显显示
-  ctx.fillStyle = '#ff0000';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  for (let row = 0; row < 9; row++) {
-    for (let col = 0; col < 9; col++) {
-      const x = col * (cellDisplaySize + gap);
-      const y = row * (cellDisplaySize + gap);
-
-      // 绘制单元格
-      ctx.drawImage(cells[row]![col]!, x, y, cellDisplaySize, cellDisplaySize);
-    }
-  }
-
-  return canvas;
-}
-
-/**
- * 把 canvas 边界的白色填充为黑色
- */
-function fillBorderWhiteWithBlack(cellCanvas: HTMLCanvasElement): HTMLCanvasElement {
-  const ctx = cellCanvas.getContext('2d', { willReadFrequently: true })!;
-  const imageData = ctx.getImageData(0, 0, cellCanvas.width, cellCanvas.height);
-  const data = imageData.data;
-  const width = cellCanvas.width;
-  const height = cellCanvas.height;
-
-  // 调试：分析像素值分布（只在前 100 个像素）
-  const samplePixels = [];
-  for (let i = 0; i < Math.min(400, data.length); i += 4) {
-    samplePixels.push({
-      r: data[i],
-      g: data[i + 1],
-      b: data[i + 2],
-      a: data[i + 3],
-    });
-  }
-  const uniqueValues = new Set(samplePixels.map((p) => `${p.r},${p.g},${p.b},${p.a}`));
-  console.log(
-    `[fillBorderWhiteWithBlack] 画布 ${width}x${height}, 像素值样本:`,
-    Array.from(uniqueValues).slice(0, 5)
-  );
-
-  // 创建标记数组，用于标记边界白色连通区域
-  const borderWhite = new Uint8Array(width * height);
-
-  /**
-   * 判断像素是否为白色（二值化图片应该是 255,255,255）
-   */
-  const isWhitePixel = (x: number, y: number): boolean => {
-    if (x < 0 || x >= width || y < 0 || y >= height) return false;
-    const idx = (y * width + x) * 4;
-    const r = data[idx]!;
-    const g = data[idx + 1]!;
-    const b = data[idx + 2]!;
-    const a = data[idx + 3]!;
-    // 二值化图片中白色就是 255
-    return r === 255 && g === 255 && b === 255;
-  };
-
-  /**
-   * 洪水填充标记边界白色区域（8 方向）
-   */
-  const floodFill = (startX: number, startY: number) => {
-    const queue: Array<[number, number]> = [[startX, startY]];
-    const visited = new Set<string>();
-
-    while (queue.length > 0) {
-      const [x, y] = queue.shift()!;
-      const key = `${x},${y}`;
-
-      if (visited.has(key)) continue;
-      if (x < 0 || x >= width || y < 0 || y >= height) continue;
-      if (!isWhitePixel(x, y)) continue;
-
-      visited.add(key);
-      borderWhite[y * width + x] = 1;
-
-      // 8 方向检查（包括对角线）
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-          if (dx !== 0 || dy !== 0) {
-            queue.push([x + dx, y + dy]);
-          }
-        }
-      }
-    }
-  };
-
-  // 从四个角点和四边中点开始洪水填充
-  const startPoints: Array<[number, number]> = [
-    // 四个角点
-    [0, 0],
-    [width - 1, 0],
-    [0, height - 1],
-    [width - 1, height - 1],
-    // 四边中点
-    [Math.floor(width / 2), 0],
-    [Math.floor(width / 2), height - 1],
-    [0, Math.floor(height / 2)],
-    [width - 1, Math.floor(height / 2)],
-  ];
-
-  for (const [x, y] of startPoints) {
-    floodFill(x, y);
-  }
-
-  // 统计边界白色像素数（调试用）
-  let borderWhiteCount = 0;
-  for (let i = 0; i < borderWhite.length; i++) {
-    if (borderWhite[i] === 1) borderWhiteCount++;
-  }
-  console.log(`[fillBorderWhiteWithBlack] 边界白色: ${borderWhiteCount} 像素`);
-
-  // 将所有边界白色像素填充为黑色
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      if (borderWhite[y * width + x] === 1) {
-        const idx = (y * width + x) * 4;
-        data[idx] = 0; // R
-        data[idx + 1] = 0; // G
-        data[idx + 2] = 0; // B
-        data[idx + 3] = 255; // A
-      }
-    }
-  }
-
-  // 将修改后的数据写回 canvas
-  ctx.putImageData(imageData, 0, 0);
-  console.log(`[fillBorderWhiteWithBlack] 白边填充完成`);
+function fillBorderWhiteWithBlack(cellCanvas: HTMLCanvasElement, margin = 3): HTMLCanvasElement {
+  const ctx = cellCanvas.getContext('2d')!;
+  const w = cellCanvas.width;
+  const h = cellCanvas.height;
+
+  ctx.fillStyle = '#000000';
+  // 上边
+  ctx.fillRect(0, 0, w, margin);
+  // 下边
+  ctx.fillRect(0, h - margin, w, margin);
+  // 左边
+  ctx.fillRect(0, 0, margin, h);
+  // 右边
+  ctx.fillRect(w - margin, 0, margin, h);
 
   return cellCanvas;
 }
@@ -969,44 +453,56 @@ function fillBorderWhiteWithBlack(cellCanvas: HTMLCanvasElement): HTMLCanvasElem
 export function extractCells(
   canvas: HTMLCanvasElement,
   grid: GridLocation,
-  edgeMargin: number = 2
+  edgeMargin: number = 2,
 ): HTMLCanvasElement[][] {
-  const cellWidth = Math.round(grid.width / 9);
-  const cellHeight = Math.round(grid.height / 9);
-
-  // 内缩后的实际尺寸
-  const contentWidth = cellWidth - 2 * edgeMargin;
-  const contentHeight = cellHeight - 2 * edgeMargin;
+  // 精确模式：使用检测到的每条线位置定位单元格
+  const useExact = grid.hLines.length === 10 && grid.vLines.length === 10;
+  console.log(
+    `[extractCells] 模式: ${useExact ? '精确线吸附' : '等分回退'}` +
+    ` (H=${grid.hLines.length} V=${grid.vLines.length})`,
+  );
 
   const cells: HTMLCanvasElement[][] = [];
 
   for (let row = 0; row < 9; row++) {
     cells[row] = [];
     for (let col = 0; col < 9; col++) {
-      // 创建 canvas，只保存有效内容尺寸，不留白边
+      let sourceX: number, sourceY: number;
+      let cellW: number, cellH: number;
+
+      if (useExact) {
+        const left = grid.vLines[col]!;
+        const right = grid.vLines[col + 1]!;
+        const top = grid.hLines[row]!;
+        const bottom = grid.hLines[row + 1]!;
+        sourceX = left + edgeMargin;
+        sourceY = top + edgeMargin;
+        cellW = right - left - 2 * edgeMargin;
+        cellH = bottom - top - 2 * edgeMargin;
+      } else {
+        // 回退：等分模式
+        const cellWidth = Math.round(grid.width / 9);
+        const cellHeight = Math.round(grid.height / 9);
+        sourceX = grid.x + col * cellWidth + edgeMargin;
+        sourceY = grid.y + row * cellHeight + edgeMargin;
+        cellW = cellWidth - 2 * edgeMargin;
+        cellH = cellHeight - 2 * edgeMargin;
+      }
+
+      const contentWidth = Math.round(Math.max(1, cellW));
+      const contentHeight = Math.round(Math.max(1, cellH));
+
       const cellCanvas = document.createElement('canvas');
       cellCanvas.width = contentWidth;
       cellCanvas.height = contentHeight;
       const cellCtx = cellCanvas.getContext('2d', { willReadFrequently: true })!;
 
-      // 从原图裁剪单元格区域（已内缩以去掉网格线）
-      const sourceX = grid.x + col * cellWidth + edgeMargin;
-      const sourceY = grid.y + row * cellHeight + edgeMargin;
-
-      // 直接填充整个 canvas，不留白边
       cellCtx.drawImage(
         canvas,
-        sourceX,
-        sourceY,
-        contentWidth,
-        contentHeight,
-        0,
-        0,
-        contentWidth,
-        contentHeight
+        sourceX, sourceY, contentWidth, contentHeight,
+        0, 0, contentWidth, contentHeight,
       );
 
-      // 去掉外部白色边界
       const processed = fillBorderWhiteWithBlack(cellCanvas);
       cells[row]![col] = processed;
     }
@@ -1017,6 +513,7 @@ export function extractCells(
 
 /**
  * 检测单元格是否为空
+ * 统计黑色像素占比，低于阈值则判定为空
  */
 export function isCellEmpty(canvas: HTMLCanvasElement, emptyThreshold = 0.05): boolean {
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
@@ -1025,12 +522,179 @@ export function isCellEmpty(canvas: HTMLCanvasElement, emptyThreshold = 0.05): b
 
   let blackPixels = 0;
   for (let i = 0; i < data.length; i += 4) {
-    const gray = data[i]!;
-    if (gray < 128) {
+    if (data[i]! < 128) {
       blackPixels++;
     }
   }
 
   const ratio = blackPixels / (data.length / 4);
   return ratio < emptyThreshold;
+}
+
+// =====================
+// 可视化（调试用）
+// =====================
+
+/**
+ * 在原图上绘制识别到的网格线
+ */
+export function drawGridLines(
+  originalCanvas: HTMLCanvasElement,
+  grid: GridLocation,
+): HTMLCanvasElement {
+  const result = document.createElement('canvas');
+  result.width = originalCanvas.width;
+  result.height = originalCanvas.height;
+  const ctx = result.getContext('2d')!;
+
+  ctx.drawImage(originalCanvas, 0, 0);
+
+  const useExact = grid.hLines.length === 10 && grid.vLines.length === 10;
+  console.log(
+    `[drawGridLines] 模式: ${useExact ? '精确线吸附' : '等分回退'}` +
+    ` (H=${grid.hLines.length} V=${grid.vLines.length})`,
+  );
+
+  // 获取各线条位置（精确模式下直接使用检测位置）
+  const getHLine = (i: number) => useExact ? grid.hLines[i]! : grid.y + i * (grid.height / 9);
+  const getVLine = (i: number) => useExact ? grid.vLines[i]! : grid.x + i * (grid.width / 9);
+
+  const top = getHLine(0);
+  const bottom = getHLine(9);
+  const left = getVLine(0);
+  const right = getVLine(9);
+  const gridW = right - left;
+  const gridH = bottom - top;
+
+  // 外框
+  ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(left, top, gridW, gridH);
+
+  // 宫线（粗线，每 3 格一条：索引 0, 3, 6, 9，其中 0 和 9 已被外框覆盖）
+  ctx.lineWidth = 2;
+  for (let i = 3; i <= 6; i += 3) {
+    const x = getVLine(i);
+    ctx.beginPath();
+    ctx.moveTo(x, top);
+    ctx.lineTo(x, bottom);
+    ctx.stroke();
+
+    const y = getHLine(i);
+    ctx.beginPath();
+    ctx.moveTo(left, y);
+    ctx.lineTo(right, y);
+    ctx.stroke();
+  }
+
+  // 普通格线（细线，非宫线位置）
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+  for (let i = 1; i < 9; i++) {
+    if (i % 3 === 0) continue; // 宫线已画
+
+    const x = getVLine(i);
+    ctx.beginPath();
+    ctx.moveTo(x, top);
+    ctx.lineTo(x, bottom);
+    ctx.stroke();
+
+    const y = getHLine(i);
+    ctx.beginPath();
+    ctx.moveTo(left, y);
+    ctx.lineTo(right, y);
+    ctx.stroke();
+  }
+
+  return result;
+}
+
+/**
+ * 可视化 9×9 单元格（用于调试）
+ */
+export function visualizeCells(
+  cells: HTMLCanvasElement[][],
+  cellDisplaySize: number = 40,
+  gap: number = 0,
+): HTMLCanvasElement {
+  const canvasSize = 9 * cellDisplaySize + 8 * gap;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasSize;
+  canvas.height = canvasSize;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#ff0000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  for (let row = 0; row < 9; row++) {
+    for (let col = 0; col < 9; col++) {
+      const x = col * (cellDisplaySize + gap);
+      const y = row * (cellDisplaySize + gap);
+      ctx.drawImage(cells[row]![col]!, x, y, cellDisplaySize, cellDisplaySize);
+    }
+  }
+
+  return canvas;
+}
+
+// =====================
+// 调试：全量检测线可视化
+// =====================
+
+/** 获取最近一次 detectGrid 的逐版本检测结果 */
+export function getLastVersionResults(): Array<{ name: string; hLines: number[]; vLines: number[] }> {
+  return lastVersionResults;
+}
+
+/** 调色板：给不同版本分配不同颜色 */
+const PALETTE = [
+  '#ff4444', '#44ff44', '#4488ff', '#ffff44',
+  '#44ffff', '#ff44ff', '#ff8844', '#ffffff',
+  '#ff8888', '#88ff88', '#8888ff', '#88ffff',
+];
+
+/**
+ * 在纯黑背景上绘制所有阈值版本检测到的直线
+ * 同一版本的水平线和垂直线使用相同颜色
+ * @param imageWidth 原图宽度
+ * @param imageHeight 原图高度
+ */
+export function drawAllDetectedLines(
+  imageWidth: number,
+  imageHeight: number,
+): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = imageWidth;
+  canvas.height = imageHeight;
+  const ctx = canvas.getContext('2d')!;
+
+  // 黑色背景
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, imageWidth, imageHeight);
+
+  for (let vi = 0; vi < lastVersionResults.length; vi++) {
+    const vr = lastVersionResults[vi]!;
+    const color = PALETTE[vi % PALETTE.length]!;
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+
+    // 水平线
+    for (const y of vr.hLines) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(imageWidth, y);
+      ctx.stroke();
+    }
+
+    // 垂直线
+    for (const x of vr.vLines) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, imageHeight);
+      ctx.stroke();
+    }
+  }
+
+  return canvas;
 }
