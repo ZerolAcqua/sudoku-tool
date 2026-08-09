@@ -131,11 +131,8 @@ function mergeNearbyLines(positions: number[], threshold: number): number[] {
 /**
  * 将检测线数量修正为恰好 expectedCount 条。
  *
- * - 多了：贪心合并间距最近的一对
- * - 少了：在中位数间距的整数倍大间隙中均匀插入
- * - 刚好：原样返回
- *
- * 检测到的线位置不动，只有重复合并和缺线填补。
+ * 合并：优先合并间距 < cellSize*0.4 的线（重复检测），仍不够再合并最近邻。
+ * 插入：用总跨度/格数估算预期格宽，每个间隙插 round(gap/cellSize)-1 条，均匀分布。
  */
 function refineLinePositions(
   detectedLines: number[],
@@ -143,51 +140,71 @@ function refineLinePositions(
 ): number[] {
   const lines = [...detectedLines].sort((a, b) => a - b);
   if (lines.length === 0) return [];
+  if (lines.length === expectedCount) return lines;
+
+  const first = lines[0]!;
+  const last = lines[lines.length - 1]!;
+  const totalSpan = last - first;
+  const cellSize = totalSpan / (expectedCount - 1);
 
   console.log(
     `[refineLinePositions] 输入: ${lines.length}条 → 目标: ${expectedCount}条, ` +
+    `跨度=${totalSpan.toFixed(0)}, 预期格宽=${cellSize.toFixed(1)}, ` +
     `位置: ${lines.map(v => v.toFixed(1)).join(', ')}`,
   );
 
-  // 合并多余线条
+  // --- 多了：合并重复检测 ---
   while (lines.length > expectedCount) {
+    // 优先合并明显是重复的线对（间距远小于格宽）
     let bestIdx = 0;
     let bestGap = Infinity;
     for (let i = 1; i < lines.length; i++) {
       const gap = lines[i]! - lines[i - 1]!;
-      if (gap < bestGap) { bestGap = gap; bestIdx = i; }
+      // 重复线权重：间距越小越好，但格宽 40% 以下的优先
+      const weight = gap < cellSize * 0.4 ? gap / 1000 : gap;
+      if (weight < bestGap) { bestGap = weight; bestIdx = i; }
     }
-    const mid = (lines[bestIdx - 1]! + lines[bestIdx]!) / 2;
+    const a = lines[bestIdx - 1]!;
+    const b = lines[bestIdx]!;
+    const mid = (a + b) / 2;
     console.log(
-      `[refineLinePositions] 合并: ${lines[bestIdx - 1]!.toFixed(1)} + ${lines[bestIdx]!.toFixed(1)} → ${mid.toFixed(1)}`,
+      `[refineLinePositions] 合并: ${a.toFixed(1)}+${b.toFixed(1)} → ${mid.toFixed(1)} (间距=${(b-a).toFixed(1)})`,
     );
     lines.splice(bestIdx - 1, 2, mid);
   }
 
-  // 填补缺失线条：利用中位数间距判断该间隙缺了几条线
+  // --- 少了：按预期格宽在间隙中均匀插入 ---
   while (lines.length < expectedCount) {
-    const gaps: number[] = [];
-    for (let i = 1; i < lines.length; i++) gaps.push(lines[i]! - lines[i - 1]!);
-    const sortedGaps = [...gaps].sort((a, b) => a - b);
-    const medianGap = sortedGaps[Math.floor(sortedGaps.length / 2)]!;
-
-    // 找最大间隙
     let bestIdx = 0;
+    let bestNeed = 0;
     let bestGap = 0;
+
     for (let i = 1; i < lines.length; i++) {
       const gap = lines[i]! - lines[i - 1]!;
-      if (gap > bestGap) { bestGap = gap; bestIdx = i; }
+      const need = Math.round(gap / cellSize) - 1;
+      if (need > bestNeed) {
+        bestNeed = need;
+        bestGap = gap;
+        bestIdx = i;
+      }
     }
 
-    // 用中位数间距估算该间隙应有多少条线
-    const expectedInGap = Math.max(1, Math.round(bestGap / medianGap) - 1);
-    const toInsert = Math.min(expectedInGap, expectedCount - lines.length);
+    if (bestNeed <= 0) {
+      // 所有间隙都只需要 0-1 条线，在最大间隙插 1 条兜底
+      for (let i = 1; i < lines.length; i++) {
+        const gap = lines[i]! - lines[i - 1]!;
+        if (gap > bestGap) { bestGap = gap; bestIdx = i; }
+      }
+      bestNeed = 1;
+    }
+
+    const toInsert = Math.min(bestNeed, expectedCount - lines.length);
     const a = lines[bestIdx - 1]!;
     const b = lines[bestIdx]!;
 
     console.log(
       `[refineLinePositions] 间隙 ${a.toFixed(1)}–${b.toFixed(1)} (${bestGap.toFixed(1)}px, ` +
-      `medianGap=${medianGap.toFixed(1)}, 预计缺${expectedInGap}条, 插入${toInsert}条)`,
+      `${(bestGap/cellSize).toFixed(2)}格), 插入${toInsert}条`,
     );
 
     for (let k = 1; k <= toInsert; k++) {
