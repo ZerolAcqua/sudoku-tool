@@ -78,6 +78,15 @@
                 </p>
             </div>
 
+            <!-- 全量检测线可视化 -->
+            <div v-if="state.detectedLinesImage" class="mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">全量检测线（各阈值版本，不同颜色）</h3>
+                <div class="bg-gray-100 rounded-lg p-4 max-h-[600px] overflow-auto">
+                    <canvas ref="detectedLinesCanvas" class="max-w-full h-auto block"></canvas>
+                </div>
+                <p class="text-sm text-gray-600 mt-2">每种颜色对应一个二值化阈值版本的检测结果</p>
+            </div>
+
             <!-- 单元格可视化 -->
             <div v-if="state.cellsVisualization" class="mb-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-3">提取的单元格（9×9 预览）</h3>
@@ -231,6 +240,7 @@ const originalCanvas = ref<HTMLCanvasElement>()
 const processedCanvas = ref<HTMLCanvasElement>()
 const gridCanvas = ref<HTMLCanvasElement>()
 const cellsVisualizationCanvas = ref<HTMLCanvasElement>()
+const detectedLinesCanvas = ref<HTMLCanvasElement>()
 const uploadArea = ref<HTMLDivElement>()
 const editableDigits = ref<string[]>([])
 
@@ -295,6 +305,18 @@ watch(
             const ctx = gridCanvas.value.getContext('2d')!
             gridCanvas.value.width = newImage.width
             gridCanvas.value.height = newImage.height
+            ctx.drawImage(newImage, 0, 0)
+        }
+    },
+)
+
+watch(
+    () => state.detectedLinesImage,
+    (newImage) => {
+        if (newImage && detectedLinesCanvas.value) {
+            const ctx = detectedLinesCanvas.value.getContext('2d')!
+            detectedLinesCanvas.value.width = newImage.width
+            detectedLinesCanvas.value.height = newImage.height
             ctx.drawImage(newImage, 0, 0)
         }
     },
@@ -376,6 +398,14 @@ function drawAllCanvases(): void {
         cellsVisualizationCanvas.value.width = state.cellsVisualization.width
         cellsVisualizationCanvas.value.height = state.cellsVisualization.height
         ctx.drawImage(state.cellsVisualization, 0, 0)
+    }
+
+    // 绘制全量检测线可视化
+    if (state.detectedLinesImage && detectedLinesCanvas.value) {
+        const ctx = detectedLinesCanvas.value.getContext('2d')!
+        detectedLinesCanvas.value.width = state.detectedLinesImage.width
+        detectedLinesCanvas.value.height = state.detectedLinesImage.height
+        ctx.drawImage(state.detectedLinesImage, 0, 0)
     }
 }
 

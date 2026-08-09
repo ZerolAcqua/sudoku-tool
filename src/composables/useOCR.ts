@@ -10,6 +10,8 @@ import {
   isCellEmpty,
   drawGridLines,
   visualizeCells,
+  drawAllDetectedLines,
+  getLastVersionResults,
 } from '@/utils/ocr/gridDetector'
 import { recognizeBoard, cleanup } from '@/utils/ocr/digitRecognizer'
 
@@ -102,6 +104,7 @@ interface OCRState {
   gridImage: HTMLCanvasElement | null;
   cellsVisualization: HTMLCanvasElement | null;
   cells: HTMLCanvasElement[][] | null;
+  detectedLinesImage: HTMLCanvasElement | null;
 }
 
 export function useOCR() {
@@ -113,6 +116,7 @@ export function useOCR() {
     gridImage: null,
     cellsVisualization: null,
     cells: null,
+    detectedLinesImage: null,
   });
 
   const originalImage = ref<HTMLCanvasElement | null>(null);
@@ -141,8 +145,9 @@ export function useOCR() {
         throw new Error('未能检测到数独网格，请确保图像清晰且网格完整');
       }
 
-      // 3. 绘制网格线到原图
+      // 3. 绘制网格线到原图 + 全量检测线可视化
       state.gridImage = drawGridLines(img, grid);
+      state.detectedLinesImage = drawAllDetectedLines(img.width, img.height);
       console.log('[useOCR] 网格线绘制完成');
 
       // 3.5. 创建二值化版本用于单元格提取（避免网格线干扰）
@@ -208,6 +213,7 @@ export function useOCR() {
     state.gridImage = null;
     state.cellsVisualization = null;
     state.cells = null;
+    state.detectedLinesImage = null;
     originalImage.value = null;
   }
 
