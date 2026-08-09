@@ -215,11 +215,10 @@
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
             <h3 class="text-lg font-semibold text-blue-900 mb-3">使用说明</h3>
             <ul class="text-blue-800 space-y-2 text-sm">
-                <li>• 上传清晰的数独截图（推荐 800×800 以上分辨率）</li>
-                <li>• 确保数独网格是笔直的，不存在透视变形</li>
+                <li>• 上传清晰的数独截图（暂不支持纸质数独拍照）</li>
                 <li>• 识别结果中 · 表示空白单元格，数字 1-9 表示识别到的数字</li>
                 <li>• 如果识别效果不佳，可以调整图像对比度后重试</li>
-                <li>• 识别使用了自训练的卷积神经网络模型，支持单数字识别调试</li>
+                <li>• 数字识别使用了自训练的卷积神经网络模型</li>
             </ul>
         </div>
     </div>

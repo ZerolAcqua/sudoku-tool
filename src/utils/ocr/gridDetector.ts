@@ -125,66 +125,80 @@ function mergeNearbyLines(positions: number[], threshold: number): number[] {
 }
 
 // =====================
-// 线条数量修正（贪心合并/插入，不移动已有线）
+// 线条数量修正
 // =====================
 
 /**
  * 将检测线数量修正为恰好 expectedCount 条。
  *
- * 原则：检测到的线不移动，只在必要时合并最近邻或在大间隙中插入。
- *   - 多了：贪心合并间距最小的一对 → 取中点
- *   - 少了：在最大间隙中点插入新线
- *   - 刚好：原样返回
+ * - 多了：贪心合并间距最近的一对
+ * - 少了：在中位数间距的整数倍大间隙中均匀插入
+ * - 刚好：原样返回
  *
- * 不会凭空在参考网格位置捏造线条，因此不会出现"歪到单元格中间"的线。
+ * 检测到的线位置不动，只有重复合并和缺线填补。
  */
 function refineLinePositions(
   detectedLines: number[],
   expectedCount: number,
 ): number[] {
   const lines = [...detectedLines].sort((a, b) => a - b);
-
   if (lines.length === 0) return [];
 
-  // 合并多余线条：每次合并间距最小的一对
+  console.log(
+    `[refineLinePositions] 输入: ${lines.length}条 → 目标: ${expectedCount}条, ` +
+    `位置: ${lines.map(v => v.toFixed(1)).join(', ')}`,
+  );
+
+  // 合并多余线条
   while (lines.length > expectedCount) {
     let bestIdx = 0;
     let bestGap = Infinity;
     for (let i = 1; i < lines.length; i++) {
       const gap = lines[i]! - lines[i - 1]!;
-      if (gap < bestGap) {
-        bestGap = gap;
-        bestIdx = i;
-      }
+      if (gap < bestGap) { bestGap = gap; bestIdx = i; }
     }
-    const a = lines[bestIdx - 1]!;
-    const b = lines[bestIdx]!;
-    const mid = (a + b) / 2;
+    const mid = (lines[bestIdx - 1]! + lines[bestIdx]!) / 2;
     console.log(
-      `[refineLinePositions] 合并最近邻: ${a.toFixed(1)} + ${b.toFixed(1)} → ${mid.toFixed(1)} (间距=${bestGap.toFixed(1)})`,
+      `[refineLinePositions] 合并: ${lines[bestIdx - 1]!.toFixed(1)} + ${lines[bestIdx]!.toFixed(1)} → ${mid.toFixed(1)}`,
     );
     lines.splice(bestIdx - 1, 2, mid);
   }
 
-  // 填补缺失线条：每次在最大间隙中点插入
+  // 填补缺失线条：利用中位数间距判断该间隙缺了几条线
   while (lines.length < expectedCount) {
+    const gaps: number[] = [];
+    for (let i = 1; i < lines.length; i++) gaps.push(lines[i]! - lines[i - 1]!);
+    const sortedGaps = [...gaps].sort((a, b) => a - b);
+    const medianGap = sortedGaps[Math.floor(sortedGaps.length / 2)]!;
+
+    // 找最大间隙
     let bestIdx = 0;
     let bestGap = 0;
     for (let i = 1; i < lines.length; i++) {
       const gap = lines[i]! - lines[i - 1]!;
-      if (gap > bestGap) {
-        bestGap = gap;
-        bestIdx = i;
-      }
+      if (gap > bestGap) { bestGap = gap; bestIdx = i; }
     }
+
+    // 用中位数间距估算该间隙应有多少条线
+    const expectedInGap = Math.max(1, Math.round(bestGap / medianGap) - 1);
+    const toInsert = Math.min(expectedInGap, expectedCount - lines.length);
     const a = lines[bestIdx - 1]!;
     const b = lines[bestIdx]!;
-    const mid = (a + b) / 2;
+
     console.log(
-      `[refineLinePositions] 填补间隙: ${a.toFixed(1)} — ${b.toFixed(1)} 之间插入 ${mid.toFixed(1)} (间隙=${bestGap.toFixed(1)})`,
+      `[refineLinePositions] 间隙 ${a.toFixed(1)}–${b.toFixed(1)} (${bestGap.toFixed(1)}px, ` +
+      `medianGap=${medianGap.toFixed(1)}, 预计缺${expectedInGap}条, 插入${toInsert}条)`,
     );
-    lines.splice(bestIdx, 0, mid);
+
+    for (let k = 1; k <= toInsert; k++) {
+      lines.splice(bestIdx - 1 + k, 0, a + (k * bestGap) / (toInsert + 1));
+    }
   }
+
+  console.log(
+    `[refineLinePositions] 输出: ${lines.length}条, ` +
+    `位置: ${lines.map(v => v.toFixed(1)).join(', ')}`,
+  );
 
   return lines;
 }
@@ -248,7 +262,7 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
   // 生成多个二值化版本（不同阈值，以适应不同颜色/粗细的线条）
   const binaryVersions: Array<{ name: string; mat: any }> = [];
 
-  for (const threshold of [30, 100, 150, 220]) {
+  for (const threshold of [15, 30, 100, 150, 220]) {
     const binNormal = new cv.Mat();
     const binInv = new cv.Mat();
     cv.threshold(gray, binNormal, threshold, 255, cv.THRESH_BINARY);
@@ -280,45 +294,42 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
     const edges = new cv.Mat();
     cv.Canny(version.mat, edges, 50, 150);
 
-    // HoughLinesP 直线检测
-    const lines = new cv.Mat();
-    cv.HoughLinesP(edges, lines, 1, Math.PI / 180, 100, 100, 20);
-    edges.delete();
-
-    // 提取并分类线段
     const hSegments: LineSegment[] = [];
     const vSegments: LineSegment[] = [];
-    const minLen = imgSize * 0.3; // 最小线段长度：图像尺寸的 30%
+    const minLen = imgSize * 0.3;
 
-    for (let i = 0; i < lines.rows; i++) {
-      const x1 = lines.intAt(i, 0);
-      const y1 = lines.intAt(i, 1);
-      const x2 = lines.intAt(i, 2);
-      const y2 = lines.intAt(i, 3);
-
-      const dx = Math.abs(x2 - x1);
-      const dy = Math.abs(y2 - y1);
-      const length = Math.sqrt(dx * dx + dy * dy);
-
-      if (length < minLen) continue;
-
-      if (dx < 10) {
-        // 垂直线段
-        vSegments.push({
-          start: Math.min(y1, y2),
-          end: Math.max(y1, y2),
-          position: (x1 + x2) / 2,
-        });
-      } else if (dy < 10) {
-        // 水平线段
-        hSegments.push({
-          start: Math.min(x1, x2),
-          end: Math.max(x1, x2),
-          position: (y1 + y2) / 2,
-        });
+    // 从 HoughLinesP 结果中提取线段
+    const extractSegments = (linesMat: any) => {
+      for (let i = 0; i < linesMat.rows; i++) {
+        const x1 = linesMat.intAt(i, 0);
+        const y1 = linesMat.intAt(i, 1);
+        const x2 = linesMat.intAt(i, 2);
+        const y2 = linesMat.intAt(i, 3);
+        const dx = Math.abs(x2 - x1);
+        const dy = Math.abs(y2 - y1);
+        const length = Math.sqrt(dx * dx + dy * dy);
+        if (length < minLen) continue;
+        if (dx < 10) {
+          vSegments.push({ start: Math.min(y1, y2), end: Math.max(y1, y2), position: (x1 + x2) / 2 });
+        } else if (dy < 10) {
+          hSegments.push({ start: Math.min(x1, x2), end: Math.max(x1, x2), position: (y1 + y2) / 2 });
+        }
       }
-    }
-    lines.delete();
+    };
+
+    // Pass 1: 标准参数
+    const lines1 = new cv.Mat();
+    cv.HoughLinesP(edges, lines1, 1, Math.PI / 180, 100, 100, 20);
+    extractSegments(lines1);
+    lines1.delete();
+
+    // Pass 2: 宽松参数，检测低对比度线条
+    const lines2 = new cv.Mat();
+    cv.HoughLinesP(edges, lines2, 1, Math.PI / 180, 50, Math.round(imgSize * 0.2), 30);
+    extractSegments(lines2);
+    lines2.delete();
+
+    edges.delete();
 
     if (hSegments.length < 2 || vSegments.length < 2) continue;
 
