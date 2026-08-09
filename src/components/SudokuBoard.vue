@@ -104,18 +104,18 @@
 
     <!-- Grid lines -->
     <!-- Thin cell lines -->
-    <g stroke="black" stroke-opacity="0.8" stroke-width="1" stroke-linecap="square">
+    <g stroke="black" stroke-opacity="0.8" stroke-width="1.5" stroke-linecap="square">
       <line v-for="i in 8" :key="'vthin' + i" :x1="i * 100" y1="0" :x2="i * 100" y2="900" />
       <line v-for="i in 8" :key="'hthin' + i" x1="0" :y1="i * 100" x2="900" :y2="i * 100" />
     </g>
     <!-- Thick box lines (inner only) -->
-    <g stroke="black" stroke-width="2" stroke-linecap="square">
+    <g stroke="black" stroke-width="3.5" stroke-linecap="square">
       <line v-for="i in 2" :key="'vbox' + i" :x1="i * 300" y1="0" :x2="i * 300" y2="900" />
       <line v-for="i in 2" :key="'hbox' + i" x1="0" :y1="i * 300" x2="900" :y2="i * 300" />
     </g>
 
     <!-- Outer border (below selection borders) -->
-    <g stroke="black" stroke-width="4" stroke-linecap="square">
+    <g stroke="black" stroke-width="5" stroke-linecap="square">
       <line x1="0" y1="0" x2="900" y2="0" />
       <line x1="900" y1="0" x2="900" y2="900" />
       <line x1="900" y1="900" x2="0" y2="900" />
@@ -138,7 +138,7 @@
       width="100" height="100" fill="none" stroke="var(--accent)" stroke-width="4" rx="6" pointer-events="none" />
 
     <!-- Numbers -->
-    <g font-family="system-ui, sans-serif" text-anchor="middle" dominant-baseline="central">
+    <g font-family="'Noto Serif', Georgia, serif" text-anchor="middle" dominant-baseline="central">
       <g v-for="(row, r) in props.board" :key="'num-row-' + r">
         <text v-for="(value, c) in row" :key="'num-' + r + '-' + c" :x="c * 100 + 50" :y="r * 100 + 50"
           v-show="value > 0" :fill="isGiven(r, c) ? 'black' : 'var(--user-num-color)'" font-size="55" font-weight="500"
