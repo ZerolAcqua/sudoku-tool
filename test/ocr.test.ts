@@ -19,13 +19,16 @@ import { fileURLToPath } from 'node:url'
 import { installDomPolyfill } from './node-env'
 import { setModelUrl } from '@/utils/ocr/mnistModel'
 import { useOCR } from '@/composables/useOCR'
+import { CONFIDENCE_THRESHOLD } from '@/utils/ocr/constants'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
 const IMG_DIR = path.join(__dirname, 'images') // 测试图片放在 test/images/ 下
 
-// 与浏览器 OCRDemo.confirmCrop 里传入的置信度阈值保持一致
-const CONFIDENCE_THRESHOLD = 0.7
+// 终端颜色（ANSI 转义序列），用有颜色的英文单词替代表情符号
+const GREEN = '\x1b[32m'
+const RED = '\x1b[31m'
+const RESET = '\x1b[0m'
 
 type TestCase = { file: string; expected: string }
 
@@ -37,7 +40,7 @@ const CASES: TestCase[] = [
   { file: '谢三.png', expected: '004009000000004005700800902012000003500060009600000170103008006900700000000500800' },
   { file: '数独玩家.jpg', expected: '074000005108400096500097430200069843453010079000074251091002004000700002326941500' },
   { file: '破解数独.png', expected: '000801030060000700000000000804200000000400600300000500050060000000000084000090000' },
-  { file: '本网站-演示数独.png', expected: '530070000600195000098000060800060003400803001700020006060000280000419005000080079'}
+  { file: '本网站-演示数独.png', expected: '530070000600195000098000060800060003400803001700020006060000280000419005000080079'},
   // 4 识别成 6
   // { file: '全民数独.png', expected: '600804570020700000000003000501600000302000000006050890000070000040002009007586040' },
   // 1 识别不到
@@ -97,10 +100,10 @@ async function run(): Promise<{ pass: number; fail: number; todo: number }> {
 
       if (actual === c.expected) {
         pass++
-        console.log(`✅ ${label}`)
+        console.log(`${GREEN}PASS${RESET} ${label}`)
       } else {
         fail++
-        console.log(`\n❌ ${label}`)
+        console.log(`\n${RED}FAIL${RESET} ${label}`)
         console.log('  实际：\n  ' + formatBoard(actual).replace(/\n/g, '\n  '))
         console.log('  期望：\n  ' + formatBoard(c.expected).replace(/\n/g, '\n  '))
         const diffs = diffBoard(actual, c.expected)
@@ -110,7 +113,7 @@ async function run(): Promise<{ pass: number; fail: number; todo: number }> {
       }
     } catch (err) {
       fail++
-      console.log(`\n❌ ${label} — 运行出错`)
+      console.log(`\n${RED}FAIL${RESET} ${label} — 运行出错`)
       console.log('  ' + (err instanceof Error ? err.message : String(err)))
     }
   }

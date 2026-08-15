@@ -1,6 +1,7 @@
 import * as tf from '@tensorflow/tfjs';
 import { logger } from '@/utils/logger';
 import { loadMnistModel, disposeMnistModel } from './mnistModel';
+import { CONFIDENCE_THRESHOLD } from './constants';
 
 /**
  * 预处理：将 canvas 转为模型输入张量，并返回 28x28 的调试 canvas
@@ -43,7 +44,7 @@ function preprocessForModel(
  */
 export async function recognizeDigit(
   canvas: HTMLCanvasElement,
-  confidenceThreshold = 0.7,
+  confidenceThreshold = CONFIDENCE_THRESHOLD,
 ): Promise<number> {
   const model = await loadMnistModel()
 
@@ -120,7 +121,7 @@ function resizeCanvasTo(canvas: HTMLCanvasElement, size: number): HTMLCanvasElem
 // =====================
 export async function recognizeBoard(
   cells: HTMLCanvasElement[][],
-  confidenceThreshold = 0.7,
+  confidenceThreshold = CONFIDENCE_THRESHOLD,
   isCellEmptyFn?: (canvas: HTMLCanvasElement) => boolean
 ): Promise<string> {
   // 只需确保模型加载一次

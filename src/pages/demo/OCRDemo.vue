@@ -231,6 +231,7 @@ import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
 import { useOCR } from '@/composables/useOCR'
 import { recognizeDigitWithDebug } from '@/utils/ocr/digitRecognizer'
+import { CONFIDENCE_THRESHOLD } from '@/utils/ocr/constants'
 
 const { state, originalImage, recognize, reset: resetOCR } = useOCR()
 
@@ -351,7 +352,7 @@ async function confirmCrop(): Promise<void> {
         const croppedFile = new File([blob], 'cropped-image.png', { type: 'image/png' })
         
         try {
-            await recognize(croppedFile, { confidenceThreshold: 0.7, debug: true })
+            await recognize(croppedFile, { confidenceThreshold: CONFIDENCE_THRESHOLD, debug: true })
             await nextTick()
             drawAllCanvases()
         } catch (err) {

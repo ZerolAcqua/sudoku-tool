@@ -15,6 +15,7 @@ import {
   getLastVersionResults,
 } from '@/utils/ocr/gridDetector'
 import { recognizeBoard, cleanup } from '@/utils/ocr/digitRecognizer'
+import { CONFIDENCE_THRESHOLD } from '@/utils/ocr/constants'
 import type { CV } from '@techstark/opencv-js'
 
 declare const cv: CV // OpenCV.js
@@ -128,7 +129,7 @@ export function useOCR() {
    */
   async function recognize(
     imageSource: File | string,
-    options = { confidenceThreshold: 0.7, debug: false }
+    options = { confidenceThreshold: CONFIDENCE_THRESHOLD, debug: false }
   ): Promise<string> {
     state.isLoading = true
     state.error = null
