@@ -4,7 +4,7 @@
 
 import { ref, reactive } from 'vue'
 import { logger } from '@/utils/logger'
-import { loadImageToCanvas } from '@/utils/ocr/preprocessor'
+import { loadImageToCanvas, ensureCv } from '@/utils/ocr/preprocessor'
 import {
   detectGrid,
   extractCells,
@@ -15,8 +15,9 @@ import {
   getLastVersionResults,
 } from '@/utils/ocr/gridDetector'
 import { recognizeBoard, cleanup } from '@/utils/ocr/digitRecognizer'
+import type { CV } from '@techstark/opencv-js'
 
-declare const cv: any // OpenCV.js
+declare const cv: CV // OpenCV.js
 
 /**
  * 创建二值化版本的图像（用于单元格提取）
@@ -134,6 +135,9 @@ export function useOCR() {
     state.result = null
 
     try {
+      // 0. 确保 OpenCV.js 已就绪（首次会等待 WASM 初始化）
+      await ensureCv()
+
       // 1. 加载原始图像
       const img = await loadImageToCanvas(imageSource)
       originalImage.value = img

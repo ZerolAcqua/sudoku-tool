@@ -5,8 +5,9 @@
  */
 
 import { logger } from '@/utils/logger';
+import type { CV } from '@techstark/opencv-js';
 
-declare const cv: any // OpenCV.js 全局对象（由 preprocessor 在首次调用时设置）
+declare const cv: CV // OpenCV.js 全局对象（由 preprocessor 在首次调用时设置）
 
 /** 最近一次 detectGrid 的逐版本检测结果（调试用） */
 let lastVersionResults: Array<{ name: string; hLines: number[]; vLines: number[] }> = [];
@@ -318,12 +319,15 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
     const minLen = imgSize * 0.3;
 
     // 从 HoughLinesP 结果中提取线段
+    // OpenCV 5.0 的 HoughLinesP 返回 rows=1、cols=N 的 CV_32SC4 Mat，
+    // 数据存于 data32S 平坦 Int32Array 中，按 [x1,y1,x2,y2, ...] 分组。
     const extractSegments = (linesMat: any) => {
-      for (let i = 0; i < linesMat.rows; i++) {
-        const x1 = linesMat.intAt(i, 0);
-        const y1 = linesMat.intAt(i, 1);
-        const x2 = linesMat.intAt(i, 2);
-        const y2 = linesMat.intAt(i, 3);
+      const data = linesMat.data32S as Int32Array;
+      for (let i = 0; i < data.length; i += 4) {
+        const x1 = data[i]!;
+        const y1 = data[i + 1]!;
+        const x2 = data[i + 2]!;
+        const y2 = data[i + 3]!;
         const dx = Math.abs(x2 - x1);
         const dy = Math.abs(y2 - y1);
         const length = Math.sqrt(dx * dx + dy * dy);
