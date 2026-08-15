@@ -515,21 +515,51 @@ export function extractCells(
 
 /**
  * 检测单元格是否为空
- * 统计黑色像素占比，低于阈值则判定为空
+ *
+ * 单元格来自二值化图（数字为白色、背景为黑色）。角落上标注的候选数是小数字，
+ * 直接统计会误判为已填入数字。先做形态学开运算（先腐蚀再膨胀）：细小的候选数
+ * 笔画会被腐蚀掉，大数字的主笔画则保留。之后再统计白色（数字）像素占比，低于
+ * 阈值判定为空。
+ *
+ * @param morphKernelSize 开运算结构元素边长，默认按单元格尺寸自适应；候选数笔画
+ *   较粗时可调大
  */
-export function isCellEmpty(canvas: HTMLCanvasElement, emptyThreshold = 0.05): boolean {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
+export function isCellEmpty(
+  canvas: HTMLCanvasElement,
+  emptyThreshold = 0.05,
+  morphKernelSize?: number,
+): boolean {
+  const src = cv.imread(canvas);
 
-  let blackPixels = 0;
-  for (let i = 0; i < data.length; i += 4) {
-    if (data[i]! < 128) {
-      blackPixels++;
-    }
+  const gray = new cv.Mat();
+  if (src.channels() === 4) {
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+  } else if (src.channels() === 3) {
+    cv.cvtColor(src, gray, cv.COLOR_RGB2GRAY);
+  } else {
+    src.copyTo(gray);
   }
 
-  const ratio = blackPixels / (data.length / 4);
+  // 二值化：数字（白色）保留为前景
+  const bin = new cv.Mat();
+  cv.threshold(gray, bin, 128, 255, cv.THRESH_BINARY);
+
+  // 形态学开运算：先腐蚀后膨胀，去除细小的候选数笔画
+  const cellSize = Math.min(canvas.width, canvas.height);
+  const kernelSize = morphKernelSize ?? Math.max(3, Math.round(cellSize * 0.05));
+  const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(kernelSize, kernelSize));
+  const opened = new cv.Mat();
+  cv.morphologyEx(bin, opened, cv.MORPH_OPEN, kernel);
+
+  const inkPixels = cv.countNonZero(opened);
+  const ratio = inkPixels / (canvas.width * canvas.height);
+
+  src.delete();
+  gray.delete();
+  bin.delete();
+  opened.delete();
+  kernel.delete();
+
   return ratio < emptyThreshold;
 }
 
