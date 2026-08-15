@@ -126,7 +126,7 @@ export function useOCR() {
    */
   async function recognize(
     imageSource: File | string,
-    options = { confidenceThreshold: 0.5, debug: false }
+    options = { confidenceThreshold: 0.7, debug: false }
   ): Promise<string> {
     state.isLoading = true
     state.error = null

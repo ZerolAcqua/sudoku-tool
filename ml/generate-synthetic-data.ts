@@ -1,3 +1,4 @@
+// @deprecated: 2026-08-15
 import { createCanvas } from 'canvas'
 import * as fs from 'fs'
 import * as path from 'path'
