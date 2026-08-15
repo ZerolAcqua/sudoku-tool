@@ -351,7 +351,7 @@ async function confirmCrop(): Promise<void> {
         const croppedFile = new File([blob], 'cropped-image.png', { type: 'image/png' })
         
         try {
-            await recognize(croppedFile, { confidenceThreshold: 0.5, debug: true })
+            await recognize(croppedFile, { confidenceThreshold: 0.7, debug: true })
             await nextTick()
             drawAllCanvases()
         } catch (err) {

@@ -141,7 +141,7 @@
     <g font-family="'Noto Serif', Georgia, serif" text-anchor="middle" dominant-baseline="central">
       <g v-for="(row, r) in props.board" :key="'num-row-' + r">
         <text v-for="(value, c) in row" :key="'num-' + r + '-' + c" :x="c * 100 + 50" :y="r * 100 + 50"
-          v-show="value > 0" :fill="isGiven(r, c) ? 'black' : 'var(--user-num-color)'" font-size="55" font-weight="500"
+          v-show="value > 0" :fill="isGiven(r, c) ? 'black' : 'var(--user-num-color)'" font-size="65" font-weight="500"
           pointer-events="none">{{ value }}</text>
       </g>
     </g>

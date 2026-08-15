@@ -14,7 +14,8 @@
     "type-check": "vue-tsc --build",
     "format:ts": "prettier --write \"src/**/*.ts\" \"*.ts\" --ignore-path .prettierignore",
     "train:digit": "tsx --import ./ml/polyfill-util.ts ml/train-digit-model.ts",
-    "deploy:model": "tsx ml/deploy-model.ts"
+    "deploy:model": "tsx ml/deploy-model.ts",
+    "test:ocr": "tsx --tsconfig tsconfig.app.json --import ./ml/polyfill-util.ts test/ocr.test.ts"
   },
   "dependencies": {
     "@techstark/opencv-js": "^5.0.0-release.1",

@@ -43,7 +43,7 @@ function preprocessForModel(
  */
 export async function recognizeDigit(
   canvas: HTMLCanvasElement,
-  confidenceThreshold = 0.6,
+  confidenceThreshold = 0.7,
 ): Promise<number> {
   const model = await loadMnistModel()
 

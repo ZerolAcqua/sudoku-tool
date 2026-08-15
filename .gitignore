@@ -86,5 +86,4 @@ coverage/
 *.lcov
 .nyc_output
 
-/test
 /ml/models/*

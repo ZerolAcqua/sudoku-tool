@@ -7,13 +7,14 @@ import cvModule from '@techstark/opencv-js'
 import type { CV } from '@techstark/opencv-js'
 
 // @techstark/opencv-js 的默认导出是一个 Promise，await 后才得到真正的 cv 对象。
-// 这里惰性初始化，并把结果挂到全局 window.cv，供 gridDetector / useOCR 使用。
-let cv: CV | null = null
+// 这里惰性初始化，并把结果挂到全局 globalThis.cv，供 gridDetector / useOCR 使用。
 let cvPromise: Promise<CV> | null = null
 
 /** 确保 OpenCV.js 已就绪，返回全局 cv 对象 */
 export function ensureCv(): Promise<CV> {
-  const globalCv = (typeof window !== 'undefined' ? (window as any).cv : undefined) as CV | undefined
+  // 挂到 globalThis（浏览器中即 window），这样 gridDetector / useOCR 里
+  // `declare const cv` 声明的全局变量在浏览器和 Node 测试环境下都能取到。
+  const globalCv = (globalThis as any).cv as CV | undefined
   if (globalCv?.Mat) {
     return Promise.resolve(globalCv)
   }
@@ -31,10 +32,7 @@ export function ensureCv(): Promise<CV> {
         })
         resolved = raw as CV
       }
-      cv = resolved
-      if (typeof window !== 'undefined') {
-        ;(window as any).cv = resolved
-      }
+      ;(globalThis as any).cv = resolved
       return resolved
     })()
   }

@@ -23,7 +23,7 @@ declare const cv: CV // OpenCV.js
  * 创建二值化版本的图像（用于单元格提取）
  * 自动检测最优的二值化方向（数字白/黑背景）
  */
-function createBinaryImage(canvas: HTMLCanvasElement): HTMLCanvasElement {
+export function createBinaryImage(canvas: HTMLCanvasElement): HTMLCanvasElement {
   const src = cv.imread(canvas);
 
   // 转换为灰度图

@@ -26,11 +26,13 @@ const LEVEL_LABEL: Record<LogLevel, string> = {
 type ActiveLevel = Exclude<LogLevel, 'silent'>
 
 function resolveDefaultLevel(): LogLevel {
-  const configured = import.meta.env.VITE_LOG_LEVEL as LogLevel | undefined
+  // 在非 Vite 环境（如 Node 测试脚本）下 import.meta.env 为 undefined，需兼容
+  const env = (import.meta as unknown as { env?: { VITE_LOG_LEVEL?: string; DEV?: boolean } }).env
+  const configured = env?.VITE_LOG_LEVEL as LogLevel | undefined
   if (configured && configured in LEVEL_ORDER) {
     return configured
   }
-  return import.meta.env.DEV ? 'debug' : 'error'
+  return env?.DEV ? 'debug' : 'error'
 }
 
 let currentLevel: LogLevel = resolveDefaultLevel()
