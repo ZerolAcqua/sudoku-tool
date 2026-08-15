@@ -159,6 +159,7 @@
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, reactive, ref, computed, watch } from 'vue'
+import { logger } from '../utils/logger'
 import SudokuBoard from '../components/SudokuBoard.vue'
 import { usePracticeStore } from '../stores/practice'
 import { genByMode, pickRandomMode, type UnitMode, type PracticePuzzle } from '../utils/generator'
@@ -301,7 +302,7 @@ async function copyStats() {
       copied.value = false
     }, 2000)
   } catch (err) {
-    console.error('复制失败:', err)
+    logger.error('复制失败:', err)
   }
 }
 

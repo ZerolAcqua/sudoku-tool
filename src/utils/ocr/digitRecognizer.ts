@@ -1,4 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
+import { logger } from '@/utils/logger';
 import { loadMnistModel, disposeMnistModel } from './mnistModel';
 
 /**
@@ -62,7 +63,7 @@ export async function recognizeDigit(
     }
   }
 
-  console.log(
+  logger.debug(
     '[recognizeDigit] 预测=', classIdx,
     '置信度=', maxProb.toFixed(4),
     '概率=', Array.from(probs).map((p) => p.toFixed(3)).join(','),

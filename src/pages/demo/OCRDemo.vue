@@ -226,6 +226,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, nextTick } from 'vue'
+import { logger } from '@/utils/logger'
 import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
 import { useOCR } from '@/composables/useOCR'
@@ -354,7 +355,7 @@ async function confirmCrop(): Promise<void> {
             await nextTick()
             drawAllCanvases()
         } catch (err) {
-            console.error('识别失败:', err)
+            logger.error('识别失败:', err)
         }
     }, 'image/png')
 }
@@ -519,7 +520,7 @@ async function recognizeSingleDigit(): Promise<void> {
       ctx.drawImage(result.debugCanvas, 0, 0, 140, 140)
     }
   } catch (err) {
-    console.error('识别失败:', err)
+    logger.error('识别失败:', err)
   } finally {
     digitLoading.value = false
   }

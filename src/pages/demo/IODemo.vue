@@ -54,6 +54,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { logger } from '@/utils/logger'
 import SudokuBoard from '@/components/SudokuBoard.vue'
 
 const board = reactive<number[][]>([
@@ -130,7 +131,7 @@ onMounted(() => {
 })
 
 function onClick(pos: any) {
-    console.log('点击单元格', pos)
+    logger.debug('点击单元格', pos)
 }
 
 async function saveAsImage() {
@@ -143,7 +144,7 @@ async function saveAsImage() {
         }
         
         const candidatesInSVG = svgElement.querySelectorAll('text[font-size="22"]')
-        console.log('SVG 中找到的候选数 text 元素数量:', candidatesInSVG.length)
+        logger.debug('SVG 中找到的候选数 text 元素数量:', candidatesInSVG.length)
         if (!svgElement) {
             alert('找不到 SVG 元素，请确保数独盘面已正确加载')
             return
@@ -170,7 +171,7 @@ async function saveAsImage() {
 
         alert('数独盘面已保存为 SVG 文件！')
     } catch (error: any) {
-        console.error('保存图片时出错:', error)
+        logger.error('保存图片时出错:', error)
         alert('保存图片失败: ' + error.message)
     }
 }
@@ -197,7 +198,7 @@ function loadSavedPuzzle(index: number) {
             }
         }
         genCandidates()
-        console.log('已加载盘面:', puzzle.timestamp)
+        logger.info('已加载盘面:', puzzle.timestamp)
     }
 }
 
@@ -207,7 +208,7 @@ function loadSavedPuzzlesFromStorage() {
         try {
             savedPuzzles.value = JSON.parse(saved)
         } catch (e) {
-            console.error('加载保存的盘面失败:', e)
+            logger.error('加载保存的盘面失败:', e)
         }
     }
 }
@@ -277,7 +278,7 @@ function clearUserInput() {
                 }
             }
         }
-        console.log('用户输入已清空，原题保留')
+        logger.info('用户输入已清空，原题保留')
     }
 }
 
@@ -290,7 +291,7 @@ function clearPuzzle() {
             }
         }
         candidates.forEach((row) => row.forEach((cell) => (cell.length = 0)))
-        console.log('盘面已全部清空')
+        logger.info('盘面已全部清空')
     }
 }
 </script>

@@ -4,6 +4,8 @@
  * 前提假设：输入图片为横平竖直的电子数独截图（无透视变形）
  */
 
+import { logger } from '@/utils/logger';
+
 declare const cv: any // OpenCV.js 全局对象（由 preprocessor 在首次调用时设置）
 
 /** 最近一次 detectGrid 的逐版本检测结果（调试用） */
@@ -147,7 +149,7 @@ function refineLinePositions(
   const totalSpan = last - first;
   const cellSize = totalSpan / (expectedCount - 1);
 
-  console.log(
+  logger.debug(
     `[refineLinePositions] 输入: ${lines.length}条 → 目标: ${expectedCount}条, ` +
     `跨度=${totalSpan.toFixed(0)}, 预期格宽=${cellSize.toFixed(1)}, ` +
     `位置: ${lines.map(v => v.toFixed(1)).join(', ')}`,
@@ -167,7 +169,7 @@ function refineLinePositions(
     const a = lines[bestIdx - 1]!;
     const b = lines[bestIdx]!;
     const mid = (a + b) / 2;
-    console.log(
+    logger.debug(
       `[refineLinePositions] 合并: ${a.toFixed(1)}+${b.toFixed(1)} → ${mid.toFixed(1)} (间距=${(b-a).toFixed(1)})`,
     );
     lines.splice(bestIdx - 1, 2, mid);
@@ -202,7 +204,7 @@ function refineLinePositions(
     const a = lines[bestIdx - 1]!;
     const b = lines[bestIdx]!;
 
-    console.log(
+    logger.debug(
       `[refineLinePositions] 间隙 ${a.toFixed(1)}–${b.toFixed(1)} (${bestGap.toFixed(1)}px, ` +
       `${(bestGap/cellSize).toFixed(2)}格), 插入${toInsert}条`,
     );
@@ -212,7 +214,7 @@ function refineLinePositions(
     }
   }
 
-  console.log(
+  logger.debug(
     `[refineLinePositions] 输出: ${lines.length}条, ` +
     `位置: ${lines.map(v => v.toFixed(1)).join(', ')}`,
   );
@@ -356,7 +358,7 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
 
     if (hPositions.length === 0 || vPositions.length === 0) continue;
 
-    console.log(
+    logger.debug(
       `[detectGrid] ${version.name}: H=${hPositions.length} V=${vPositions.length}`,
     );
 
@@ -372,7 +374,7 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
   gray.delete();
   src.delete();
 
-  console.log(
+  logger.debug(
     '[detectGrid] 全量汇总 — H: ' + allHPositions.length + '条, V: ' + allVPositions.length + '条',
   );
 
@@ -382,25 +384,25 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
     // 全量合并：跨阈值版本的同一物理线位置可能有 10-15px 偏差
     // 用自适应阈值（图像尺寸的 2%），确保合且不误合相邻网格线
     const mergeThreshold = Math.max(10, Math.round(imgSize * 0.02));
-    console.log(`[detectGrid] 合并阈值: ${mergeThreshold}px (imgSize=${imgSize})`);
+    logger.debug(`[detectGrid] 合并阈值: ${mergeThreshold}px (imgSize=${imgSize})`);
     const mergedH = mergeNearbyLines(allHPositions, mergeThreshold);
     const mergedV = mergeNearbyLines(allVPositions, mergeThreshold);
 
-    console.log(
+    logger.debug(
       '[detectGrid] 合并后 — H: ' + mergedH.length + '条, V: ' + mergedV.length + '条',
     );
 
     // 参考网格修正 → 精确 10 条
-    console.log('[detectGrid] === refine H ===');
+    logger.debug('[detectGrid] === refine H ===');
     const refinedH = refineLinePositions(mergedH, 10);
-    console.log('[detectGrid] === refine V ===');
+    logger.debug('[detectGrid] === refine V ===');
     const refinedV = refineLinePositions(mergedV, 10);
 
-    console.log(
+    logger.debug(
       '[detectGrid] refine 后 H(10条):',
       refinedH.map(v => v.toFixed(1)).join(', '),
     );
-    console.log(
+    logger.debug(
       '[detectGrid] refine 后 V(10条):',
       refinedV.map(v => v.toFixed(1)).join(', '),
     );
@@ -410,10 +412,10 @@ export function detectGrid(canvas: HTMLCanvasElement): GridLocation {
       hLines: refinedH,
       vLines: refinedV,
     };
-    console.log('[detectGrid] 最终结果:', finalGrid);
+    logger.debug('[detectGrid] 最终结果:', finalGrid);
   } else {
     finalGrid = { x: 0, y: 0, width: 0, height: 0, hLines: [], vLines: [] };
-    console.log('[detectGrid] 未能检测到足够线条');
+    logger.debug('[detectGrid] 未能检测到足够线条');
   }
 
   return finalGrid;
@@ -457,7 +459,7 @@ export function extractCells(
 ): HTMLCanvasElement[][] {
   // 精确模式：使用检测到的每条线位置定位单元格
   const useExact = grid.hLines.length === 10 && grid.vLines.length === 10;
-  console.log(
+  logger.debug(
     `[extractCells] 模式: ${useExact ? '精确线吸附' : '等分回退'}` +
     ` (H=${grid.hLines.length} V=${grid.vLines.length})`,
   );
@@ -550,7 +552,7 @@ export function drawGridLines(
   ctx.drawImage(originalCanvas, 0, 0);
 
   const useExact = grid.hLines.length === 10 && grid.vLines.length === 10;
-  console.log(
+  logger.debug(
     `[drawGridLines] 模式: ${useExact ? '精确线吸附' : '等分回退'}` +
     ` (H=${grid.hLines.length} V=${grid.vLines.length})`,
   );

@@ -270,6 +270,7 @@
 
 <script setup lang="ts">
 import { ref, watch, reactive, onMounted } from 'vue'
+import { logger } from '@/utils/logger'
 import SudokuBoard from '@/components/SudokuBoard.vue'
 import type { CellHighlight, CellMarker, Chain, CandidateMarker } from '@/types/sudoku'
 
@@ -645,7 +646,7 @@ async function saveDrawingAsImage() {
 
     alert('绘图已保存为 SVG 文件！')
   } catch (error: any) {
-    console.error('保存图片时出错:', error)
+    logger.error('保存图片时出错:', error)
     alert('保存图片失败: ' + error.message)
   }
 }

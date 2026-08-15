@@ -3,6 +3,7 @@
  */
 
 import { ref, reactive } from 'vue'
+import { logger } from '@/utils/logger'
 import { loadImageToCanvas } from '@/utils/ocr/preprocessor'
 import {
   detectGrid,
@@ -45,7 +46,7 @@ function createBinaryImage(canvas: HTMLCanvasElement): HTMLCanvasElement {
   const scoreNormal = evaluateBinaryQuality(binaryNormal);
   const scoreInv = evaluateBinaryQuality(binaryInv);
 
-  console.log(
+  logger.debug(
     '[createBinaryImage] 评分 - Normal:',
     scoreNormal.toFixed(3),
     ' Inv:',
@@ -136,11 +137,11 @@ export function useOCR() {
       // 1. 加载原始图像
       const img = await loadImageToCanvas(imageSource)
       originalImage.value = img
-      console.log('[useOCR] 原始图像加载完成:', img.width, 'x', img.height)
+      logger.debug('[useOCR] 原始图像加载完成:', img.width, 'x', img.height)
 
       // 2. 网格检测（内部处理灰度化、二值化、轮廓/直线检测）
       const grid = detectGrid(img);
-      console.log('[useOCR] 网格检测完成:', grid);
+      logger.debug('[useOCR] 网格检测完成:', grid);
       if (grid.width === 0 || grid.height === 0) {
         throw new Error('未能检测到数独网格，请确保图像清晰且网格完整');
       }
@@ -148,21 +149,21 @@ export function useOCR() {
       // 3. 绘制网格线到原图 + 全量检测线可视化
       state.gridImage = drawGridLines(img, grid);
       state.detectedLinesImage = drawAllDetectedLines(img.width, img.height);
-      console.log('[useOCR] 网格线绘制完成');
+      logger.debug('[useOCR] 网格线绘制完成');
 
       // 3.5. 创建二值化版本用于单元格提取（避免网格线干扰）
       const binaryImg = createBinaryImage(img);
-      console.log('[useOCR] 二值化图像创建完成');
+      logger.debug('[useOCR] 二值化图像创建完成');
       state.processedImage = binaryImg;
 
       // 4. 从二值化图像提取单元格
       const cells = extractCells(binaryImg, grid, 5);
       state.cells = cells;
-      console.log('[useOCR] 单元格提取完成:', cells.length, 'x', cells[0]?.length);
+      logger.debug('[useOCR] 单元格提取完成:', cells.length, 'x', cells[0]?.length);
 
       // 4.5. 可视化单元格（调试用，无间隔，方便查看白边）
       state.cellsVisualization = visualizeCells(cells, 50, 0);
-      console.log('[useOCR] 单元格可视化完成');
+      logger.debug('[useOCR] 单元格可视化完成');
 
       // 5. 识别数字
       let result = await recognizeBoard(cells, options.confidenceThreshold, isCellEmpty);
@@ -184,18 +185,18 @@ export function useOCR() {
       result = processedResult.join('');
       state.result = result;
 
-      console.log('[useOCR] 识别完成，结果:', result);
+      logger.info('[useOCR] 识别完成，结果:', result);
 
       if (options.debug) {
-        console.log('OCR Result:', result);
-        console.log('Grid Location:', grid);
+        logger.debug('OCR Result:', result);
+        logger.debug('Grid Location:', grid);
       }
 
       return result;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '识别失败，请重试';
       state.error = errorMessage;
-      console.error('OCR Error:', err);
+      logger.error('OCR Error:', err);
       throw err;
     } finally {
       state.isLoading = false;
