@@ -1,11 +1,11 @@
 <template>
   <div class="min-h-screen flex flex-col bg-gray-50">
-    <div class="max-w-7xl mx-auto w-full py-8 px-4 sm:px-6 lg:px-8 flex-1">
-      <h1 class="text-3xl font-bold text-gray-900 mb-6">数独唯余练习</h1>
+    <div class="page-container w-full flex-1">
+      <h1 class="page-title">数独唯余练习</h1>
 
       <!-- 盘面 + 右侧栏（模式+统计+小键盘） -->
       <div class="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-6 h-[550px]">
-        <div class="bg-white shadow rounded-lg flex items-center justify-center p-4">
+        <div class="card flex items-center justify-center p-4">
           <SudokuBoard :board="board" :given="given" :candidates="[]" :size="600" :showCandidates="false"
             :focusCell="focusCell" :focusHighlight="focusHighlight" mode="practice" @cell-click="onCellClick" />
         </div>
@@ -13,18 +13,18 @@
         <!-- 右侧栏：统计 + 小键盘 -->
         <div class="flex flex-col gap-4">
           <!-- 统计 -->
-          <div class="bg-white shadow rounded-lg p-4 flex-1 overflow-y-auto select-none">
+          <div class="card p-4 flex-1 overflow-y-auto select-none">
             <!-- 模式设置 -->
             <div class="mb-4 pb-4 border-b border-gray-200 space-y-2">
               <div class="flex items-center gap-2">
-                <select v-model="uiMode" class="flex-1 bg-gray-50 border border-gray-200 rounded px-3 py-2 text-sm text-gray-700 hover:border-gray-300">
+                <select v-model="uiMode" class="form-select flex-1">
                   <option value="row">行唯一数</option>
                   <option value="col">列唯一数</option>
                   <option value="box">宫唯一数</option>
                   <option value="general">一般唯余</option>
                   <option value="random">随机类型</option>
                 </select>
-                <select v-model="practiceMode" class="flex-1 bg-gray-50 border border-gray-200 rounded px-3 py-2 text-sm text-gray-700 hover:border-gray-300">
+                <select v-model="practiceMode" class="form-select flex-1">
                   <option value="timed">五分限时</option>
                   <option value="sprint">百题冲刺</option>
                   <option value="free">自由模式</option>
@@ -34,49 +34,49 @@
 
             <div class="space-y-3">
               <!-- 进度或时间 -->
-              <div v-if="practiceMode === 'timed'" class="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                <div class="text-xs text-gray-600 mb-1">剩余时间</div>
-                <div class="text-2xl font-bold text-gray-900" :class="isSessionComplete ? 'text-red-600' : ''">
+              <div v-if="practiceMode === 'timed'" class="stat-card">
+                <div class="stat-label">剩余时间</div>
+                <div class="stat-value" :class="isSessionComplete ? 'text-red-600' : ''">
                   {{ formatTime(timeLeft) }}
                 </div>
               </div>
-              <div v-else-if="practiceMode === 'sprint'" class="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                <div class="text-xs text-gray-600 mb-1">进度</div>
-                <div class="text-2xl font-bold text-gray-900">
+              <div v-else-if="practiceMode === 'sprint'" class="stat-card">
+                <div class="stat-label">进度</div>
+                <div class="stat-value">
                   {{ stats.total }} / {{ sprintTarget }}
                 </div>
               </div>
-              <div v-else class="bg-gray-50 rounded-lg p-3 border border-gray-200 min-h-[68px] flex flex-col justify-center">
-                <div class="text-xs text-gray-600 mb-1">自由模式</div>
+              <div v-else class="stat-card min-h-[68px] flex flex-col justify-center">
+                <div class="stat-label">自由模式</div>
                 <div class="text-2xl text-gray-900">自由练习</div>
               </div>
 
 
               <!-- 关键指标卡片 -->
               <div class="grid grid-cols-2 gap-3">
-                <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                  <div class="text-xs text-gray-600 mb-1">正确率</div>
-                  <div class="text-2xl font-bold text-gray-900">{{ Math.round(stats.accuracy * 100) }}%</div>
+                <div class="stat-card">
+                  <div class="stat-label">正确率</div>
+                  <div class="stat-value">{{ Math.round(stats.accuracy * 100) }}%</div>
                 </div>
-                <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                  <div class="text-xs text-gray-600 mb-1">平均用时</div>
-                  <div class="text-2xl font-bold text-gray-900">{{ formatMs(stats.avgMs) }}</div>
+                <div class="stat-card">
+                  <div class="stat-label">平均用时</div>
+                  <div class="stat-value">{{ formatMs(stats.avgMs) }}</div>
                 </div>
               </div>
 
               <!-- 详细数据 -->
-              <div class="bg-gray-50 rounded-lg p-3 border border-gray-200 text-sm">
+              <div class="stat-card text-sm">
                 <div class="grid grid-cols-3 gap-2 text-center">
                   <div>
-                    <div class="text-xs text-gray-600 mb-1">已做</div>
+                    <div class="stat-label">已做</div>
                     <div class="font-semibold text-gray-900 text-base">{{ stats.total }}</div>
                   </div>
                   <div>
-                    <div class="text-xs text-gray-600 mb-1">正确</div>
+                    <div class="stat-label">正确</div>
                     <div class="font-semibold text-gray-900 text-base">{{ stats.correct }}</div>
                   </div>
                   <div>
-                    <div class="text-xs text-gray-600 mb-1">错误</div>
+                    <div class="stat-label">错误</div>
                     <div class="font-semibold text-gray-900 text-base">{{ stats.wrong }}</div>
                   </div>
                 </div>
@@ -84,22 +84,22 @@
 
               <!-- 本题用时 -->
               <div v-if="lastDurationMs !== null" class="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                <div class="text-xs text-gray-600 mb-1">本题用时</div>
+                <div class="stat-label">本题用时</div>
                 <div class="text-xl font-bold text-gray-900">{{ formatMs(lastDurationMs) }}</div>
               </div>
             </div>
             
             <div class="mt-4 flex gap-3">
               <button v-if="!isRunning"
-                class="flex-1 bg-gray-100 text-gray-700 border border-gray-400 rounded px-4 py-2 hover:bg-gray-200 font-medium text-sm"
+                class="btn flex-1"
                 @click="startSession()">开始</button>
-              <button class="flex-1 bg-gray-100 text-gray-700 border border-gray-400 rounded px-4 py-2 hover:bg-gray-200 font-medium text-sm"
+              <button class="btn flex-1"
                 @click="reset()">重置</button>
             </div>
           </div>
 
           <!-- 小键盘 -->
-          <div class="bg-white shadow rounded-lg p-4 flex-shrink-0 select-none flex items-center gap-4">
+          <div class="card p-4 flex-shrink-0 select-none flex items-center gap-4">
             <!-- 左侧说明 -->
             <div class="w-56 border-r border-gray-200 pr-4 flex-shrink-0 flex flex-col items-center justify-center">
               <div class="text-sm font-semibold text-gray-900 mb-3">关于唯余</div>
@@ -131,7 +131,7 @@
 
       <!-- 结算窗口 -->
       <div v-if="showSettlement" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div class="bg-white shadow rounded-lg p-6 max-w-md w-full mx-4">
+        <div class="card max-w-md w-full mx-4">
           <h2 class="text-2xl font-bold text-gray-900 mb-4">{{ practiceMode === 'timed' ? '时间到！' : '冲刺完成！' }}</h2>
           <div class="text-gray-700 space-y-2 mb-6">
             <div class="text-lg">已做：{{ stats.total }} 题</div>
@@ -148,7 +148,7 @@
                   : 'bg-gray-100 text-gray-700 border border-gray-400 hover:bg-gray-200'
               ]"
               @click="copyStats()">{{ copied ? '已复制！' : '复制数据' }}</button>
-            <button class="flex-1 bg-gray-100 text-gray-700 border border-gray-400 rounded px-4 py-2 hover:bg-gray-200"
+            <button class="btn flex-1"
               @click="showSettlement = false">确定</button>
           </div>
         </div>

@@ -1,7 +1,7 @@
 <template>
     <div>
-        <div class="bg-white shadow rounded-lg p-6 mb-8">
-            <h2 class="text-xl font-semibold mb-4">唯余练习模式（程序给定目标格）</h2>
+        <div class="card mb-8">
+            <h2 class="section-title">唯余练习模式（程序给定目标格）</h2>
             <div class="flex flex-col items-center gap-4">
                 <p class="text-sm text-gray-600">测试不同的高亮类型：行唯一数、列唯一数、宫唯一数、唯一余数</p>
                 <SudokuBoard :board="board" :given="given" :focusCell="practiceCell" :focusHighlight="highlightType"
@@ -9,8 +9,8 @@
             </div>
         </div>
 
-        <div class="bg-white shadow rounded-lg p-6 mb-8">
-            <h2 class="text-xl font-semibold mb-4">交互模式（用户点击选中目标格）</h2>
+        <div class="card mb-8">
+            <h2 class="section-title">交互模式（用户点击选中目标格）</h2>
             <div class="flex flex-col items-center gap-4">
                 <p class="text-sm text-gray-600">点击单元格选中，选中状态会持续显示</p>
                 <SudokuBoard :board="board" :given="given" :selected="selectedCell" @cell-click="onCellSelect"
@@ -24,8 +24,8 @@
             </div>
         </div>
 
-        <div class="bg-white shadow rounded-lg p-6 mb-8">
-            <h2 class="text-xl font-semibold mb-4">候选数交互模式</h2>
+        <div class="card mb-8">
+            <h2 class="section-title">候选数交互模式</h2>
             <div class="flex flex-col items-center gap-4">
                 <p class="text-sm text-gray-600">点击候选数进行选择，悬浮和选中时显示高亮效果</p>
                 <SudokuBoard :board="board" :given="given" :showCandidates="true" :candidates="candidates"

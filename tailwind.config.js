@@ -7,10 +7,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        accent: '#007acc',
-        'user-num': '#0066cc',
-        'given-num': '#000000',
-        'candidate': '#888888',
+        accent: 'var(--color-accent)',
+        'accent-dark': 'var(--color-accent-dark)',
+        'given-num': 'var(--color-given-num)',
+        'user-num': 'var(--color-user-num)',
+        'cand': 'var(--color-cand)',
       },
     },
   },

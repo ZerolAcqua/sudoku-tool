@@ -2,14 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@layer base {
+  /* 设计 token：颜色的唯一来源，tailwind.config 与 SVG 内联样式都从这里取值 */
+  :root {
+    --color-accent: #2563eb;
+    --color-accent-dark: #1d4ed8;
+    --color-given-num: #000000;
+    --color-user-num: #0066cc;
+    --color-cand: #1b1b1b;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer components {
+  /* 页面布局 */
+  .page-container { @apply max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8; }
+  .page-title { @apply text-3xl font-bold text-gray-900 mb-8; }
+  .section-title { @apply text-xl font-semibold mb-4; }
+
+  /* 卡片 */
+  .card { @apply bg-white shadow rounded-lg p-6; }
+
+  /* 统计卡片 */
+  .stat-card { @apply bg-gray-50 rounded-lg p-3 border border-gray-200; }
+  .stat-label { @apply text-xs text-gray-600 mb-1; }
+  .stat-value { @apply text-2xl font-bold text-gray-900; }
+
+  /* 按钮 */
+  .btn { @apply px-4 py-2 text-sm font-medium rounded border border-gray-400 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors; }
+  .btn-primary { @apply px-4 py-2 text-sm font-medium rounded border border-transparent bg-accent text-white hover:bg-accent-dark transition-colors; }
+  .btn-success { @apply px-4 py-2 text-sm font-medium rounded border border-transparent bg-green-600 text-white hover:bg-green-700 transition-colors; }
+  .btn-danger { @apply px-4 py-2 text-sm font-medium rounded border border-transparent bg-red-600 text-white hover:bg-red-700 transition-colors; }
+
+  /* 表单 */
+  .form-select { @apply bg-gray-50 border border-gray-200 rounded px-3 py-2 text-sm text-gray-700 hover:border-gray-300; }
 }

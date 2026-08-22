@@ -1,36 +1,36 @@
 <template>
-    <div class="bg-white shadow rounded-lg p-6">
-        <h2 class="text-xl font-semibold mb-4">交互式数独</h2>
+    <div class="card">
+        <h2 class="section-title">交互式数独</h2>
         <div class="flex flex-col items-center gap-4">
             <!-- 控制按钮 -->
             <div class="flex flex-wrap gap-2 justify-center">
                 <button @click="saveAsImage"
-                    class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+                    class="btn">
                     保存为图片
                 </button>
                 <button @click="savePuzzle"
-                    class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+                    class="btn">
                     保存盘面数据
                 </button>
                 <button @click="loadPuzzle"
-                    class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+                    class="btn">
                     加载盘面
                 </button>
                 <button @click="exportPuzzle"
-                    class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+                    class="btn">
                     导出为文件
                 </button>
                 <input ref="fileInput" type="file" accept=".json" @change="importPuzzle" class="hidden">
                 <button @click="fileInput?.click()"
-                    class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+                    class="btn">
                     导入文件
                 </button>
                 <button @click="clearUserInput"
-                    class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+                    class="btn">
                     清空输入
                 </button>
                 <button @click="clearPuzzle"
-                    class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+                    class="btn">
                     清空全部
                 </button>
             </div>

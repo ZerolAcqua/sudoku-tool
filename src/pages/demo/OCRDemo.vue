@@ -15,7 +15,7 @@
 
                 <div class="space-y-3">
                     <button
-                        class="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+                        class="btn-primary disabled:opacity-50"
                         @click="fileInput?.click()" :disabled="state.isLoading">
                         选择图片
                     </button>
@@ -40,11 +40,11 @@
                 </div>
                 <div class="flex gap-3 mt-4">
                     <button @click="confirmCrop"
-                        class="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700">
+                        class="btn-primary">
                         确认裁剪并识别
                     </button>
                     <button @click="cancelCrop"
-                        class="bg-gray-200 text-gray-900 px-4 py-2 rounded-lg font-medium hover:bg-gray-300">
+                        class="btn">
                         取消
                     </button>
                 </div>
@@ -114,11 +114,11 @@
 
                 <div class="flex gap-3">
                     <button @click="copyResult"
-                        class="bg-gray-200 text-gray-900 px-4 py-2 rounded-lg font-medium hover:bg-gray-300">
+                        class="btn">
                         复制结果
                     </button>
                     <button @click="downloadResult"
-                        class="bg-gray-200 text-gray-900 px-4 py-2 rounded-lg font-medium hover:bg-gray-300">
+                        class="btn">
                         下载文本
                     </button>
                 </div>
@@ -140,7 +140,7 @@
             <!-- 重置按钮 -->
             <div v-if="!state.isLoading && (originalImage || state.result || state.error)" class="text-center">
                 <button @click="reset"
-                    class="bg-gray-200 text-gray-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-300">
+                    class="btn">
                     重新开始
                 </button>
             </div>
@@ -186,7 +186,7 @@
                 v-if="digitImageSrc"
                 @click="recognizeSingleDigit"
                 :disabled="digitLoading"
-                class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 mb-4"
+                class="btn-primary disabled:opacity-50 mb-4"
             >
                 {{ digitLoading ? '识别中...' : '识别数字' }}
             </button>

@@ -1,8 +1,8 @@
 <template>
   <div>
     <!-- 交互式绘图工具 -->
-    <div class="bg-white shadow rounded-lg p-6 mb-8">
-      <h2 class="text-xl font-semibold mb-4">交互式绘图工具</h2>
+    <div class="card mb-8">
+      <h2 class="section-title">交互式绘图工具</h2>
       <div class="flex flex-col items-center gap-4">
         <p class="text-sm text-gray-600">点击单元格进行绘图操作</p>
 
@@ -13,7 +13,7 @@
             <span class="text-sm font-medium text-gray-700 self-center min-w-20">绘图模式:</span>
             <button v-for="mode in drawingModes" :key="mode.id" @click="currentDrawMode = mode.id" :class="['px-3 py-1 text-sm rounded transition-colors',
               currentDrawMode === mode.id
-                ? 'bg-blue-600 text-white'
+                ? 'bg-accent text-white'
                 : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">
               {{ mode.label }}
             </button>
@@ -24,7 +24,7 @@
             <span class="text-sm font-medium text-gray-700 self-center min-w-20">标记类型:</span>
             <button v-for="type in markerTypes" :key="type" @click="currentMarkerType = type" :class="['px-3 py-1 text-sm rounded transition-colors',
               currentMarkerType === type
-                ? 'bg-blue-600 text-white'
+                ? 'bg-accent text-white'
                 : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">
               {{ type }}
             </button>
@@ -35,7 +35,7 @@
             <span class="text-sm font-medium text-gray-700 self-center min-w-20">链样式:</span>
             <button v-for="style in chainStyles" :key="style.id" @click="currentChainStyle = style.id" :class="['px-3 py-1 text-sm rounded transition-colors',
               currentChainStyle === style.id
-                ? 'bg-blue-600 text-white'
+                ? 'bg-accent text-white'
                 : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200']">
               {{ style.label }}
             </button>
@@ -70,19 +70,19 @@
           <!-- 操作按钮 -->
           <div class="flex flex-wrap gap-2">
             <button @click="saveDrawingAsImage"
-              class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+              class="btn">
               保存为图片
             </button>
             <button v-if="currentDrawMode === 'chain' && drawingChain.length > 0" @click="finishChain"
-              class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
+              class="btn-success">
               完成链 ({{ drawingChain.length }} 个节点)
             </button>
             <button v-if="currentDrawMode === 'chain' && drawingChain.length > 0" @click="cancelChain"
-              class="px-4 py-2 bg-gray-100 border border-gray-400 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+              class="btn">
               取消
             </button>
             <button @click="clearDrawing"
-              class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
+              class="btn-danger">
               清空绘图
             </button>
           </div>
@@ -108,8 +108,8 @@
     <!-- 静态示例 -->
     <div>
       <!-- 自定义高亮示例 -->
-      <div class="bg-white shadow rounded-lg p-6 mb-8">
-        <h2 class="text-xl font-semibold mb-4">自定义单元格高亮</h2>
+      <div class="card mb-8">
+        <h2 class="section-title">自定义单元格高亮</h2>
         <div class="flex flex-col items-center gap-4">
           <p class="text-sm text-gray-600">为特定单元格添加自定义颜色高亮</p>
           <SudokuBoard :board="board" :given="given" :customHighlights="[
@@ -121,8 +121,8 @@
       </div>
 
       <!-- 标记示例 -->
-      <div class="bg-white shadow rounded-lg p-6 mb-8">
-        <h2 class="text-xl font-semibold mb-4">单元格标记</h2>
+      <div class="card mb-8">
+        <h2 class="section-title">单元格标记</h2>
         <div class="flex flex-col items-center gap-4">
           <p class="text-sm text-gray-600">为单元格添加不同类型的标记符号</p>
           <SudokuBoard :board="board" :given="given" :markers="[
@@ -135,8 +135,8 @@
       </div>
 
       <!-- 摒除线示例 -->
-      <div class="bg-white shadow rounded-lg p-6 mb-8">
-        <h2 class="text-xl font-semibold mb-4">摒除线绘制</h2>
+      <div class="card mb-8">
+        <h2 class="section-title">摒除线绘制</h2>
         <div class="flex flex-col items-center gap-4">
           <p class="text-sm text-gray-600">在两个单元格之间绘制摒除线，从起点圆圈边缘指向目标格</p>
           <SudokuBoard :board="board" :given="given" :markers="[
@@ -151,8 +151,8 @@
       </div>
 
       <!-- 链绘制示例 -->
-      <div class="bg-white shadow rounded-lg p-6 mb-8">
-        <h2 class="text-xl font-semibold mb-4">链绘制</h2>
+      <div class="card mb-8">
+        <h2 class="section-title">链绘制</h2>
         <div class="flex flex-col items-center gap-4">
           <p class="text-sm text-gray-600">绘制连接多个单元格的链，支持实线、虚线和箭头</p>
           <SudokuBoard :board="board" :given="given" :chains="[
@@ -182,8 +182,8 @@
       </div>
 
       <!-- 候选到候选的链示例 -->
-      <div class="bg-white shadow rounded-lg p-6 mb-8">
-        <h2 class="text-xl font-semibold mb-4">候选数级链（直线/曲线）</h2>
+      <div class="card mb-8">
+        <h2 class="section-title">候选数级链（直线/曲线）</h2>
         <div class="flex flex-col items-center gap-4">
           <p class="text-sm text-gray-600">链节点可以定位到单元格中的具体候选数（1-9），支持多节点路径。每相邻两个节点间生成一条箭头线，末端显示箭头。</p>
           <SudokuBoard :board="board" :given="given" :showCandidates="true" :candidates="candidates" :chains="[
@@ -227,8 +227,8 @@
       </div>
 
       <!-- 候选数高亮 + 链综合示例 -->
-      <div class="bg-white shadow rounded-lg p-6 mb-8">
-        <h2 class="text-xl font-semibold mb-4">候选数高亮 + 链组合示例</h2>
+      <div class="card mb-8">
+        <h2 class="section-title">候选数高亮 + 链组合示例</h2>
         <div class="flex flex-col items-center gap-4">
           <p class="text-sm text-gray-600">演示候选数显示 + 候选数高亮标记 + 链箭头的组合使用</p>
           <SudokuBoard :board="board" :given="given" :showCandidates="true" :candidates="candidates" :candidateMarkers="[

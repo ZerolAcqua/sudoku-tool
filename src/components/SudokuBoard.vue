@@ -52,7 +52,7 @@
       :cy="selectedCandidate.row * 100 + getCandidateY(selectedCandidate.candidate)"
       r="14"
       fill="none"
-      stroke="var(--accent)"
+      stroke="var(--color-accent)"
       stroke-width="2"
       pointer-events="none"
     />
@@ -130,18 +130,18 @@
 
     <!-- Selected cell border -->
     <rect v-if="props.selected && selectedCol !== null && selectedRow !== null && mode === 'interactive'"
-      :x="selectedCol * 100" :y="selectedRow * 100" width="100" height="100" fill="none" stroke="var(--accent)"
+      :x="selectedCol * 100" :y="selectedRow * 100" width="100" height="100" fill="none" stroke="var(--color-accent)"
       stroke-width="4" rx="6" pointer-events="none" />
 
     <!-- Focus cell border (for practice mode) -->
     <rect v-if="props.focusCell && focusCol !== null && focusRow !== null" :x="focusCol * 100" :y="focusRow * 100"
-      width="100" height="100" fill="none" stroke="var(--accent)" stroke-width="4" rx="6" pointer-events="none" />
+      width="100" height="100" fill="none" stroke="var(--color-accent)" stroke-width="4" rx="6" pointer-events="none" />
 
     <!-- Numbers -->
     <g font-family="'Noto Serif', Georgia, serif" text-anchor="middle" dominant-baseline="central">
       <g v-for="(row, r) in props.board" :key="'num-row-' + r">
         <text v-for="(value, c) in row" :key="'num-' + r + '-' + c" :x="c * 100 + 50" :y="r * 100 + 50"
-          v-show="value > 0" :fill="isGiven(r, c) ? 'black' : 'var(--user-num-color)'" font-size="65" font-weight="500"
+          v-show="value > 0" :fill="isGiven(r, c) ? 'var(--color-given-num)' : 'var(--color-user-num)'" font-size="65" font-weight="500"
           pointer-events="none">{{ value }}</text>
       </g>
     </g>
@@ -153,7 +153,7 @@
           <g v-if="cellCands && cellCands.length > 0">
             <text v-for="n in cellCands" :key="'cand-' + r + '-' + c + '-' + n"
               :x="(c as number) * 100 + getCandidateX(n)" :y="(r as number) * 100 + getCandidateY(n)" font-size="22"
-              fill="var(--cand-color)" text-anchor="middle" dominant-baseline="central" pointer-events="none">{{ n
+              fill="var(--color-cand)" text-anchor="middle" dominant-baseline="central" pointer-events="none">{{ n
               }}</text>
           </g>
         </template>
@@ -318,13 +318,6 @@ const getCandidateY = (n: number) => {
 <style scoped>
 /* ensure SVG scales smoothly in layout */
 .sudoku-svg {
-
-  --accent: #007acc;
-  --highlight-bg: #007acc;
-  --user-num-color: #0066cc;
-  --given-num-color: #000000;
-  --cand-color: #1b1b1b;
-
   display: block;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
