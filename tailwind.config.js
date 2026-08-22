@@ -8,7 +8,6 @@ export default {
     extend: {
       colors: {
         accent: 'var(--color-accent)',
-        'accent-dark': 'var(--color-accent-dark)',
         'given-num': 'var(--color-given-num)',
         'user-num': 'var(--color-user-num)',
         'cand': 'var(--color-cand)',

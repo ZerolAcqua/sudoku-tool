@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-gray-50">
+  <div class="flex flex-col">
     <div class="page-container w-full flex-1">
       <h1 class="page-title">数独唯余练习</h1>
 

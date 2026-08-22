@@ -41,7 +41,13 @@
 
   /* 按钮 */
   .btn { @apply px-4 py-2 text-sm font-medium rounded border border-gray-400 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors; }
-  .btn-primary { @apply px-4 py-2 text-sm font-medium rounded border border-transparent bg-accent text-white hover:bg-accent-dark transition-colors; }
+  .btn-primary {
+    @apply px-4 py-2 text-sm font-medium rounded border border-transparent text-white transition-colors;
+    background-color: var(--color-accent);
+  }
+  .btn-primary:hover {
+    background-color: var(--color-accent-dark);
+  }
   .btn-success { @apply px-4 py-2 text-sm font-medium rounded border border-transparent bg-green-600 text-white hover:bg-green-700 transition-colors; }
   .btn-danger { @apply px-4 py-2 text-sm font-medium rounded border border-transparent bg-red-600 text-white hover:bg-red-700 transition-colors; }
 
