@@ -530,7 +530,7 @@ export function extractCells(
  */
 export function isCellEmpty(
   canvas: HTMLCanvasElement,
-  emptyThreshold = 0.05,
+  emptyThreshold = 0.04,
   morphKernelSize?: number,
 ): boolean {
   const src = cv.imread(canvas);

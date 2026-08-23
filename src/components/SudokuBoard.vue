@@ -104,18 +104,18 @@
 
     <!-- Grid lines -->
     <!-- Thin cell lines -->
-    <g stroke="black" stroke-opacity="0.8" stroke-width="1.5" stroke-linecap="square">
+    <g stroke="black" stroke-opacity="0.8" stroke-width="2.0" stroke-linecap="square">
       <line v-for="i in 8" :key="'vthin' + i" :x1="i * 100" y1="0" :x2="i * 100" y2="900" />
       <line v-for="i in 8" :key="'hthin' + i" x1="0" :y1="i * 100" x2="900" :y2="i * 100" />
     </g>
     <!-- Thick box lines (inner only) -->
-    <g stroke="black" stroke-width="3.5" stroke-linecap="square">
+    <g stroke="black" stroke-width="5" stroke-linecap="square">
       <line v-for="i in 2" :key="'vbox' + i" :x1="i * 300" y1="0" :x2="i * 300" y2="900" />
       <line v-for="i in 2" :key="'hbox' + i" x1="0" :y1="i * 300" x2="900" :y2="i * 300" />
     </g>
 
     <!-- Outer border (below selection borders) -->
-    <g stroke="black" stroke-width="5" stroke-linecap="square">
+    <g stroke="black" stroke-width="8" stroke-linecap="square">
       <line x1="0" y1="0" x2="900" y2="0" />
       <line x1="900" y1="0" x2="900" y2="900" />
       <line x1="900" y1="900" x2="0" y2="900" />
