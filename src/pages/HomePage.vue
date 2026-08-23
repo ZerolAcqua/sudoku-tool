@@ -48,8 +48,8 @@ const features = [
     path: '/draw',
   },
   {
-    title: '识别求解',
-    description: '从图片识别数独并自动求解',
+    title: '数独识别',
+    description: '从图片识别数独，可编辑后导出',
     path: '/solver',
   },
   {

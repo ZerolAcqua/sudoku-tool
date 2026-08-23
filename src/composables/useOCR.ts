@@ -99,10 +99,19 @@ function evaluateBinaryQuality(binaryMat: any): number {
   return score;
 }
 
+/** 检测到的数独网格边界框（相对原图坐标） */
+interface GridRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface OCRState {
   isLoading: boolean;
   error: string | null;
   result: string | null;
+  grid: GridRect | null;
   processedImage: HTMLCanvasElement | null;
   gridImage: HTMLCanvasElement | null;
   cellsVisualization: HTMLCanvasElement | null;
@@ -115,6 +124,7 @@ export function useOCR() {
     isLoading: false,
     error: null,
     result: null,
+    grid: null,
     processedImage: null,
     gridImage: null,
     cellsVisualization: null,
@@ -150,6 +160,7 @@ export function useOCR() {
       if (grid.width === 0 || grid.height === 0) {
         throw new Error('未能检测到数独网格，请确保图像清晰且网格完整');
       }
+      state.grid = { x: grid.x, y: grid.y, width: grid.width, height: grid.height };
 
       // 3. 绘制网格线到原图 + 全量检测线可视化
       state.gridImage = drawGridLines(img, grid);
@@ -215,6 +226,7 @@ export function useOCR() {
     state.isLoading = false;
     state.error = null;
     state.result = null;
+    state.grid = null;
     state.processedImage = null;
     state.gridImage = null;
     state.cellsVisualization = null;
