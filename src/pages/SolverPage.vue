@@ -26,7 +26,9 @@
     <div v-else-if="!recognized" class="card">
       <h2 class="section-title">裁剪图像</h2>
       <p class="text-gray-600 text-sm mb-4">拖动边框调整裁剪区域，确保包含完整的数独网格。</p>
-      <Cropper ref="cropperRef" :src="uploadedImageSrc" :stencil-props="{ aspectRatio: 1 }" class="cropper" />
+      <Cropper ref="cropperRef" :src="uploadedImageSrc" :stencil-props="{ aspectRatio: 1 }"
+        :default-size="nearSquare ? defaultSize : undefined" :default-position="nearSquare ? defaultPosition : undefined"
+        class="cropper" />
 
       <div class="flex gap-3 mt-4">
         <button class="btn-primary disabled:opacity-50" @click="confirmCrop" :disabled="state.isLoading">
@@ -93,7 +95,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, nextTick } from 'vue'
+import { onMounted, onBeforeUnmount, ref, computed, nextTick } from 'vue'
 import { logger } from '@/utils/logger'
 import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
@@ -118,11 +120,53 @@ const given = ref<boolean[][]>(emptyMask())
 const selected = ref<{ row: number; col: number } | null>(null)
 const copied = ref(false)
 
+// 导入图片的原始尺寸（用于判断是否接近正方形，自动铺满裁剪框）
+const imageInfo = ref<{ width: number; height: number } | null>(null)
+
+const nearSquare = computed(() => {
+  if (!imageInfo.value) return false
+  const { width, height } = imageInfo.value
+  if (width <= 0 || height <= 0) return false
+  return Math.abs(width / height - 1) < 0.05
+})
+
+// 接近正方形时，默认裁剪框铺满整张图（受 aspectRatio:1 约束为最大内接正方形）
+const defaultSize = ({ imageSize }: { imageSize: { width: number; height: number } }) => {
+  const side = Math.min(imageSize.width, imageSize.height)
+  return { width: side, height: side }
+}
+
+const defaultPosition = ({ imageSize }: { imageSize: { width: number; height: number } }) => {
+  const side = Math.min(imageSize.width, imageSize.height)
+  return {
+    left: (imageSize.width - side) / 2,
+    top: (imageSize.height - side) / 2,
+  }
+}
+
 // --- 上传 ---
+function loadImageSize(src: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight })
+    img.onerror = () => reject(new Error('图片加载失败'))
+    img.src = src
+  })
+}
+
 function loadImageForCrop(file: File): void {
   const reader = new FileReader()
   reader.onload = (e) => {
-    uploadedImageSrc.value = e.target?.result as string
+    const src = e.target?.result as string
+    // 先读取图片尺寸，再设置 src，确保近正方形判断在 Cropper 挂载前就绪
+    loadImageSize(src)
+      .then((size) => {
+        imageInfo.value = size
+        uploadedImageSrc.value = src
+      })
+      .catch(() => {
+        uploadedImageSrc.value = src
+      })
   }
   reader.readAsDataURL(file)
 }
@@ -157,6 +201,7 @@ async function handlePaste(event: ClipboardEvent): Promise<void> {
 // --- 裁剪与识别 ---
 function cancelCrop(): void {
   uploadedImageSrc.value = ''
+  imageInfo.value = null
   if (fileInput.value) {
     fileInput.value.value = ''
   }
@@ -277,6 +322,7 @@ function downloadText(): void {
 function reset(): void {
   resetOCR()
   uploadedImageSrc.value = ''
+  imageInfo.value = null
   recognized.value = false
   selected.value = null
   board.value = emptyBoard()

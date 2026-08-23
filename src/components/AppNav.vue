@@ -63,7 +63,7 @@ const navItems = [
   { name: '首页', path: '/' },
   { name: '唯余练习', path: '/practice' },
   { name: '绘图工具', path: '/draw' },
-  { name: '识别求解', path: '/solver' },
+  { name: '数独识别', path: '/solver' },
   { name: '数独教程', path: '/tutorial' },
   { name: '功能测试', path: '/demo' },
 ]
