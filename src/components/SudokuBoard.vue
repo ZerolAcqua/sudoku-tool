@@ -68,7 +68,8 @@
     <SudokuMarkers v-if="markers.length > 0" :markers="markers" :cellSize="100" />
 
     <!-- Chains layer -->
-    <SudokuChains v-if="chains.length > 0" :chains="chains" :cellSize="100" />
+    <SudokuChains v-if="chains.length > 0" :chains="chains" :cellSize="100" :selectedId="props.selectedChainId"
+      :interactive="props.chainsInteractive" @chain-click="emit('chain-click', $event)" />
 
     <!-- Click areas for candidate mode -->
     <g v-if="mode === 'candidate'">
@@ -193,6 +194,9 @@ const props = withDefaults(defineProps<{
   markers?: CellMarker[];
   chains?: Chain[];
   candidateMarkers?: CandidateMarker[];
+  // 链视图面板联动：选中链高亮其余变淡，并允许点击画布上的链
+  selectedChainId?: string | null;
+  chainsInteractive?: boolean;
 }>(), {
   given: () => Array.from({ length: 9 }, () => Array(9).fill(false)),
   candidates: () => [],
@@ -203,10 +207,12 @@ const props = withDefaults(defineProps<{
   customHighlights: () => [],
   markers: () => [],
   chains: () => [],
-  candidateMarkers: () => []
+  candidateMarkers: () => [],
+  selectedChainId: null,
+  chainsInteractive: false
 });
 
-const emit = defineEmits(['cell-click', 'cell-dblclick', 'candidate-click']);
+const emit = defineEmits(['cell-click', 'cell-dblclick', 'candidate-click', 'chain-click']);
 
 const hoveredCell = ref<{ row: number; col: number } | null>(null);
 const hoveredCandidate = ref<CandidatePosition | null>(null);

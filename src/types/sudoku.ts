@@ -48,12 +48,15 @@ export type ChainStyle = 'solid' | 'dashed' | 'dotted';
 
 // 链配置
 export interface Chain {
+  id?: string; // 稳定标识，供链视图面板选中/编辑/联动使用
+  visible?: boolean; // 是否渲染，默认 true
   cells: ChainNode[];
   style?: ChainStyle;
   color: string;
   strokeWidth?: number;
   arrow?: boolean; // 是否显示箭头
   curve?: 'straight' | 'smooth'; // 直线或平滑曲线
+  segmentColors?: string[]; // 逐段异色（长度 = cells.length - 1），缺省回退到 color
 }
 
 // 坐标转换函数类型

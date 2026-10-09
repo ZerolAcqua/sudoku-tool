@@ -17,8 +17,8 @@
 ## 架构
 
 - `src/pages/` 路由页；`src/pages/demo/` Demo 子组件（`OCRDemo` 体积约 16MB，必须用 `defineAsyncComponent` 懒加载，勿同步引入）
-- `src/components/` 通用组件。`SudokuBoard` 是**配置化 SVG 组件**（非 canvas），完全由 props 驱动；`SudokuHighlight/Markers/Chains/CandidateHighlights` 是它的各绘图层
-- `src/composables/` 可复用逻辑；`src/stores/` Pinia 状态；`src/utils/` 纯工具（`utils/ocr/` 为 OCR 流水线）
+- `src/components/` 通用组件。`SudokuBoard` 是**配置化 SVG 组件**（非 canvas），完全由 props 驱动；`SudokuHighlight/Markers/Chains/CandidateHighlights` 是它的各绘图层；`ChainPanel` 是绘图页右侧的链视图面板（纯 props + emit，不直接改状态）
+- `src/composables/` 可复用逻辑（`useDrawingState` = 绘图页的高亮/标记/摒除线/链状态与操作，工厂函数，每个绘图页一份）；`src/stores/` Pinia 状态；`src/utils/` 纯工具（`utils/ocr/` 为 OCR 流水线）
 - `src/types/sudoku.ts` 数独领域类型（高亮/标记/链的配置结构）
 - `ml/` 训练/部署脚本，独立于 Vite 构建；`test/` OCR 测试
 - 路由（`src/router/index.ts`）：除首页静态导入外，其余页面 `() => import(...)` 懒加载

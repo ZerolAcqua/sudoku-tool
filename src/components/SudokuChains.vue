@@ -2,41 +2,57 @@
   <g class="chains-layer">
     <!-- 每条链拆成多个线段，每段连接两个相邻节点，末端都有V形箭头 -->
     <template v-for="(chainSegment, idx) in renderSegments" :key="'seg-' + idx">
-      <!-- 主线段 -->
+      <!-- 选中链时其余链整体变淡 -->
+      <g :opacity="chainSegment.opacity">
+        <!-- 主线段 -->
+        <path
+          :d="chainSegment.path"
+          fill="none"
+          :stroke="chainSegment.color"
+          :stroke-width="chainSegment.strokeWidth"
+          :stroke-dasharray="chainSegment.dash"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          pointer-events="none"
+        />
+
+        <!-- V形箭头（两根短线） -->
+        <template v-if="chainSegment.hasArrow">
+          <line
+            :x1="chainSegment.arrowTip.x"
+            :y1="chainSegment.arrowTip.y"
+            :x2="chainSegment.arrowBase1.x"
+            :y2="chainSegment.arrowBase1.y"
+            :stroke="chainSegment.color"
+            :stroke-width="chainSegment.strokeWidth"
+            stroke-linecap="round"
+            pointer-events="none"
+          />
+          <line
+            :x1="chainSegment.arrowTip.x"
+            :y1="chainSegment.arrowTip.y"
+            :x2="chainSegment.arrowBase2.x"
+            :y2="chainSegment.arrowBase2.y"
+            :stroke="chainSegment.color"
+            :stroke-width="chainSegment.strokeWidth"
+            stroke-linecap="round"
+            pointer-events="none"
+          />
+        </template>
+      </g>
+
+      <!-- 交互态下的加粗透明命中线：细链也点得中 -->
       <path
+        v-if="interactive && chainSegment.chainId"
         :d="chainSegment.path"
         fill="none"
-        :stroke="chainSegment.color"
-        :stroke-width="chainSegment.strokeWidth"
-        :stroke-dasharray="chainSegment.dash"
+        stroke="transparent"
+        :stroke-width="Math.max(chainSegment.strokeWidth * 5, 16)"
         stroke-linecap="round"
-        stroke-linejoin="round"
-        pointer-events="none"
+        pointer-events="stroke"
+        class="cursor-pointer"
+        @click.stop="emit('chain-click', { id: chainSegment.chainId })"
       />
-      
-      <!-- V形箭头（两根短线） -->
-      <template v-if="chainSegment.hasArrow">
-        <line
-          :x1="chainSegment.arrowTip.x"
-          :y1="chainSegment.arrowTip.y"
-          :x2="chainSegment.arrowBase1.x"
-          :y2="chainSegment.arrowBase1.y"
-          :stroke="chainSegment.color"
-          :stroke-width="chainSegment.strokeWidth"
-          stroke-linecap="round"
-          pointer-events="none"
-        />
-        <line
-          :x1="chainSegment.arrowTip.x"
-          :y1="chainSegment.arrowTip.y"
-          :x2="chainSegment.arrowBase2.x"
-          :y2="chainSegment.arrowBase2.y"
-          :stroke="chainSegment.color"
-          :stroke-width="chainSegment.strokeWidth"
-          stroke-linecap="round"
-          pointer-events="none"
-        />
-      </template>
     </template>
   </g>
 </template>
@@ -45,24 +61,53 @@
 import { computed } from 'vue'
 import type { Chain } from '@/types/sudoku'
 import { anchorPoint, linePath, arcPath, strokeDashArray, arrowHeadLines } from '@/utils/boardDrawing'
+import { DRAFT_CHAIN_ID } from '@/composables/useDrawingState'
 
-const props = defineProps<{ chains: Chain[]; cellSize: number }>()
+interface RenderSegment {
+  chainId: string
+  path: string
+  color: string
+  strokeWidth: number
+  dash: string
+  opacity: number
+  hasArrow: boolean
+  arrowTip: { x: number; y: number }
+  arrowBase1: { x: number; y: number }
+  arrowBase2: { x: number; y: number }
+}
+
+const props = withDefaults(
+  defineProps<{
+    chains: Chain[]
+    cellSize: number
+    // 当前选中的链：其余链变淡
+    selectedId?: string | null
+    // 是否允许点击链（用于画布 → 链视图面板联动）
+    interactive?: boolean
+  }>(),
+  {
+    selectedId: null,
+    interactive: false,
+  }
+)
+
+const emit = defineEmits<{
+  (e: 'chain-click', payload: { id: string }): void
+}>()
 
 // 展开所有链的线段，每段连接相邻两个节点
-const renderSegments = computed(() => {
-  const segments: Array<{
-    path: string
-    color: string
-    strokeWidth: number
-    dash: string
-    hasArrow: boolean
-    arrowTip: { x: number; y: number }
-    arrowBase1: { x: number; y: number }
-    arrowBase2: { x: number; y: number }
-  }> = []
+const renderSegments = computed<RenderSegment[]>(() => {
+  const segments: RenderSegment[] = []
 
   props.chains.forEach((chain) => {
+    if (chain.visible === false) return
     if (chain.cells.length < 2) return
+
+    const chainId = chain.id ?? ''
+    // 有选中链时，未被选中的链变淡（草稿链始终保持可见）
+    const dimmed =
+      props.selectedId != null && chainId !== props.selectedId && chainId !== DRAFT_CHAIN_ID
+    const opacity = dimmed ? 0.25 : 1
 
     const points = chain.cells.map(n => anchorPoint(n, props.cellSize))
     const dash = strokeDashArray(chain.style) || ''
@@ -74,6 +119,8 @@ const renderSegments = computed(() => {
       const p2 = points[i + 1]!
       const node1 = chain.cells[i]!
       const node2 = chain.cells[i + 1]!
+      // 逐段异色：优先取该段颜色，缺省回退整条链颜色
+      const segmentColor = chain.segmentColors?.[i] ?? chain.color
       
       // 检查是否在同一个单元格的同一个候选数上，如果是则跳过这条线段
       const sameCell = node1.row === node2.row && node1.col === node2.col
@@ -191,10 +238,12 @@ const renderSegments = computed(() => {
       }
 
       segments.push({
+        chainId,
         path,
-        color: chain.color,
+        color: segmentColor,
         strokeWidth: chain.strokeWidth ?? 3,
         dash,
+        opacity,
         hasArrow,
         arrowTip,
         arrowBase1,
@@ -206,5 +255,3 @@ const renderSegments = computed(() => {
   return segments
 })
 </script>
-
-
