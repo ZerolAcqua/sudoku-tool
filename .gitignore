@@ -87,3 +87,7 @@ coverage/
 .nyc_output
 
 /ml/models/*
+
+# Agent skills: `npx skills add -y` 会把 eve 的那份副本写到项目根 agent/，
+# 本项目只依赖 .agents/skills（DSH 的项目级 skill 目录），故忽略之
+/agent/
