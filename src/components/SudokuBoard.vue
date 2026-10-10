@@ -1,6 +1,7 @@
 <template>
+  <!-- 盘面字体钉在 svg 根节点：数字、候选数、标记文字一律不受 UI 字体（Roboto 等）影响 -->
   <svg :width="props.size" :height="props.size" viewBox="-10 -10 920 920" role="grid" aria-label="Sudoku board"
-    @mousedown.prevent class="sudoku-svg">
+    font-family="'Noto Serif', Georgia, serif" @mousedown.prevent class="sudoku-svg">
     <!-- Background -->
     <rect x="-10" y="-10" width="920" height="920" fill="white" />
 
@@ -139,7 +140,7 @@
       width="100" height="100" fill="none" stroke="var(--color-accent)" stroke-width="4" rx="6" pointer-events="none" />
 
     <!-- Numbers -->
-    <g font-family="'Noto Serif', Georgia, serif" text-anchor="middle" dominant-baseline="central">
+    <g text-anchor="middle" dominant-baseline="central">
       <g v-for="(row, r) in props.board" :key="'num-row-' + r">
         <text v-for="(value, c) in row" :key="'num-' + r + '-' + c" :x="c * 100 + 50" :y="r * 100 + 50"
           v-show="value > 0" :fill="isGiven(r, c) ? 'var(--color-given-num)' : 'var(--color-user-num)'" font-size="65" font-weight="500"

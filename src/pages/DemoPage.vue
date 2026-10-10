@@ -1,31 +1,28 @@
 <template>
   <div class="page-container">
-    <h1 class="page-title">功能测试 Demo</h1>
+    <h1 class="page-title mb-2">组件展示</h1>
+    <p class="text-sm text-muted-foreground mb-8">
+      盘面组件与 OCR 流水线的功能预览，用于开发验证，不属于正式功能入口。
+    </p>
 
-    <!-- Tab Navigation -->
-    <div class="bg-white shadow rounded-lg mb-8">
-      <div class="border-b border-gray-200">
-        <nav class="flex -mb-px">
-          <button v-for="tab in tabs" :key="tab.id" @click="handleTabChange(tab.id)" :class="[
-            'px-6 py-4 text-sm font-medium border-b-2 transition-colors',
-            activeTab === tab.id
-              ? 'border-accent text-accent'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-          ]">
-            {{ tab.label }}
-          </button>
-        </nav>
-      </div>
-    </div>
+    <Tabs v-model="activeTab" class="gap-6">
+      <TabsList>
+        <TabsTrigger v-for="tab in tabs" :key="tab.id" :value="tab.id">{{ tab.label }}</TabsTrigger>
+      </TabsList>
 
-    <!-- Tab Content -->
-    <BasicDemo v-show="activeTab === 'basic'" />
-
-    <InteractiveDemo v-show="activeTab === 'interactive'" />
-
-    <IODemo v-show="activeTab === 'io'" />
-
-    <OCRDemo v-show="activeTab === 'ocr'" />
+      <TabsContent value="basic">
+        <BasicDemo v-if="mounted.has('basic')" />
+      </TabsContent>
+      <TabsContent value="interactive">
+        <InteractiveDemo v-if="mounted.has('interactive')" />
+      </TabsContent>
+      <TabsContent value="io">
+        <IODemo v-if="mounted.has('io')" />
+      </TabsContent>
+      <TabsContent value="ocr">
+        <OCRDemo v-if="mounted.has('ocr')" />
+      </TabsContent>
+    </Tabs>
   </div>
 </template>
 
@@ -34,36 +31,33 @@ import { ref, defineAsyncComponent, onMounted, watch } from 'vue'
 import BasicDemo from './demo/BasicDemo.vue'
 import InteractiveDemo from './demo/InteractiveDemo.vue'
 import IODemo from './demo/IODemo.vue'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
+// OCRDemo 体积约 16MB，必须懒加载，勿同步引入
 const OCRDemo = defineAsyncComponent(() => import('./demo/OCRDemo.vue'))
 
-// Tab state
-const activeTab = ref('basic')
 const tabs = [
   { id: 'basic', label: '基础展示' },
   { id: 'interactive', label: '交互模式' },
   { id: 'io', label: 'IO 功能' },
-  { id: 'ocr', label: '数独识别' }
+  { id: 'ocr', label: '数独识别' },
 ]
 
-// Handle hash-based navigation
-const handleHashNavigation = () => {
-  const hash = window.location.hash.slice(1) // Remove '#'
-  if (hash && tabs.some(tab => tab.id === hash)) {
-    activeTab.value = hash
-  }
-}
+const activeTab = ref('basic')
+// 已访问过的标签页保持挂载（盘面状态不丢失），未访问的不渲染以省去重计算
+const mounted = ref(new Set<string>(['basic']))
 
-// Update hash when tab changes
-const handleTabChange = (tabId: string) => {
-  activeTab.value = tabId
-  window.location.hash = tabId
-}
-
-onMounted(() => {
-  handleHashNavigation()
+watch(activeTab, (tab) => {
+  mounted.value = new Set(mounted.value).add(tab)
+  // 保持可分享的 hash 定位（例如 /demo#ocr）
+  window.history.replaceState(null, '', tab === 'basic' ? window.location.pathname : `#${tab}`)
 })
 
-// Listen to hash changes (e.g., browser back/forward buttons)
-window.addEventListener('hashchange', handleHashNavigation)
+// 支持通过 hash 直接定位标签页
+onMounted(() => {
+  const hash = window.location.hash.slice(1)
+  if (hash && tabs.some((tab) => tab.id === hash)) {
+    activeTab.value = hash
+  }
+})
 </script>

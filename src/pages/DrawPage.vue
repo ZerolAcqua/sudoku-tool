@@ -3,145 +3,128 @@
     <h1 class="page-title">数独绘图工具</h1>
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] items-start">
-      <!-- 左：工具栏 + 盘面 -->
-      <div class="card space-y-4">
-        <!-- 绘图模式 -->
-        <div class="flex flex-wrap gap-2 items-center">
-          <span class="text-sm font-medium text-gray-700 min-w-20">绘图模式</span>
-          <button
-            v-for="mode in DRAWING_MODES"
-            :key="mode.id"
-            class="px-3 py-1 text-sm rounded transition-colors"
-            :class="
-              currentMode === mode.id
-                ? 'bg-accent text-white'
-                : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200'
-            "
-            @click="currentMode = mode.id"
-          >
-            {{ mode.label }}
-          </button>
-        </div>
+      <!-- 左列：工具栏 / 画布 / 说明，纵向堆叠 -->
+      <div class="flex flex-col gap-6">
+        <!-- 工具栏 -->
+        <Card class="gap-3 p-6">
+        <!-- 标签列定宽 + 控件列，形成规整的对齐；不用 flex-wrap 混排以免换行后错位 -->
+        <div class="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3">
+          <!-- 绘图模式 -->
+          <span class="text-sm font-medium text-muted-foreground">绘图模式</span>
+          <ToggleGroup v-model="currentMode" type="single" variant="outline" size="sm"
+            class="w-fit bg-muted/50 p-0.5">
+            <ToggleGroupItem v-for="mode in DRAWING_MODES" :key="mode.id" :value="mode.id"
+              class="px-3 data-[state=on]:bg-brand data-[state=on]:text-brand-foreground">
+              {{ mode.label }}
+            </ToggleGroupItem>
+          </ToggleGroup>
 
-        <!-- 标记类型 -->
-        <div v-if="currentMode === 'marker'" class="flex flex-wrap gap-2 items-center">
-          <span class="text-sm font-medium text-gray-700 min-w-20">标记类型</span>
-          <button
-            v-for="type in MARKER_TYPES"
-            :key="type"
-            class="px-3 py-1 text-sm rounded transition-colors"
-            :class="
-              currentMarkerType === type
-                ? 'bg-accent text-white'
-                : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200'
-            "
-            @click="currentMarkerType = type"
-          >
-            {{ MARKER_TYPE_LABELS[type] }}
-          </button>
-        </div>
+          <!-- 颜色 -->
+          <span class="text-sm font-medium text-muted-foreground">颜色</span>
+          <div class="flex flex-wrap items-center gap-2">
+            <button v-for="color in DRAWING_COLORS" :key="color.value" type="button"
+              class="size-7 rounded-md border-2 transition-transform"
+              :class="currentColor === color.value ? 'border-foreground scale-110' : 'border-border'"
+              :style="{ backgroundColor: color.value }" :title="color.name"
+              @click="currentColor = color.value" />
+            <span v-if="selectCandidate && currentCandidate" class="text-xs text-muted-foreground">
+              R{{ currentCandidate.row + 1 }}C{{ currentCandidate.col + 1 }} · 候选{{ currentCandidate.candidate }}
+            </span>
+          </div>
 
-        <!-- 链样式 -->
-        <div v-if="currentMode === 'chain'" class="flex flex-wrap gap-2 items-center">
-          <span class="text-sm font-medium text-gray-700 min-w-20">链样式</span>
-          <button
-            v-for="style in CHAIN_STYLES"
-            :key="style.id"
-            class="px-3 py-1 text-sm rounded transition-colors"
-            :class="
-              currentChainStyle === style.id
-                ? 'bg-accent text-white'
-                : 'bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200'
-            "
-            @click="currentChainStyle = style.id"
-          >
-            {{ style.label }}
-          </button>
-          <label class="flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 border border-gray-400 rounded">
-            <input v-model="chainArrow" type="checkbox" class="rounded" />
-            <span>箭头</span>
-          </label>
-        </div>
+          <!-- 标记类型（仅标记模式可交互） -->
+          <span class="text-sm font-medium text-muted-foreground transition-opacity"
+            :class="currentMode === 'marker' ? '' : 'opacity-40'">标记类型</span>
+          <ToggleGroup v-model="currentMarkerType" type="single" variant="outline" size="sm"
+            class="w-fit bg-muted/50 p-0.5 transition-opacity"
+            :class="currentMode === 'marker' ? '' : 'pointer-events-none opacity-40'">
+            <ToggleGroupItem v-for="type in MARKER_TYPES" :key="type" :value="type"
+              class="px-3 data-[state=on]:bg-brand data-[state=on]:text-brand-foreground">
+              {{ MARKER_TYPE_LABELS[type] }}
+            </ToggleGroupItem>
+          </ToggleGroup>
 
-        <!-- 颜色 -->
-        <div class="flex flex-wrap gap-2 items-center">
-          <span class="text-sm font-medium text-gray-700 min-w-20">颜色</span>
-          <button
-            v-for="color in DRAWING_COLORS"
-            :key="color.value"
-            class="w-8 h-8 rounded border-2 transition-all"
-            :class="currentColor === color.value ? 'border-gray-900 scale-110' : 'border-gray-300'"
-            :style="{ backgroundColor: color.value }"
-            :title="color.name"
-            @click="currentColor = color.value"
-          ></button>
-        </div>
+          <!-- 链样式（仅链模式可交互） -->
+          <span class="text-sm font-medium text-muted-foreground transition-opacity"
+            :class="currentMode === 'chain' ? '' : 'opacity-40'">链样式</span>
+          <div class="flex flex-wrap items-center gap-3 transition-opacity"
+            :class="currentMode === 'chain' ? '' : 'pointer-events-none opacity-40'">
+            <ToggleGroup v-model="currentChainStyle" type="single" variant="outline" size="sm"
+              class="w-fit bg-muted/50 p-0.5">
+              <ToggleGroupItem v-for="style in CHAIN_STYLES" :key="style.id" :value="style.id"
+                class="px-3 data-[state=on]:bg-brand data-[state=on]:text-brand-foreground">
+                {{ style.label }}
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <label class="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Switch v-model="chainArrow" />
+              箭头
+            </label>
+          </div>
 
-        <!-- 候选数选择 -->
-        <div v-if="currentMode === 'highlight' || currentMode === 'chain'" class="flex flex-wrap items-center gap-2">
-          <label
-            class="flex items-center gap-2 px-3 py-1 text-sm bg-gray-100 border border-gray-400 rounded"
-            :class="currentMode === 'chain' ? 'opacity-60 cursor-not-allowed' : ''"
-          >
-            <input v-model="selectCandidate" type="checkbox" class="rounded" :disabled="currentMode === 'chain'" />
-            <span>选择候选数</span>
-            <span v-if="currentMode === 'chain'" class="text-xs text-gray-500">(链必须)</span>
-          </label>
-          <span v-if="selectCandidate && currentCandidate" class="text-sm text-gray-700">
-            已选择 R{{ currentCandidate.row + 1 }}C{{ currentCandidate.col + 1 }} · 候选{{ currentCandidate.candidate }}
-          </span>
+          <!-- 候选数选择（高亮 / 链模式可用，链模式强制开启） -->
+          <span class="text-sm font-medium text-muted-foreground transition-opacity"
+            :class="currentMode === 'highlight' || currentMode === 'chain' ? '' : 'opacity-40'">候选数</span>
+          <div class="flex flex-wrap items-center gap-2 transition-opacity"
+            :class="currentMode === 'highlight' || currentMode === 'chain' ? '' : 'pointer-events-none opacity-40'">
+            <label class="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Switch v-model="selectCandidate" :disabled="currentMode === 'chain'" />
+              选择候选数
+            </label>
+            <span v-if="currentMode === 'chain'" class="text-xs text-muted-foreground">（链必须）</span>
+          </div>
         </div>
 
         <!-- 操作 -->
-        <div class="flex flex-wrap gap-2">
-          <button class="btn" @click="saveAsSvg">保存为图片</button>
-          <button
-            v-if="currentMode === 'chain' && draftNodes.length > 0"
-            class="btn-success"
-            :disabled="draftNodes.length < 2"
-            @click="finishChain"
-          >
-            完成链 ({{ draftNodes.length }} 个节点)
-          </button>
-          <button v-if="currentMode === 'chain' && draftNodes.length > 0" class="btn" @click="draftCancel">
-            取消绘制
-          </button>
-          <button class="btn-danger" :disabled="!hasDrawing" @click="clearDrawing">清空绘图</button>
+        <div class="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+          <Button variant="outline" @click="saveAsSvg">
+            <Download />
+            保存为图片
+          </Button>
+          <template v-if="currentMode === 'chain' && draftNodes.length > 0">
+            <Button class="bg-green-600 text-white hover:bg-green-700" :disabled="draftNodes.length < 2"
+              @click="finishChain">
+              <Check />
+              完成链 ({{ draftNodes.length }} 个节点)
+            </Button>
+            <Button variant="ghost" @click="draftCancel">取消绘制</Button>
+          </template>
+          <Button variant="destructive" class="ml-auto" :disabled="!hasDrawing" @click="clearDrawing">
+            <Trash2 />
+            清空绘图
+          </Button>
         </div>
+      </Card>
 
-        <div class="flex justify-center">
-          <SudokuBoard
-            ref="boardRef"
-            class="max-w-full h-auto"
-            :board="board"
-            :given="given"
-            :showCandidates="true"
-            :candidates="candidates"
-            :customHighlights="highlights"
-            :markers="markers"
-            :chains="renderChains"
-            :candidateMarkers="candidateMarkers"
-            :selectedChainId="selectedChainId"
-            :chainsInteractive="true"
-            :selectedCandidate="candidateSelectActive ? currentCandidate : null"
-            :mode="candidateSelectActive ? 'candidate' : 'interactive'"
-            @cell-click="onCellClick"
-            @candidate-click="onCandidateClick"
-            @chain-click="onChainClick"
-          />
-        </div>
+        <!-- 画布独立成卡：工具栏与盘面互不挤压，盘面也不再被困在工具条容器里 -->
+        <Card class="p-4 sm:p-6">
+          <div class="flex justify-center">
+            <SudokuBoard ref="boardRef" class="h-auto max-w-full" :board="board" :given="given" :showCandidates="true"
+              :candidates="candidates" :customHighlights="highlights" :markers="markers" :chains="renderChains"
+              :candidateMarkers="candidateMarkers" :selectedChainId="selectedChainId" :chainsInteractive="true"
+              :selectedCandidate="candidateSelectActive ? currentCandidate : null"
+              :mode="candidateSelectActive ? 'candidate' : 'interactive'" @cell-click="onCellClick"
+              @candidate-click="onCandidateClick" @chain-click="onChainClick" />
+          </div>
 
-        <p v-if="statusMessage" class="text-sm text-gray-600">{{ statusMessage }}</p>
+          <p v-if="statusMessage" class="mt-3 text-center text-sm text-muted-foreground">{{ statusMessage }}</p>
+        </Card>
 
-        <ul class="text-xs text-gray-500 space-y-1">
-          <li>• <strong>高亮：</strong>点击单元格添加/移除高亮；勾选「选择候选数」后直接点击候选数高亮候选</li>
-          <li>• <strong>标记：</strong>点击单元格添加圆圈/叉号/圆点/星号，同格同类型再次点击取消</li>
-          <li>• <strong>摒除线：</strong>依次点击起点和终点，起点自动加圆圈</li>
-          <li>• <strong>链：</strong>依次点击候选数添加节点，右侧「链视图」可完成、改色、改线型</li>
-        </ul>
+        <!-- 操作说明 -->
+        <Alert>
+          <Info />
+          <AlertDescription>
+            <ul class="flex flex-col gap-1">
+              <li><strong>高亮：</strong>点击单元格添加/移除高亮；开启「选择候选数」后直接点击候选数高亮候选</li>
+              <li><strong>标记：</strong>点击单元格添加圆圈/叉号/圆点/星号，同格同类型再次点击取消</li>
+              <li><strong>摒除线：</strong>依次点击起点和终点，起点自动加圆圈</li>
+              <li><strong>链：</strong>依次点击候选数添加节点，右侧「链视图」可完成、改色、改线型</li>
+            </ul>
+          </AlertDescription>
+        </Alert>
       </div>
 
-      <!-- 右：链视图面板 -->
+      <!-- 右列：链视图面板 -->
       <ChainPanel
         :chains="chains"
         :selectedId="selectedChainId"
@@ -160,8 +143,14 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { Check, Download, Info, Trash2 } from '@lucide/vue';
 import SudokuBoard from '@/components/SudokuBoard.vue';
 import ChainPanel from '@/components/ChainPanel.vue';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { Chain, ChainStyle } from '@/types/sudoku';
 import { logger } from '@/utils/logger';
 import {

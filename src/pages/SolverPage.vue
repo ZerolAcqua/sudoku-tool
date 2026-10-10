@@ -1,52 +1,43 @@
 <template>
   <div class="page-container">
     <h1 class="page-title mb-2">数独识别</h1>
-    <p class="text-sm text-gray-500 mb-6">上传数独图片，自动识别为可编辑盘面，并可导出为文本</p>
+    <p class="text-sm text-muted-foreground mb-6">上传数独图片，自动识别为可编辑盘面，并可导出为文本</p>
 
     <!-- 上传区 -->
-    <div v-if="!uploadedImageSrc" class="card">
-      <div class="mx-auto w-full max-w-[560px]">
+    <Card v-if="!uploadedImageSrc" class="mx-auto w-full max-w-[560px]">
+      <CardContent class="gap-4">
         <div
           class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors"
-          :class="isDraggingOver ? 'border-accent bg-blue-50' : 'border-gray-200 bg-gray-50'" role="button"
-          tabindex="0" @click="openFilePicker" @keydown.enter.prevent="openFilePicker"
-          @keydown.space.prevent="openFilePicker" @dragover.prevent="isDraggingOver = true"
-          @dragleave.prevent="isDraggingOver = false" @drop.prevent="handleDrop">
+          :class="isDraggingOver ? 'border-brand bg-blue-50' : 'border-gray-300'" role="button" tabindex="0"
+          @click="openFilePicker" @keydown.enter.prevent="openFilePicker" @keydown.space.prevent="openFilePicker"
+          @dragover.prevent="isDraggingOver = true" @dragleave.prevent="isDraggingOver = false" @drop.prevent="handleDrop">
           <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="handleFileSelect" />
 
-          <svg class="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-            stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A1.5 1.5 0 0021.75 19.5V4.5A1.5 1.5 0 0020.25 3H3.75A1.5 1.5 0 002.25 4.5v15A1.5 1.5 0 003.75 21z" />
-          </svg>
+          <ImagePlus class="size-14 text-muted-foreground mb-2" />
+          <p class="text-lg font-medium">把数独图片拖到这里</p>
+          <p class="text-sm text-muted-foreground">或按 Ctrl+V / Cmd+V 粘贴截图</p>
 
-          <p class="mt-4 text-sm font-medium text-gray-900">把数独图片拖到这里</p>
-          <p class="mt-1 text-xs text-gray-500">或按 Ctrl+V / Cmd+V 粘贴截图</p>
-
-          <button class="btn-primary mt-5 disabled:opacity-50" :disabled="state.isLoading"
-            @click.stop="openFilePicker">选择图片</button>
+          <Button class="mt-5" :disabled="state.isLoading" @click.stop="openFilePicker">
+            <Upload />
+            选择图片
+          </Button>
         </div>
 
-        <div class="mt-4 flex items-start gap-2.5 rounded-lg border border-gray-100 bg-gray-50 px-3.5 py-3">
-          <svg class="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24"
-            stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-          </svg>
-          <p class="text-xs leading-relaxed text-gray-500">
-            请上传清晰、笔直的数独网格图（截图或导出的题目图），暂不支持纸质数独拍照。
-            识别结果可以逐格修正，并导出为 81 位文本。
-          </p>
-        </div>
-      </div>
-    </div>
+        <Alert class="mt-4">
+          <Info />
+          <AlertDescription>
+            请上传清晰、笔直的数独网格图（截图或导出的题目图），暂不支持纸质数独拍照。识别结果可以逐格修正，并导出为 81 位文本。
+          </AlertDescription>
+        </Alert>
+      </CardContent>
+    </Card>
 
     <!-- 裁剪区 -->
-    <div v-else-if="!recognized" class="card">
-      <div class="mx-auto w-full max-w-[560px]">
-        <div class="mb-4">
-          <h2 class="section-title mb-1">裁剪图像</h2>
-          <p class="text-sm text-gray-500">拖动边框调整裁剪范围，确保包含完整的数独网格。</p>
+    <Card v-else-if="!recognized" class="mx-auto w-full max-w-[560px]">
+      <CardContent class="gap-4">
+        <div>
+          <h2 class="text-lg font-medium mb-1">裁剪图像</h2>
+          <p class="text-sm text-muted-foreground">拖动边框调整裁剪范围，确保包含完整的数独网格。</p>
         </div>
 
         <div class="overflow-hidden rounded-xl bg-gray-900">
@@ -55,116 +46,145 @@
             :default-position="nearSquare ? defaultPosition : undefined" class="cropper" />
         </div>
 
-        <div class="mt-4 flex flex-wrap items-center gap-3">
-          <button class="btn-primary px-5" @click="confirmCrop" :disabled="state.isLoading">
+        <div class="flex flex-wrap items-center gap-3">
+          <Button :disabled="state.isLoading" @click="confirmCrop">
             {{ state.isLoading ? '识别中…' : '确认识别' }}
-          </button>
-          <button class="btn px-5" :disabled="state.isLoading" @click="cancelCrop">重新选择图片</button>
-
-          <div v-if="state.isLoading" class="flex items-center gap-2 text-sm text-gray-500">
-            <div class="h-4 w-4 animate-spin rounded-full border-2 border-gray-200 border-t-accent"></div>
-            <span>正在识别数独…</span>
-          </div>
+          </Button>
+          <Button variant="ghost" :disabled="state.isLoading" @click="cancelCrop">重新选择图片</Button>
+          <span v-if="state.isLoading" class="text-sm text-muted-foreground">正在识别数独…</span>
         </div>
 
-        <div v-if="state.error"
-          class="mt-4 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-3">
-          <svg class="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-            stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-          </svg>
-          <p class="text-sm leading-relaxed text-red-700">{{ state.error }}</p>
-        </div>
-      </div>
-    </div>
+        <Alert v-if="state.error" variant="destructive">
+          <CircleAlert />
+          <AlertDescription>{{ state.error }}</AlertDescription>
+        </Alert>
+      </CardContent>
+    </Card>
 
     <!-- 识别结果 -->
     <div v-else class="space-y-6">
       <!-- 对比：原图 + 识别盘面 -->
       <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div class="card flex flex-col">
-          <div class="mb-4 flex items-center justify-between gap-3">
-            <h2 class="section-title mb-0">原图</h2>
-            <span class="text-xs text-gray-400">已按网格边界对齐</span>
-          </div>
-          <div class="flex flex-1 items-center justify-center">
+        <Card class="flex flex-col">
+          <CardHeader>
+            <div class="flex items-center justify-between gap-3">
+              <CardTitle>原图</CardTitle>
+              <span class="text-sm text-muted-foreground">已按网格边界对齐</span>
+            </div>
+          </CardHeader>
+          <CardContent class="flex flex-1 items-center justify-center">
             <canvas ref="originalCanvas"
               class="block h-auto max-h-[220px] w-auto max-w-full rounded-lg ring-1 ring-gray-100 sm:max-h-[360px] xl:max-h-[440px]"></canvas>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div class="card flex flex-col">
-          <div class="mb-4 flex items-center justify-between gap-3">
-            <h2 class="section-title mb-0">识别结果</h2>
-            <span class="flex-shrink-0 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600">
-              识别到 {{ digitCount }} 个数字
-            </span>
-          </div>
-          <div
+        <Card class="flex flex-col">
+          <CardHeader>
+            <div class="flex items-center justify-between gap-3">
+              <CardTitle>识别结果</CardTitle>
+              <Badge variant="secondary">识别到 {{ digitCount }} 个数字</Badge>
+            </div>
+          </CardHeader>
+          <CardContent
             class="flex flex-1 items-center justify-center [&_svg]:h-[220px] [&_svg]:w-auto [&_svg]:max-w-full sm:[&_svg]:h-[360px] xl:[&_svg]:h-[440px]">
             <SudokuBoard :board="board" :given="given" :size="440" :showCandidates="false" :selected="selected"
               mode="interactive" @cell-click="onCellClick" />
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       <!-- 修正 + 导出 -->
-      <div class="card">
-        <div class="flex flex-wrap items-center gap-2">
-          <h2 class="text-base font-semibold text-gray-900">修正数字</h2>
-          <span class="rounded-full px-2.5 py-0.5 text-xs"
-            :class="selected ? 'bg-blue-50 text-accent' : 'bg-gray-100 text-gray-500'">
-            {{ selected ? `已选中 R${selected.row + 1}C${selected.col + 1}` : '未选中' }}
-          </span>
-        </div>
-        <p class="mt-1.5 text-xs text-gray-500">
-          先在右侧盘面点选格子，再用下方键盘或直接按键盘 1–9 输入，0 / Backspace 清除；修正后的数字显示为蓝色
-        </p>
-
-        <div class="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-8">
-          <!-- 数字键盘：3×3，键位尺寸与唯余练习页一致 -->
-          <div class="grid w-full grid-cols-3 gap-2 select-none">
-            <button v-for="n in NUMBER_KEYS" :key="'numpad-' + n" type="button" :aria-label="`输入 ${n}`"
-              :disabled="!selected"
-              class="h-14 rounded-xl border border-gray-200 bg-white text-xl font-semibold text-gray-900 shadow-sm transition-all hover:border-accent hover:text-accent hover:shadow active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-              @click="inputDigit(n)">{{ n }}</button>
-            <button type="button" :disabled="!selected"
-              class="col-span-3 h-10 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-600 shadow-sm transition-all hover:border-accent hover:text-accent active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-              @click="clearSelected">清除选中</button>
+      <Card>
+        <CardContent class="gap-5">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="text-lg font-medium">修正数字</h2>
+              <Badge :variant="selected ? 'default' : 'secondary'">
+                {{ selected ? `已选中 R${selected.row + 1}C${selected.col + 1}` : '未选中' }}
+              </Badge>
+            </div>
+            <p class="text-sm text-muted-foreground mt-1.5">
+              先在右侧盘面点选格子，再用下方键盘或直接按键盘 1–9 输入，0 / Backspace 清除；修正后的数字显示为蓝色
+            </p>
           </div>
 
-          <!-- 导出 -->
-          <div class="min-w-0 flex-1 lg:border-l lg:border-gray-100 lg:pl-8">
-            <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-              <span class="text-xs font-medium tracking-wide text-gray-400">导出文本</span>
-              <span class="text-xs text-gray-400">81 个字符，修正后实时更新</span>
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8">
+            <!-- 数字键盘 -->
+            <div class="grid w-full grid-cols-3 gap-2 select-none">
+              <Button v-for="n in NUMBER_KEYS" :key="'numpad-' + n" variant="outline" class="h-14 text-lg"
+                :disabled="!selected" :aria-label="`输入 ${n}`" @click="inputDigit(n)">{{ n }}</Button>
+              <Button variant="ghost" class="col-span-3" :disabled="!selected" @click="clearSelected">
+                清除选中
+              </Button>
             </div>
 
-            <div
-              class="mt-2.5 break-all rounded-lg border border-gray-100 bg-gray-50 px-3.5 py-3 font-mono text-xs leading-relaxed text-gray-600">
-              {{ boardText }}
-            </div>
+            <!-- 导出 -->
+            <div class="min-w-0 flex-1 lg:border-l lg:border-gray-200 lg:pl-8">
+              <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <span class="text-xs font-medium text-muted-foreground">导出文本</span>
+                <span class="text-sm text-muted-foreground">81 个字符，修正后实时更新</span>
+              </div>
 
-            <div class="mt-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
-              <button class="btn-primary" @click="copyText">{{ copied ? '已复制！' : '复制文本' }}</button>
-              <button class="btn" @click="downloadText">下载 .txt</button>
-              <button class="btn" @click="backToCrop">重新裁剪</button>
-              <button class="btn" @click="reset">重新上传</button>
+              <div class="mt-2.5 break-all rounded-md bg-muted px-4 py-3 font-mono text-xs leading-relaxed">
+                {{ boardText }}
+              </div>
+
+              <div class="mt-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
+                <Button @click="copyText">
+                  <Copy />
+                  复制文本
+                </Button>
+                <Button variant="outline" @click="downloadText">
+                  <Download />
+                  下载 .txt
+                </Button>
+                <Button variant="ghost" @click="backToCrop">
+                  <Scan />
+                  重新裁剪
+                </Button>
+                <Button variant="ghost" @click="reset">
+                  <RotateCcw />
+                  重新上传
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
+
+    <!-- 复制反馈（固定底部，短暂出现） -->
+    <Transition enter-active-class="transition duration-150 ease-out" enter-from-class="opacity-0 translate-y-2"
+      leave-active-class="transition duration-100 ease-in" leave-to-class="opacity-0 translate-y-2">
+      <div v-if="copied"
+        class="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm text-white shadow-lg"
+        role="status" aria-live="polite">
+        已复制 81 位文本到剪贴板
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, computed, nextTick } from 'vue'
+import {
+  CircleAlert,
+  Copy,
+  Download,
+  ImagePlus,
+  Info,
+  RotateCcw,
+  Scan,
+  Upload,
+} from '@lucide/vue'
 import { logger } from '@/utils/logger'
 import { Cropper } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
 import SudokuBoard from '@/components/SudokuBoard.vue'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useOCR } from '@/composables/useOCR'
 import { CONFIDENCE_THRESHOLD } from '@/utils/ocr/constants'
 
@@ -431,9 +451,10 @@ onBeforeUnmount(() => {
   max-height: 520px;
 }
 
-/* 裁剪框外部与容器同色，避免默认纯黑产生割裂感 */
+/* 裁剪框外部与容器同色，避免默认纯黑产生割裂感。
+   Tailwind v4 的 scoped style 里 @apply 需要 @reference，这里直接用等价 CSS 值。 */
 .cropper :deep(.vue-advanced-cropper__background),
 .cropper :deep(.vue-advanced-cropper__foreground) {
-  @apply bg-gray-900;
+  background-color: #111827; /* gray-900 */
 }
 </style>

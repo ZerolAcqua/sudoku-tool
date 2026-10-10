@@ -1,230 +1,243 @@
 <template>
   <div class="page-container">
     <h1 class="page-title mb-2">数独唯余练习</h1>
-    <p class="text-sm text-gray-500 mb-6">在给定盘面中找出唯一能填的数字，训练唯余判断的准确度与速度</p>
+    <p class="text-sm text-muted-foreground mb-6">在给定盘面中找出唯一能填的数字，训练唯余判断的准确度与速度</p>
 
     <!-- 控制条：题型 / 模式 / 会话状态 / 重开 -->
-    <div class="card flex flex-wrap items-center justify-between gap-x-6 gap-y-4 px-4 py-3 sm:px-5">
-      <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <div class="flex items-center gap-2.5">
-          <span class="text-xs font-medium tracking-wide text-gray-400">题型</span>
-          <div class="inline-flex rounded-lg bg-gray-100 p-1">
-            <button v-for="opt in TYPE_OPTIONS" :key="opt.value" type="button" :title="opt.title"
-              class="rounded-md px-2.5 py-1 text-sm transition-colors sm:px-3"
-              :class="uiMode === opt.value
-                ? 'bg-white font-semibold text-accent shadow-sm'
-                : 'text-gray-500 hover:text-gray-900'"
-              @click="uiMode = opt.value">{{ opt.label }}</button>
+    <Card class="px-4 py-3 sm:px-5">
+      <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xs font-medium tracking-wide text-muted-foreground">题型</span>
+            <ToggleGroup v-model="uiMode" type="single" variant="outline" size="sm" class="bg-muted/50 p-0.5">
+              <ToggleGroupItem v-for="opt in TYPE_OPTIONS" :key="opt.value" :value="opt.value" :title="opt.title"
+                class="px-2.5 data-[state=on]:bg-brand data-[state=on]:text-brand-foreground sm:px-3">
+                {{ opt.label }}
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <span class="text-xs font-medium tracking-wide text-muted-foreground">模式</span>
+            <ToggleGroup v-model="practiceMode" type="single" variant="outline" size="sm" class="bg-muted/50 p-0.5">
+              <ToggleGroupItem v-for="opt in MODE_OPTIONS" :key="opt.value" :value="opt.value" :title="opt.title"
+                class="px-2.5 data-[state=on]:bg-brand data-[state=on]:text-brand-foreground sm:px-3">
+                {{ opt.label }}
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
         </div>
-        <div class="flex items-center gap-2.5">
-          <span class="text-xs font-medium tracking-wide text-gray-400">模式</span>
-          <div class="inline-flex rounded-lg bg-gray-100 p-1">
-            <button v-for="opt in MODE_OPTIONS" :key="opt.value" type="button" :title="opt.title"
-              class="rounded-md px-2.5 py-1 text-sm transition-colors sm:px-3"
-              :class="practiceMode === opt.value
-                ? 'bg-white font-semibold text-accent shadow-sm'
-                : 'text-gray-500 hover:text-gray-900'"
-              @click="practiceMode = opt.value">{{ opt.label }}</button>
-          </div>
-        </div>
-      </div>
 
-      <div class="flex flex-wrap items-center gap-4">
-        <!-- 会话状态 -->
-        <div v-if="practiceMode === 'timed'" class="flex items-center gap-3">
-          <div class="text-right">
-            <div class="text-xs text-gray-500">剩余时间</div>
-            <div class="text-2xl font-bold tabular-nums leading-tight"
-              :class="timeLeft <= 30 ? 'text-red-600' : 'text-gray-900'">{{ formatTime(timeLeft) }}</div>
-          </div>
-          <div class="h-2 w-28 overflow-hidden rounded-full bg-gray-200">
-            <div class="h-full rounded-full transition-all duration-500"
-              :class="[timeLeft <= 30 ? 'bg-red-500' : 'bg-accent', pctClass(elapsedPct)]" />
-          </div>
-        </div>
-        <div v-else-if="practiceMode === 'sprint'" class="flex items-center gap-3">
-          <div class="text-right">
-            <div class="text-xs text-gray-500">进度</div>
-            <div class="text-2xl font-bold tabular-nums leading-tight text-gray-900">
-              {{ stats.total }}<span class="text-base font-normal text-gray-400">/{{ sprintTarget }}</span>
+        <div class="flex flex-wrap items-center gap-4">
+          <!-- 会话状态 -->
+          <div v-if="practiceMode === 'timed'" class="flex items-center gap-3">
+            <div class="text-right">
+              <div class="text-xs text-muted-foreground">剩余时间</div>
+              <div class="text-2xl font-bold tabular-nums leading-tight"
+                :class="timeLeft <= 30 ? 'text-destructive' : 'text-foreground'">{{ formatTime(timeLeft) }}</div>
+            </div>
+            <div class="h-2 w-28 overflow-hidden rounded-full bg-muted">
+              <div class="h-full rounded-full transition-all duration-500"
+                :class="[timeLeft <= 30 ? 'bg-destructive' : 'bg-brand', pctClass(elapsedPct)]" />
             </div>
           </div>
-          <div class="h-2 w-28 overflow-hidden rounded-full bg-gray-200">
-            <div class="h-full rounded-full bg-accent transition-all duration-300"
-              :class="pctClass((stats.total / sprintTarget) * 100)" />
+          <div v-else-if="practiceMode === 'sprint'" class="flex items-center gap-3">
+            <div class="text-right">
+              <div class="text-xs text-muted-foreground">进度</div>
+              <div class="text-2xl font-bold tabular-nums leading-tight text-foreground">
+                {{ stats.total }}<span class="text-base font-normal text-muted-foreground">/{{ sprintTarget }}</span>
+              </div>
+            </div>
+            <div class="h-2 w-28 overflow-hidden rounded-full bg-muted">
+              <div class="h-full rounded-full bg-brand transition-all duration-300"
+                :class="pctClass((stats.total / sprintTarget) * 100)" />
+            </div>
           </div>
-        </div>
-        <div v-else class="text-right">
-          <div class="text-xs text-gray-500">已练习</div>
-          <div class="text-2xl font-bold tabular-nums leading-tight text-gray-900">
-            {{ stats.total }}<span class="text-base font-normal text-gray-400"> 题</span>
+          <div v-else class="text-right">
+            <div class="text-xs text-muted-foreground">已练习</div>
+            <div class="text-2xl font-bold tabular-nums leading-tight text-foreground">
+              {{ stats.total }}<span class="text-base font-normal text-muted-foreground"> 题</span>
+            </div>
           </div>
-        </div>
 
-        <button :class="isSessionComplete ? 'btn-primary' : 'btn'" title="快捷键 R" @click="restart()">
-          {{ isSessionComplete ? '再来一局' : '重新开始' }}
-        </button>
+          <Button :variant="isSessionComplete ? 'default' : 'outline'" title="快捷键 R" @click="restart()">
+            <RotateCcw />
+            {{ isSessionComplete ? '再来一局' : '重新开始' }}
+          </Button>
+        </div>
       </div>
-    </div>
+    </Card>
 
     <!-- 盘面 + 侧栏 -->
     <div class="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
       <!-- 盘面 -->
-      <div class="card p-4 sm:p-6">
+      <Card class="p-4 sm:p-6">
         <div class="mb-4 flex items-center justify-between gap-3">
           <div class="flex min-w-0 items-center gap-3">
-            <span
-              class="inline-flex flex-shrink-0 items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-accent">
-              {{ modeMeta.label }}
-            </span>
-            <span class="truncate text-sm text-gray-600">{{ modeMeta.hint }}</span>
+            <Badge class="shrink-0 bg-brand-container text-brand-container-foreground">{{ modeMeta.label }}</Badge>
+            <span class="truncate text-sm text-muted-foreground">{{ modeMeta.hint }}</span>
           </div>
-          <span class="flex-shrink-0 text-xs text-gray-400">第 {{ questionNo }} 题</span>
+          <span class="shrink-0 text-xs text-muted-foreground">第 {{ questionNo }} 题</span>
         </div>
 
         <div ref="boardWrapRef" class="flex justify-center">
-          <SudokuBoard :board="board" :given="given" :size="boardSize" :showCandidates="false"
-            :focusCell="focusCell" :focusHighlight="focusHighlight" mode="practice" />
+          <SudokuBoard :board="board" :given="given" :size="boardSize" :showCandidates="false" :focusCell="focusCell"
+            :focusHighlight="focusHighlight" mode="practice" />
         </div>
 
         <!-- 答题反馈 -->
         <div class="mt-4 flex h-11 items-center justify-center" aria-live="polite">
-          <div v-if="feedback"
-            class="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium"
+          <div v-if="feedback" class="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium"
             :class="feedback.correct
               ? 'border-green-300 bg-green-50 text-green-700'
               : 'border-red-300 bg-red-50 text-red-700'">
-            <span>{{ feedback.correct ? '✓' : '✗' }}</span>
+            <component :is="feedback.correct ? CircleCheck : CircleX" class="size-4" />
             <span v-if="feedback.correct">正确！答案就是 {{ feedback.answer }}</span>
             <span v-else>答错了，正确答案是 {{ feedback.answer }}</span>
           </div>
-          <div v-else-if="!isRunning" class="text-sm text-gray-500">本次练习已结束，点击「再来一局」继续</div>
-          <div v-else class="text-sm text-gray-400">按键盘 1–9 作答，R 重新开始</div>
+          <div v-else-if="!isRunning" class="text-sm text-muted-foreground">本次练习已结束，点击「再来一局」继续</div>
+          <div v-else class="flex items-center gap-1.5 text-sm text-muted-foreground">
+            按键盘 1–9 作答
+            <Kbd>R</Kbd>
+            重新开始
+          </div>
         </div>
-      </div>
+      </Card>
 
-      <!-- 侧栏 -->
-      <div class="flex flex-col gap-6 lg:sticky lg:top-6">
+      <!-- 侧栏：纵向单列，保证统计区有足够宽度 -->
+      <div class="flex flex-col gap-6 lg:sticky lg:top-24">
+        <!-- 数字键盘 -->
+        <Card class="order-1 select-none p-4 lg:order-2">
+          <div class="mb-2.5 flex items-center justify-between px-1">
+            <span class="text-xs font-medium tracking-wide text-muted-foreground">数字键盘</span>
+            <span class="text-[11px] text-muted-foreground">键盘 1–9</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <Button v-for="n in NUMBER_KEYS" :key="'numpad-' + n" variant="outline" :aria-label="`输入 ${n}`"
+              :disabled="inputLocked" class="h-14 text-xl font-semibold active:scale-95" @click="onNumberInput(n)">{{ n
+              }}</Button>
+          </div>
+        </Card>
+
         <!-- 统计 -->
-        <div class="card order-2 p-5 lg:order-1">
+        <Card class="order-2 p-5 lg:order-1">
           <div class="flex items-baseline justify-between">
-            <span class="text-xs font-medium tracking-wide text-gray-400">正确率</span>
-            <span class="text-3xl font-bold leading-none tabular-nums text-gray-900">{{ accuracyPct }}<span
-                class="font-semibold text-gray-300">%</span></span>
+            <span class="text-xs font-medium tracking-wide text-muted-foreground">正确率</span>
+            <span class="text-3xl font-bold leading-none tabular-nums text-foreground">{{ accuracyPct }}<span
+                class="font-semibold text-muted-foreground">%</span></span>
           </div>
-          <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-100">
-            <div class="h-full rounded-full bg-accent transition-all duration-300" :class="pctClass(accuracyPct)" />
-          </div>
+          <Progress :model-value="accuracyPct" class="mt-3 h-1.5" />
 
-          <div class="mt-5 grid grid-cols-3 divide-x divide-gray-100 text-center">
+          <div class="mt-5 grid grid-cols-3 divide-x divide-border text-center">
             <div>
-              <div class="text-lg font-semibold tabular-nums text-gray-900">{{ stats.total }}</div>
-              <div class="mt-0.5 text-xs text-gray-400">已做</div>
+              <div class="text-lg font-semibold tabular-nums text-foreground">{{ stats.total }}</div>
+              <div class="mt-0.5 text-xs text-muted-foreground">已做</div>
             </div>
             <div>
               <div class="text-lg font-semibold tabular-nums text-green-600">{{ stats.correct }}</div>
-              <div class="mt-0.5 text-xs text-gray-400">正确</div>
+              <div class="mt-0.5 text-xs text-muted-foreground">正确</div>
             </div>
             <div>
-              <div class="text-lg font-semibold tabular-nums text-red-600">{{ stats.wrong }}</div>
-              <div class="mt-0.5 text-xs text-gray-400">错误</div>
+              <div class="text-lg font-semibold tabular-nums text-destructive">{{ stats.wrong }}</div>
+              <div class="mt-0.5 text-xs text-muted-foreground">错误</div>
             </div>
           </div>
 
-          <div class="mt-5 space-y-2 border-t border-gray-100 pt-4">
+          <div class="mt-5 flex flex-col gap-2 border-t border-border pt-4">
             <div class="flex items-center justify-between">
-              <span class="text-xs text-gray-500">平均用时</span>
-              <span class="text-sm font-semibold tabular-nums text-gray-900">{{ formatMs(stats.avgMs) }}</span>
+              <span class="text-xs text-muted-foreground">平均用时</span>
+              <span class="text-sm font-semibold tabular-nums text-foreground">{{ formatMs(stats.avgMs) }}</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="text-xs text-gray-500">上题用时</span>
-              <span class="text-sm font-semibold tabular-nums text-gray-900">
+              <span class="text-xs text-muted-foreground">上题用时</span>
+              <span class="text-sm font-semibold tabular-nums text-foreground">
                 {{ lastDurationMs === null ? '—' : formatMs(lastDurationMs) }}
               </span>
             </div>
           </div>
 
-          <div class="mt-4 border-t border-gray-100 pt-4">
-            <div class="mb-2.5 text-xs font-medium tracking-wide text-gray-400">分类正确率</div>
-            <div class="space-y-2">
+          <Separator class="my-4" />
+
+          <div>
+            <div class="mb-2.5 text-xs font-medium tracking-wide text-muted-foreground">分类正确率</div>
+            <div class="flex flex-col gap-2">
               <div v-for="row in modeRows" :key="row.mode" class="flex items-center gap-2.5">
-                <span class="w-8 flex-shrink-0 text-xs text-gray-500">{{ row.label }}</span>
-                <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
-                  <div class="h-full rounded-full bg-accent" :class="pctClass(row.pct)" />
+                <span class="w-8 shrink-0 text-xs text-muted-foreground">{{ row.label }}</span>
+                <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div class="h-full rounded-full bg-brand" :class="pctClass(row.pct)" />
                 </div>
-                <span class="w-16 flex-shrink-0 text-right text-xs tabular-nums text-gray-500">{{ row.text }}</span>
+                <span class="w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{{ row.text }}</span>
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- 数字键盘 -->
-        <div class="card order-1 select-none p-4 lg:order-2">
-          <div class="mb-2.5 flex items-center justify-between px-1">
-            <span class="text-xs font-medium tracking-wide text-gray-400">数字键盘</span>
-            <span class="text-[11px] text-gray-400">键盘 1–9</span>
-          </div>
-          <div class="grid grid-cols-3 gap-2">
-            <button v-for="n in NUMBER_KEYS" :key="'numpad-' + n" type="button" :aria-label="`输入 ${n}`"
-              :disabled="inputLocked"
-              class="h-14 rounded-xl border border-gray-200 bg-white text-xl font-semibold text-gray-900 shadow-sm transition-all hover:border-accent hover:text-accent hover:shadow active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-              @click="onNumberInput(n)">{{ n }}</button>
-          </div>
-        </div>
+        </Card>
       </div>
     </div>
 
     <!-- 结算窗口 -->
-    <Transition enter-active-class="transition duration-150 ease-out" enter-from-class="opacity-0"
-      leave-active-class="transition duration-100 ease-in" leave-to-class="opacity-0">
-      <div v-if="showSettlement" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-        @click.self="showSettlement = false">
-        <div class="card max-h-full w-full max-w-md overflow-y-auto p-6">
-          <h2 class="text-2xl font-bold text-gray-900">
+    <Dialog v-model:open="showSettlement">
+      <DialogContent class="max-h-full overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle class="text-2xl">
             {{ practiceMode === 'timed' ? '时间到！' : '冲刺完成！' }}
-          </h2>
-          <p class="mt-1 text-sm text-gray-500">本次练习结果</p>
+          </DialogTitle>
+          <DialogDescription>本次练习结果</DialogDescription>
+        </DialogHeader>
 
-          <div class="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-gray-100">
-            <div class="bg-gray-50 px-4 py-3">
-              <div class="text-xl font-bold tabular-nums text-gray-900">{{ accuracyPct }}%</div>
-              <div class="mt-0.5 text-xs text-gray-500">正确率</div>
-            </div>
-            <div class="bg-gray-50 px-4 py-3">
-              <div class="text-xl font-bold tabular-nums text-gray-900">{{ formatMs(stats.avgMs) }}</div>
-              <div class="mt-0.5 text-xs text-gray-500">平均用时</div>
-            </div>
-            <div class="bg-gray-50 px-4 py-3">
-              <div class="text-xl font-bold tabular-nums text-green-600">{{ stats.correct }}</div>
-              <div class="mt-0.5 text-xs text-gray-500">正确</div>
-            </div>
-            <div class="bg-gray-50 px-4 py-3">
-              <div class="text-xl font-bold tabular-nums text-red-600">{{ stats.wrong }}</div>
-              <div class="mt-0.5 text-xs text-gray-500">错误</div>
-            </div>
+        <div class="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border">
+          <div class="bg-muted/50 px-4 py-3">
+            <div class="text-xl font-bold tabular-nums text-foreground">{{ accuracyPct }}%</div>
+            <div class="mt-0.5 text-xs text-muted-foreground">正确率</div>
           </div>
-
-          <div class="mt-4 flex items-center justify-between text-sm">
-            <span class="text-gray-500">共完成</span>
-            <span class="font-semibold tabular-nums text-gray-900">{{ stats.total }} 题</span>
+          <div class="bg-muted/50 px-4 py-3">
+            <div class="text-xl font-bold tabular-nums text-foreground">{{ formatMs(stats.avgMs) }}</div>
+            <div class="mt-0.5 text-xs text-muted-foreground">平均用时</div>
           </div>
-
-          <div class="mt-6 flex gap-3">
-            <button class="btn flex-1" :class="copied ? 'border-green-400 bg-green-100 text-green-700' : ''"
-              @click="copyStats()">{{ copied ? '已复制！' : '复制数据' }}</button>
-            <button class="btn-primary flex-1" @click="restart()">再来一局</button>
+          <div class="bg-muted/50 px-4 py-3">
+            <div class="text-xl font-bold tabular-nums text-green-600">{{ stats.correct }}</div>
+            <div class="mt-0.5 text-xs text-muted-foreground">正确</div>
+          </div>
+          <div class="bg-muted/50 px-4 py-3">
+            <div class="text-xl font-bold tabular-nums text-destructive">{{ stats.wrong }}</div>
+            <div class="mt-0.5 text-xs text-muted-foreground">错误</div>
           </div>
         </div>
-      </div>
-    </Transition>
+
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-muted-foreground">共完成</span>
+          <span class="font-semibold tabular-nums text-foreground">{{ stats.total }} 题</span>
+        </div>
+
+        <DialogFooter class="flex-row gap-3 sm:justify-stretch">
+          <Button variant="outline" class="flex-1" @click="copyStats()">
+            <component :is="copied ? Check : Copy" />
+            {{ copied ? '已复制！' : '复制数据' }}
+          </Button>
+          <Button class="flex-1" @click="restart()">再来一局</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Check, CircleCheck, CircleX, Copy, RotateCcw } from '@lucide/vue'
 import { logger } from '../utils/logger'
 import SudokuBoard from '../components/SudokuBoard.vue'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Progress } from '@/components/ui/progress'
+import { Separator } from '@/components/ui/separator'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { usePracticeStore } from '../stores/practice'
 import { genByMode, pickRandomMode, type UnitMode, type PracticePuzzle } from '../utils/generator'
 

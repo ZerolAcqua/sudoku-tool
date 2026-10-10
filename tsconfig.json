@@ -14,5 +14,15 @@
     {
       "path": "./tsconfig.app.json"
     }
-  ]
+  ],
+  // 本文件是「解决方案式」配置（files 为空，只做 references 编排），自身不编译任何文件，
+  // 因此这里的 baseUrl/paths 不参与实际类型检查，仅供 shadcn-vue CLI 读取。
+  // 原因：CLI 用 get-tsconfig 解析别名，它不跟随 references，只看得到本文件。
+  // 实际编译用的 @ 别名在 tsconfig.app.json，两处需保持一致。
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
 }

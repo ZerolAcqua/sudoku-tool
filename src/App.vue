@@ -1,14 +1,15 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <TooltipProvider>
     <AppNav />
+
     <main>
       <RouterView />
     </main>
-  </div>
+  </TooltipProvider>
 </template>
 
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import AppNav from './components/AppNav.vue'
 </script>
-
