@@ -4,8 +4,6 @@
       <div class="flex h-16 items-center justify-between gap-4">
         <!-- Logo -->
         <router-link to="/" class="flex shrink-0 items-center gap-2 text-xl font-semibold text-foreground">
-          <span
-            class="grid size-8 place-items-center rounded-lg bg-brand text-sm font-bold text-brand-foreground">丘</span>
           <span class="hidden sm:inline">丘卡的数独小站</span>
         </router-link>
 

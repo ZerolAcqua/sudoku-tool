@@ -1,11 +1,13 @@
 <template>
-  <!-- flex-1：撑满 main，内容不足一屏时把页脚顶到底部。
-       不要加 flex/flex-col：那会把下面的 section 变成 flex item，
-       而 flex item 上的 margin-inline:auto（mx-auto）会抑制 stretch，
-       导致 max-w-7xl 区块收缩到内容宽度（功能卡被挤成窄条）。 -->
-  <div class="flex-1">
-    <!-- Hero -->
-    <section class="border-b border-border bg-card">
+  <!-- 用 flex 列把内容区撑开，页脚作为兄弟节点放在外面：
+       footer 不需要 mt-auto（那是给 flex item 用的），也不会被误设为 flex item。
+       内容区里的 section 都是普通块级元素，宽度不受 flex 影响。
+       根元素必须用 flex-1 而不是 min-h-full：父级 main 的高度来自 flex-1，
+       是解析后的高度，min-height:100% 解析不到会退化成内容高度。 -->
+  <div class="flex flex-1 flex-col">
+    <div class="flex-1">
+      <!-- Hero -->
+      <section class="border-b border-border bg-card">
       <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
         <div class="grid items-center gap-10 lg:grid-cols-2">
           <div>
@@ -14,7 +16,7 @@
               欢迎来到<br />丘卡的数独小站
             </h1>
             <p class="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-              专业的数独工具，助你提升解题能力，享受数独的乐趣。
+              各式各样的数独工具，助你提升解题能力，享受数独的乐趣。
             </p>
             <div class="mt-8 flex flex-wrap gap-3">
               <Button as-child size="lg">
@@ -51,39 +53,38 @@
       </div>
     </section>
 
-    <!-- 功能入口 -->
-    <section class="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <router-link v-for="feature in features" :key="feature.path" :to="feature.path" class="group">
-          <Card class="h-full transition-shadow group-hover:shadow-md">
-            <CardHeader>
-              <span class="grid size-11 place-items-center rounded-lg bg-brand-container text-brand">
-                <component :is="feature.icon" class="size-5" />
-              </span>
-              <CardTitle class="mt-3">{{ feature.title }}</CardTitle>
-              <CardDescription>{{ feature.description }}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <span class="inline-flex items-center gap-1 text-sm font-medium text-brand">
-                {{ feature.action }}
-                <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
-              </span>
-            </CardContent>
-          </Card>
-        </router-link>
-      </div>
-    </section>
+      <!-- 功能入口 -->
+      <section class="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <router-link v-for="feature in features" :key="feature.path" :to="feature.path" class="group">
+            <Card class="h-full transition-shadow group-hover:shadow-md">
+              <CardHeader>
+                <span class="grid size-11 place-items-center rounded-lg bg-brand-container text-brand">
+                  <component :is="feature.icon" class="size-5" />
+                </span>
+                <CardTitle class="mt-3">{{ feature.title }}</CardTitle>
+                <CardDescription>{{ feature.description }}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <span class="inline-flex items-center gap-1 text-sm font-medium text-brand">
+                  {{ feature.action }}
+                  <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
+                </span>
+              </CardContent>
+            </Card>
+          </router-link>
+        </div>
+      </section>
+    </div>
 
-    <!-- 底栏：仅首页；mt-auto 吸收剩余空间，使内容不足一屏时贴底 -->
-    <footer class="mt-auto border-t border-border bg-card">
+    <!-- 底栏：仅首页。作为 flex 列的兄弟节点，由上面的 flex-1 内容区把它顶到底部 -->
+    <footer class="border-t border-border bg-card">
       <div class="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-6 sm:flex-row sm:gap-3 sm:px-6 lg:px-8">
         <Lightbulb class="size-4 shrink-0 text-brand" />
         <p class="text-center text-xs text-muted-foreground sm:text-left sm:text-sm">
-          数独不仅是一种游戏，更是一种思维方式。
-          <span class="mx-1.5 text-border">——</span>
-          让我们一起探索数字的奥秘吧！
+          数独，数字与孤独……
         </p>
-        <span class="text-xs text-muted-foreground sm:ml-auto">acqua-sudoku</span>
+        <span class="text-xs text-muted-foreground sm:ml-auto">made with love by Acqua & Deepseek</span>
       </div>
     </footer>
   </div>
