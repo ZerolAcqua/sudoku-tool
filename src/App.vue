@@ -1,10 +1,13 @@
 <template>
   <TooltipProvider>
-    <AppNav />
+    <!-- 全高列：让各页面能撑满视口（首页页脚据此贴底），footer 本身仍由页面自行提供 -->
+    <div class="flex min-h-screen flex-col">
+      <AppNav />
 
-    <main>
-      <RouterView />
-    </main>
+      <main class="flex flex-1 flex-col">
+        <RouterView />
+      </main>
+    </div>
   </TooltipProvider>
 </template>
 

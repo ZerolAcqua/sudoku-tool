@@ -1,5 +1,6 @@
 <template>
-  <div>
+  <!-- flex-1：撑满 main，内容不足一屏时把页脚顶到底部 -->
+  <div class="flex flex-1 flex-col">
     <!-- Hero -->
     <section class="border-b border-border bg-card">
       <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
@@ -70,8 +71,8 @@
       </div>
     </section>
 
-    <!-- 底栏：仅首页 -->
-    <footer class="border-t border-border bg-card">
+    <!-- 底栏：仅首页；mt-auto 吸收剩余空间，使内容不足一屏时贴底 -->
+    <footer class="mt-auto border-t border-border bg-card">
       <div class="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-6 sm:flex-row sm:gap-3 sm:px-6 lg:px-8">
         <Lightbulb class="size-4 shrink-0 text-brand" />
         <p class="text-center text-xs text-muted-foreground sm:text-left sm:text-sm">
