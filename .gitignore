@@ -88,6 +88,12 @@ coverage/
 
 /ml/models/*
 
-# Agent skills: `npx skills add -y` 会把 eve 的那份副本写到项目根 agent/，
-# 本项目只依赖 .agents/skills（DSH 的项目级 skill 目录），故忽略之
+# Agent skills
+# skill 安装器（`npx skills add -y`）会为不同 agent 生成多份副本，但真正的内容
+# 只有 .agents/skills（DSH 的项目级 skill 目录）需要入库：
+#   /agent/             —— eve 的副本
+#   /.claude/skills/    —— 指向 .agents/skills 的符号链接，纯重复且可再生成
+#   .claude/settings.local.json —— 本机个人设置（全局 gitignore 亦已忽略）
 /agent/
+/.claude/skills/
+.claude/settings.local.json
