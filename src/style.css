@@ -155,8 +155,11 @@
 }
 
 @layer components {
-  /* 页面布局 */
-  .page-container { @apply max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8; }
+  /* 页面布局。
+     必须显式 w-full：页面根元素处于 App.vue 的 flex 列容器里，
+     而 flex item 上的 margin-inline:auto（mx-auto）会抑制 stretch，
+     使元素收缩到内容宽度、max-w-7xl 失效。 */
+  .page-container { @apply w-full max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8; }
   .page-title { @apply text-3xl font-bold text-foreground mb-8; }
   .section-title { @apply text-xl font-semibold text-foreground mb-4; }
 

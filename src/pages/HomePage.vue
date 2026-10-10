@@ -1,6 +1,9 @@
 <template>
-  <!-- flex-1：撑满 main，内容不足一屏时把页脚顶到底部 -->
-  <div class="flex flex-1 flex-col">
+  <!-- flex-1：撑满 main，内容不足一屏时把页脚顶到底部。
+       不要加 flex/flex-col：那会把下面的 section 变成 flex item，
+       而 flex item 上的 margin-inline:auto（mx-auto）会抑制 stretch，
+       导致 max-w-7xl 区块收缩到内容宽度（功能卡被挤成窄条）。 -->
+  <div class="flex-1">
     <!-- Hero -->
     <section class="border-b border-border bg-card">
       <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
@@ -49,7 +52,7 @@
     </section>
 
     <!-- 功能入口 -->
-    <section class="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+    <section class="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <router-link v-for="feature in features" :key="feature.path" :to="feature.path" class="group">
           <Card class="h-full transition-shadow group-hover:shadow-md">
