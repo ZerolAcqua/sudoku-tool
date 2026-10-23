@@ -15,6 +15,9 @@ export const usePracticeStore = defineStore('practice', {
     totalTimeMs: 0,
     currentStartTs: 0 as number | null,
     history: [] as RecordItem[],
+    // 连击：连续答对的题数，答错归零
+    streak: 0,
+    bestStreak: 0,
   }),
   getters: {
     accuracy(state) {
@@ -34,6 +37,8 @@ export const usePracticeStore = defineStore('practice', {
       this.total += 1;
       if (correct) this.correct += 1;
       else this.wrong += 1;
+      this.streak = correct ? this.streak + 1 : 0;
+      this.bestStreak = Math.max(this.bestStreak, this.streak);
       this.totalTimeMs += dur;
       this.history.push({ mode, durationMs: dur, correct });
       this.currentStartTs = null;
@@ -46,6 +51,8 @@ export const usePracticeStore = defineStore('practice', {
       this.totalTimeMs = 0;
       this.currentStartTs = null;
       this.history = [];
+      this.streak = 0;
+      this.bestStreak = 0;
     },
   },
 });

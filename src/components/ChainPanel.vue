@@ -1,14 +1,14 @@
 <template>
-  <Card as="aside" class="flex flex-col gap-3 p-6">
-    <div class="flex items-center justify-between">
-      <h2 class="text-xl font-semibold">链视图</h2>
-      <Badge variant="secondary">{{ chains.length }} 条</Badge>
+  <Card class="flex flex-col gap-3 p-5">
+    <div class="flex items-baseline justify-between">
+      <h2 class="text-sm font-medium text-foreground">链</h2>
+      <span class="text-xs tabular-nums text-muted-foreground">{{ chains.length }} 条</span>
     </div>
 
     <!-- 绘制中的草稿链 -->
-    <div v-if="draftNodes.length > 0" class="flex flex-col gap-2 rounded-lg border border-brand bg-muted/50 p-3">
+    <div v-if="draftNodes.length > 0" class="flex flex-col gap-2 rounded-md border border-dashed border-outline p-3">
       <div class="flex items-center justify-between">
-        <span class="text-sm font-medium text-brand">绘制中</span>
+        <span class="text-sm font-medium text-foreground">绘制中</span>
         <span class="text-xs text-muted-foreground">{{ draftNodes.length }} 节点</span>
       </div>
       <ol class="flex flex-col gap-1">
@@ -19,7 +19,7 @@
         </li>
       </ol>
       <div class="flex gap-2">
-        <Button size="sm" class="bg-green-600 text-white hover:bg-green-700" :disabled="draftNodes.length < 2"
+        <Button size="sm" :disabled="draftNodes.length < 2"
           @click="emit('finish-draft')">
           完成链
         </Button>
@@ -34,23 +34,23 @@
 
     <template v-if="chains.length > 0">
       <Collapsible v-for="(chain, index) in chains" :key="chain.id ?? index" :open="isExpanded(chain, index)"
-        class="rounded-lg border transition-colors"
-        :class="isSelected(chain) ? 'border-brand ring-1 ring-brand' : 'border-border'"
+        class="rounded-md border transition-colors"
+        :class="isSelected(chain) ? 'border-foreground/40 bg-muted/40' : 'border-border'"
         @update:open="setOpen(chain, index, $event)">
       <!-- 条目头 -->
       <div class="cursor-pointer p-3" @click="onRowClick(chain, index)">
         <div class="flex items-center gap-2">
-          <span class="size-4 shrink-0 rounded border border-border" :style="{ backgroundColor: chain.color }"
-            :title="chain.color" />
+          <span class="size-3 shrink-0 rounded-full" :style="{ backgroundColor: chain.color }" :title="chain.color" />
           <span class="text-sm font-medium text-foreground">#{{ index + 1 }}</span>
           <span class="ml-auto flex shrink-0 items-center gap-1">
-            <Button size="xs" variant="outline" :class="chain.visible === false ? 'opacity-60' : ''"
+            <Button size="icon-xs" variant="ghost" class="text-muted-foreground"
+              :aria-label="chain.visible === false ? '显示该链' : '隐藏该链'"
               :title="chain.visible === false ? '显示该链' : '隐藏该链'" @click.stop="emitToggleVisible(chain)">
-              {{ chain.visible === false ? '显示' : '隐藏' }}
+              <component :is="chain.visible === false ? EyeOff : Eye" />
             </Button>
-            <Button size="xs" variant="outline" class="text-muted-foreground hover:text-destructive" title="删除该链"
-              @click.stop="emitRemove(chain)">
-              删除
+            <Button size="icon-xs" variant="ghost" class="text-muted-foreground hover:text-destructive"
+              aria-label="删除该链" title="删除该链" @click.stop="emitRemove(chain)">
+              <Trash2 />
             </Button>
             <CollapsibleTrigger as-child>
               <Button size="icon-xs" variant="ghost" :aria-label="isExpanded(chain, index) ? '收起' : '展开'">
@@ -77,9 +77,9 @@
                 class="flex items-center gap-2 text-xs text-foreground">
                 <span class="w-4 text-muted-foreground">{{ nodeIndex + 1 }}</span>
                 <span>{{ nodeLabel(node) }}</span>
-                <Button size="xs" variant="outline" class="ml-auto" title="删除该节点"
-                  @click.stop="emitRemoveNode(chain, nodeIndex)">
-                  删除
+                <Button size="icon-xs" variant="ghost" class="ml-auto text-muted-foreground hover:text-destructive"
+                  aria-label="删除该节点" title="删除该节点" @click.stop="emitRemoveNode(chain, nodeIndex)">
+                  <X />
                 </Button>
               </li>
             </ol>
@@ -87,24 +87,13 @@
 
           <div class="flex flex-col gap-1">
             <span class="text-xs font-medium text-muted-foreground">颜色</span>
-            <div class="flex flex-wrap gap-1.5">
-              <button v-for="color in DRAWING_COLORS" :key="color.value" type="button"
-                class="size-6 rounded border-2 transition-transform"
-                :class="chain.color === color.value ? 'border-foreground scale-110' : 'border-border'"
-                :style="{ backgroundColor: color.value }" :title="color.name"
-                @click.stop="emitUpdate(chain, { color: color.value })" />
-            </div>
+            <ColorSwatches size="sm" :model-value="chain.color" @update:model-value="emitUpdate(chain, { color: $event })" />
           </div>
 
           <div class="flex flex-col gap-1">
             <span class="text-xs font-medium text-muted-foreground">线型</span>
-            <ToggleGroup :model-value="currentStyle(chain)" type="single" variant="outline" size="sm"
-              class="w-fit bg-muted/50 p-0.5" @update:model-value="onStyleChange(chain, $event)">
-              <ToggleGroupItem v-for="style in CHAIN_STYLES" :key="style.id" :value="style.id"
-                class="px-2 text-xs data-[state=on]:bg-brand data-[state=on]:text-brand-foreground">
-                {{ style.label }}
-              </ToggleGroupItem>
-            </ToggleGroup>
+            <SegmentedControl :model-value="currentStyle(chain)" :options="CHAIN_STYLE_OPTIONS" aria-label="线型"
+              class="w-fit" @update:model-value="emitUpdate(chain, { style: $event })" />
           </div>
 
           <div class="flex flex-wrap items-center gap-3 text-xs text-foreground">
@@ -137,15 +126,15 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { ChevronDown } from '@lucide/vue';
-import { Badge } from '@/components/ui/badge';
+import { ChevronDown, Eye, EyeOff, Trash2, X } from '@lucide/vue';
+import ColorSwatches from '@/components/ColorSwatches.vue';
+import SegmentedControl, { type SegmentedOption } from '@/components/SegmentedControl.vue';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Switch } from '@/components/ui/switch';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { Chain, ChainNode, ChainStyle } from '@/types/sudoku';
-import { CHAIN_STYLES, CHAIN_STYLE_LABELS, CHAIN_WIDTHS, DRAWING_COLORS } from '@/composables/useDrawingState';
+import { CHAIN_STYLES, CHAIN_STYLE_LABELS, CHAIN_WIDTHS } from '@/composables/useDrawingState';
 
 const props = withDefaults(
   defineProps<{
@@ -204,6 +193,8 @@ function onRowClick(chain: Chain, index: number): void {
   setOpen(chain, index, !isExpanded(chain, index));
 }
 
+const CHAIN_STYLE_OPTIONS: SegmentedOption<ChainStyle>[] = CHAIN_STYLES.map((c) => ({ value: c.id, label: c.label }));
+
 function nodeLabel(node: ChainNode): string {
   const base = `R${node.row + 1}C${node.col + 1}`;
   return node.candidate == null ? base : `${base} · 候选${node.candidate}`;
@@ -235,12 +226,6 @@ function emitToggleVisible(chain: Chain): void {
 function emitRemoveNode(chain: Chain, index: number): void {
   if (!chain.id) return;
   emit('remove-node', { id: chain.id, index });
-}
-
-// ToggleGroup 单选：值为空串（取消选中）时忽略，保持当前线型不变
-function onStyleChange(chain: Chain, value: unknown): void {
-  if (typeof value !== 'string' || !value) return;
-  emitUpdate(chain, { style: value as ChainStyle });
 }
 
 function onArrowChange(chain: Chain, value: unknown): void {

@@ -8,11 +8,15 @@
         <RouterView />
       </main>
     </div>
+
+    <!-- 全站轻提示（复制 / 导出等），页面里用 vue-sonner 的 toast() 触发 -->
+    <Toaster position="bottom-center" />
   </TooltipProvider>
 </template>
 
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import AppNav from './components/AppNav.vue'
 </script>

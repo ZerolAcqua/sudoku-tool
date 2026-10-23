@@ -1,105 +1,123 @@
 <template>
-  <div class="page-container">
-    <h1 class="page-title">数独绘图工具</h1>
-
-    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] items-start">
-      <!-- 左列：工具栏 / 画布 / 说明，纵向堆叠 -->
-      <div class="flex flex-col gap-6">
-        <!-- 工具栏 -->
-        <Card class="gap-3 p-6">
-        <!-- 标签列定宽 + 控件列，形成规整的对齐；不用 flex-wrap 混排以免换行后错位 -->
-        <div class="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3">
-          <!-- 绘图模式 -->
-          <span class="text-sm font-medium text-muted-foreground">绘图模式</span>
-          <ToggleGroup v-model="currentMode" type="single" variant="outline" size="sm"
-            class="w-fit bg-muted/50 p-0.5">
-            <ToggleGroupItem v-for="mode in DRAWING_MODES" :key="mode.id" :value="mode.id"
-              class="px-3 data-[state=on]:bg-brand data-[state=on]:text-brand-foreground">
-              {{ mode.label }}
-            </ToggleGroupItem>
-          </ToggleGroup>
-
-          <!-- 颜色 -->
-          <span class="text-sm font-medium text-muted-foreground">颜色</span>
-          <div class="flex flex-wrap items-center gap-2">
-            <button v-for="color in DRAWING_COLORS" :key="color.value" type="button"
-              class="size-7 rounded-md border-2 transition-transform"
-              :class="currentColor === color.value ? 'border-foreground scale-110' : 'border-border'"
-              :style="{ backgroundColor: color.value }" :title="color.name"
-              @click="currentColor = color.value" />
-            <span v-if="selectCandidate && currentCandidate" class="text-xs text-muted-foreground">
-              R{{ currentCandidate.row + 1 }}C{{ currentCandidate.col + 1 }} · 候选{{ currentCandidate.candidate }}
-            </span>
-          </div>
-
-          <!-- 标记类型（仅标记模式可交互） -->
-          <span class="text-sm font-medium text-muted-foreground transition-opacity"
-            :class="currentMode === 'marker' ? '' : 'opacity-40'">标记类型</span>
-          <ToggleGroup v-model="currentMarkerType" type="single" variant="outline" size="sm"
-            class="w-fit bg-muted/50 p-0.5 transition-opacity"
-            :class="currentMode === 'marker' ? '' : 'pointer-events-none opacity-40'">
-            <ToggleGroupItem v-for="type in MARKER_TYPES" :key="type" :value="type"
-              class="px-3 data-[state=on]:bg-brand data-[state=on]:text-brand-foreground">
-              {{ MARKER_TYPE_LABELS[type] }}
-            </ToggleGroupItem>
-          </ToggleGroup>
-
-          <!-- 链样式（仅链模式可交互） -->
-          <span class="text-sm font-medium text-muted-foreground transition-opacity"
-            :class="currentMode === 'chain' ? '' : 'opacity-40'">链样式</span>
-          <div class="flex flex-wrap items-center gap-3 transition-opacity"
-            :class="currentMode === 'chain' ? '' : 'pointer-events-none opacity-40'">
-            <ToggleGroup v-model="currentChainStyle" type="single" variant="outline" size="sm"
-              class="w-fit bg-muted/50 p-0.5">
-              <ToggleGroupItem v-for="style in CHAIN_STYLES" :key="style.id" :value="style.id"
-                class="px-3 data-[state=on]:bg-brand data-[state=on]:text-brand-foreground">
-                {{ style.label }}
-              </ToggleGroupItem>
-            </ToggleGroup>
-            <label class="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Switch v-model="chainArrow" />
-              箭头
-            </label>
-          </div>
-
-          <!-- 候选数选择（高亮 / 链模式可用，链模式强制开启） -->
-          <span class="text-sm font-medium text-muted-foreground transition-opacity"
-            :class="currentMode === 'highlight' || currentMode === 'chain' ? '' : 'opacity-40'">候选数</span>
-          <div class="flex flex-wrap items-center gap-2 transition-opacity"
-            :class="currentMode === 'highlight' || currentMode === 'chain' ? '' : 'pointer-events-none opacity-40'">
-            <label class="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Switch v-model="selectCandidate" :disabled="currentMode === 'chain'" />
-              选择候选数
-            </label>
-            <span v-if="currentMode === 'chain'" class="text-xs text-muted-foreground">（链必须）</span>
-          </div>
-        </div>
-
-        <!-- 操作 -->
-        <div class="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-          <Button variant="outline" @click="saveAsSvg">
-            <Download />
-            保存为图片
+  <div>
+    <div class="page-container">
+      <PageHeader :title="feature.title" description="在盘面上标注高亮、标记、摒除线与链，导出为图片分享解题思路">
+        <template #actions>
+          <Button variant="ghost" aria-label="导入题目" @click="openImport">
+            <FileInput />
+            <span class="hidden sm:inline">导入题目</span>
           </Button>
-          <template v-if="currentMode === 'chain' && draftNodes.length > 0">
-            <Button class="bg-green-600 text-white hover:bg-green-700" :disabled="draftNodes.length < 2"
-              @click="finishChain">
-              <Check />
-              完成链 ({{ draftNodes.length }} 个节点)
+
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="ghost" size="icon" aria-label="撤销" :disabled="!canUndo" @click="undo">
+                <Undo2 />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>撤销 <Kbd>{{ MOD_KEY }}Z</Kbd></TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="ghost" size="icon" aria-label="重做" :disabled="!canRedo" @click="redo">
+                <Redo2 />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>重做 <Kbd>{{ MOD_KEY }}⇧Z</Kbd></TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="ghost" size="icon" class="hover:text-destructive" aria-label="清空绘图"
+                :disabled="!hasDrawing" @click="clearDrawing">
+                <Trash2 />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>清空绘图</TooltipContent>
+          </Tooltip>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button class="ml-1">
+                <Download />
+                导出
+                <ChevronDown />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem @select="exportPng">
+                <ImageDown />
+                下载 PNG
+              </DropdownMenuItem>
+              <DropdownMenuItem @select="exportSvg">
+                <FileCode />
+                下载 SVG
+              </DropdownMenuItem>
+              <DropdownMenuItem @select="copyImage">
+                <Copy />
+                复制图片
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </template>
+      </PageHeader>
+
+      <!-- 盘面贴左、链面板贴右：与页头标题、操作按钮的边缘对齐 -->
+      <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,600px)_minmax(0,18rem)] lg:justify-between lg:gap-10">
+        <!-- 左列：工具条与盘面同宽，左右边缘对齐 -->
+        <section class="w-full min-w-0">
+          <!-- 第一行：常驻的模式与颜色 -->
+          <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+            <SegmentedControl v-model="currentMode" :options="MODE_OPTIONS" aria-label="绘图模式" />
+            <ColorSwatches v-model="currentColor" />
+            <!-- 移动端：链视图收进抽屉 -->
+            <Button v-if="!isDesktop" variant="outline" size="sm" class="ml-auto" @click="chainSheetOpen = true">
+              <Waypoints />
+              链 ({{ chains.length }})
             </Button>
-            <Button variant="ghost" @click="draftCancel">取消绘制</Button>
-          </template>
-          <Button variant="destructive" class="ml-auto" :disabled="!hasDrawing" @click="clearDrawing">
-            <Trash2 />
-            清空绘图
-          </Button>
-        </div>
-      </Card>
+          </div>
 
-        <!-- 画布独立成卡：工具栏与盘面互不挤压，盘面也不再被困在工具条容器里 -->
-        <Card class="p-4 sm:p-6">
-          <div class="flex justify-center">
-            <SudokuBoard ref="boardRef" class="h-auto max-w-full" :board="board" :given="given" :showCandidates="true"
+          <!-- 第二行：只显示当前模式的选项；固定最小高度，切换模式时盘面不跳 -->
+          <div class="mt-3 flex min-h-9 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <template v-if="currentMode === 'highlight'">
+              <label class="flex items-center gap-2 text-foreground">
+                <Switch v-model="selectCandidate" />
+                选择候选数
+              </label>
+              <span class="text-muted-foreground">开启后点击候选数单独高亮</span>
+            </template>
+
+            <template v-else-if="currentMode === 'marker'">
+              <span class="text-muted-foreground">标记类型</span>
+              <SegmentedControl v-model="currentMarkerType" :options="MARKER_OPTIONS" aria-label="标记类型" />
+            </template>
+
+            <template v-else-if="currentMode === 'line'">
+              <span v-if="lineStart" class="text-foreground">
+                起点 R{{ lineStart.row + 1 }}C{{ lineStart.col + 1 }}
+                <span class="text-muted-foreground"> · 点击终点完成，Esc 取消</span>
+              </span>
+              <span v-else class="text-muted-foreground">点击起点单元格开始一条摒除线</span>
+            </template>
+
+            <template v-else>
+              <span class="text-muted-foreground">线型</span>
+              <SegmentedControl v-model="currentChainStyle" :options="CHAIN_STYLE_OPTIONS" aria-label="链线型" />
+              <label class="flex items-center gap-2 text-foreground">
+                <Switch v-model="chainArrow" />
+                箭头
+              </label>
+              <div v-if="draftNodes.length > 0" class="ml-auto flex items-center gap-1">
+                <Button size="sm" variant="ghost" @click="draftCancel">取消</Button>
+                <Button size="sm" :disabled="draftNodes.length < 2" @click="finishChain">
+                  <Check />
+                  完成链 ({{ draftNodes.length }})
+                </Button>
+              </div>
+            </template>
+          </div>
+
+          <!-- 盘面：纸上的白页，不再套卡片 -->
+          <div ref="boardWrapRef" class="mt-4 flex">
+            <SudokuBoard ref="boardRef" :size="boardSize" :board="board" :given="given" :showCandidates="true"
               :candidates="candidates" :customHighlights="highlights" :markers="markers" :chains="renderChains"
               :candidateMarkers="candidateMarkers" :selectedChainId="selectedChainId" :chainsInteractive="true"
               :selectedCandidate="candidateSelectActive ? currentCandidate : null"
@@ -107,52 +125,96 @@
               @candidate-click="onCandidateClick" @chain-click="onChainClick" />
           </div>
 
-          <p v-if="statusMessage" class="mt-3 text-center text-sm text-muted-foreground">{{ statusMessage }}</p>
-        </Card>
+          <!-- 状态栏：当前模式的操作提示 -->
+          <p class="mt-4 text-sm text-muted-foreground">{{ MODE_HINTS[currentMode] }}</p>
+        </section>
 
-        <!-- 操作说明 -->
-        <Alert>
-          <Info />
-          <AlertDescription>
-            <ul class="flex flex-col gap-1">
-              <li><strong>高亮：</strong>点击单元格添加/移除高亮；开启「选择候选数」后直接点击候选数高亮候选</li>
-              <li><strong>标记：</strong>点击单元格添加圆圈/叉号/圆点/星号，同格同类型再次点击取消</li>
-              <li><strong>摒除线：</strong>依次点击起点和终点，起点自动加圆圈</li>
-              <li><strong>链：</strong>依次点击候选数添加节点，右侧「链视图」可完成、改色、改线型</li>
-            </ul>
-          </AlertDescription>
-        </Alert>
+        <!-- 右列：链视图面板（桌面） -->
+        <aside v-if="isDesktop" class="lg:sticky lg:top-20">
+          <ChainPanel v-bind="chainPanelProps" v-on="chainPanelListeners" />
+        </aside>
       </div>
-
-      <!-- 右列：链视图面板 -->
-      <ChainPanel
-        :chains="chains"
-        :selectedId="selectedChainId"
-        :draftNodes="draftNodes"
-        @select="onChainSelect"
-        @remove="removeChain"
-        @toggle-visible="toggleChainVisible"
-        @update="onChainUpdate"
-        @remove-node="onChainNodeRemove"
-        @finish-draft="finishChain"
-        @cancel-draft="draftCancel"
-      />
     </div>
+
+    <!-- 链视图面板（移动端抽屉） -->
+    <Sheet v-if="!isDesktop" v-model:open="chainSheetOpen">
+      <SheetContent side="right" class="w-full overflow-y-auto sm:max-w-sm">
+        <SheetHeader class="sr-only">
+          <SheetTitle>链视图</SheetTitle>
+          <SheetDescription>查看与编辑已绘制的链</SheetDescription>
+        </SheetHeader>
+        <ChainPanel class="border-0 shadow-none" v-bind="chainPanelProps" v-on="chainPanelListeners" />
+      </SheetContent>
+    </Sheet>
+
+    <!-- 导入题目 -->
+    <Dialog v-model:open="importOpen">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>导入题目</DialogTitle>
+          <DialogDescription>粘贴 81 位盘面文本，空格用 0 或 . 表示。导入会清空当前绘图。</DialogDescription>
+        </DialogHeader>
+        <textarea v-model="importText" rows="4" spellcheck="false" placeholder="530070000600195000…"
+          class="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 font-mono text-sm break-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          :aria-invalid="importError ? true : undefined" @keydown.enter.exact.prevent="confirmImport" />
+        <p v-if="importError" class="text-sm text-destructive">{{ importError }}</p>
+        <DialogFooter>
+          <Button variant="outline" @click="importOpen = false">取消</Button>
+          <Button @click="confirmImport">导入</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { Check, Download, Info, Trash2 } from '@lucide/vue';
-import SudokuBoard from '@/components/SudokuBoard.vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import { useMediaQuery } from '@vueuse/core';
+import { toast } from 'vue-sonner';
+import {
+  Check,
+  ChevronDown,
+  Copy,
+  Download,
+  FileCode,
+  FileInput,
+  ImageDown,
+  Redo2,
+  Trash2,
+  Undo2,
+  Waypoints,
+} from '@lucide/vue';
 import ChainPanel from '@/components/ChainPanel.vue';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import ColorSwatches from '@/components/ColorSwatches.vue';
+import PageHeader from '@/components/PageHeader.vue';
+import SegmentedControl, { type SegmentedOption } from '@/components/SegmentedControl.vue';
+import SudokuBoard from '@/components/SudokuBoard.vue';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Kbd } from '@/components/ui/kbd';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useBoardSize } from '@/composables/useBoardSize';
+import { FEATURE_BY_KEY } from '@/constants/features';
 import type { Chain, ChainStyle } from '@/types/sudoku';
+import { copyPngToClipboard, downloadBlob, toPngBlob, toSvgString } from '@/utils/exportBoard';
 import { logger } from '@/utils/logger';
+import { parsePuzzleText } from '@/utils/puzzleText';
 import {
   CHAIN_STYLES,
   DRAFT_CHAIN_ID,
@@ -172,8 +234,34 @@ interface CandidatePosition {
   candidate: number;
 }
 
-// 绘图盘面：固定示例，绘图工具只负责标注
-const board: number[][] = [
+const feature = FEATURE_BY_KEY.draw;
+const route = useRoute();
+
+const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
+
+const MODE_KEYS: Record<DrawingMode, string> = { highlight: 'H', marker: 'M', line: 'L', chain: 'C' };
+
+// 快捷键不再常驻显示在按钮上，放进悬停提示
+const MODE_OPTIONS: SegmentedOption<DrawingMode>[] = DRAWING_MODES.map((m) => ({
+  value: m.id,
+  label: m.label,
+  title: `${m.label}（${MODE_KEYS[m.id]}）`,
+}));
+const MARKER_OPTIONS: SegmentedOption<DrawMarkerType>[] = MARKER_TYPES.map((t) => ({
+  value: t,
+  label: MARKER_TYPE_LABELS[t],
+}));
+const CHAIN_STYLE_OPTIONS: SegmentedOption<ChainStyle>[] = CHAIN_STYLES.map((c) => ({ value: c.id, label: c.label }));
+
+const MODE_HINTS: Record<DrawingMode, string> = {
+  highlight: '点击单元格添加 / 移除高亮',
+  marker: '点击单元格添加标记，同格同类型同颜色再次点击取消',
+  line: '依次点击起点和终点画摒除线，起点自动加圆圈',
+  chain: '依次点击候选数添加节点，Enter 完成，Esc 取消',
+};
+
+// 默认示例盘面；可通过「导入题目」或 ?puzzle=<81位> 替换
+const DEFAULT_BOARD: number[][] = [
   [5, 3, 0, 0, 7, 0, 0, 0, 0],
   [6, 0, 0, 1, 9, 5, 0, 0, 0],
   [0, 9, 8, 0, 0, 0, 0, 6, 0],
@@ -185,19 +273,10 @@ const board: number[][] = [
   [0, 0, 0, 0, 8, 0, 0, 7, 9],
 ];
 
-const given: boolean[][] = [
-  [true, true, false, false, true, false, false, false, false],
-  [true, false, false, true, true, true, false, false, false],
-  [false, true, true, false, false, false, false, true, false],
-  [true, false, false, false, true, false, false, false, true],
-  [true, false, false, true, false, true, false, false, true],
-  [true, false, false, false, true, false, false, false, true],
-  [false, true, false, false, false, false, true, true, false],
-  [false, false, false, true, true, true, false, false, true],
-  [false, false, false, false, true, false, false, true, true],
-];
-
-const candidates = computed(() => computeCandidates(board));
+const board = ref<number[][]>(DEFAULT_BOARD);
+// 绘图盘面上的数字都视为题目给定数
+const given = computed(() => board.value.map((row) => row.map((v) => v > 0)));
+const candidates = computed(() => computeCandidates(board.value));
 
 // 绘图状态集中在 composable 中，链视图面板与盘面共享同一份
 const {
@@ -206,12 +285,14 @@ const {
   chains,
   candidateMarkers,
   draftNodes,
+  lineStart,
   selectedChainId,
   hasDrawing,
   toggleCellHighlight,
   toggleCandidateHighlight,
   toggleMarker,
   addLinePoint,
+  cancelLine,
   draftAdd,
   draftCancel,
   draftFinish,
@@ -221,6 +302,11 @@ const {
   removeChainNode,
   selectChain,
   clearAll,
+  reset,
+  undo,
+  redo,
+  canUndo,
+  canRedo,
 } = createDrawingState();
 
 // 工具栏状态
@@ -231,12 +317,18 @@ const chainArrow = ref(true);
 const currentColor = ref(DRAWING_COLORS[0]!.value);
 const selectCandidate = ref(false);
 const currentCandidate = ref<CandidatePosition | null>(null);
-const statusMessage = ref('');
 const boardRef = ref<InstanceType<typeof SudokuBoard> | null>(null);
 
-// 链模式必须选中候选数
-watch(currentMode, (mode) => {
+const boardWrapRef = ref<HTMLElement | null>(null);
+const boardSize = useBoardSize(boardWrapRef, { max: 600 });
+
+const isDesktop = useMediaQuery('(min-width: 1024px)');
+const chainSheetOpen = ref(false);
+
+// 链模式必须选中候选数；离开摒除线模式时丢弃未完成的起点
+watch(currentMode, (mode, prev) => {
   if (mode === 'chain') selectCandidate.value = true;
+  if (prev === 'line') cancelLine();
 });
 
 const candidateSelectActive = computed(
@@ -304,56 +396,143 @@ function finishChain(): void {
 
 // ---------------- 链视图面板联动 ----------------
 
-function onChainSelect(id: string): void {
-  selectChain(id);
-}
-
 function onChainClick(payload: { id: string }): void {
   if (payload.id === DRAFT_CHAIN_ID) return;
   selectChain(selectedChainId.value === payload.id ? null : payload.id);
 }
 
-function onChainUpdate(payload: { id: string; patch: Partial<Omit<Chain, 'id'>> }): void {
-  updateChain(payload.id, payload.patch);
-}
+// 桌面右栏与移动端抽屉渲染同一份面板
+const chainPanelProps = computed(() => ({
+  chains: chains.value,
+  selectedId: selectedChainId.value,
+  draftNodes: draftNodes.value,
+}));
 
-function onChainNodeRemove(payload: { id: string; index: number }): void {
-  removeChainNode(payload.id, payload.index);
-}
+const chainPanelListeners = {
+  select: (id: string) => selectChain(id),
+  remove: removeChain,
+  'toggle-visible': toggleChainVisible,
+  update: (payload: { id: string; patch: Partial<Omit<Chain, 'id'>> }) => updateChain(payload.id, payload.patch),
+  'remove-node': (payload: { id: string; index: number }) => removeChainNode(payload.id, payload.index),
+  'finish-draft': finishChain,
+  'cancel-draft': draftCancel,
+};
 
 function clearDrawing(): void {
   clearAll();
   currentCandidate.value = null;
-  statusMessage.value = '';
 }
 
-function saveAsSvg(): void {
+// ---------------- 导入题目 ----------------
+
+const importOpen = ref(false);
+const importText = ref('');
+const importError = ref('');
+
+function openImport(): void {
+  importText.value = '';
+  importError.value = '';
+  importOpen.value = true;
+}
+
+function loadPuzzle(next: number[][]): void {
+  board.value = next;
+  reset();
+  currentCandidate.value = null;
+}
+
+function confirmImport(): void {
+  const parsed = parsePuzzleText(importText.value);
+  if (!parsed) {
+    importError.value = '需要恰好 81 位数字（0 或 . 表示空格）';
+    return;
+  }
+  loadPuzzle(parsed);
+  importOpen.value = false;
+  toast.success('已导入题目');
+}
+
+// ---------------- 导出 ----------------
+
+function boardSvg(): SVGElement | null {
+  return (boardRef.value?.$el as SVGElement | undefined) ?? null;
+}
+
+const exportName = () => `sudoku-drawing-${new Date().toISOString().slice(0, 10)}`;
+
+function exportSvg(): void {
+  const svg = boardSvg();
+  if (!svg) return;
+  downloadBlob(new Blob([toSvgString(svg)], { type: 'image/svg+xml' }), `${exportName()}.svg`);
+  toast.success('已导出 SVG');
+}
+
+async function exportPng(): Promise<void> {
+  const svg = boardSvg();
+  if (!svg) return;
   try {
-    const svgElement = boardRef.value?.$el as SVGElement | undefined;
-    if (!svgElement) {
-      statusMessage.value = '找不到盘面 SVG，导出失败';
-      return;
-    }
-
-    const clonedSvg = svgElement.cloneNode(true) as SVGElement;
-    clonedSvg.setAttribute('width', '900');
-    clonedSvg.setAttribute('height', '900');
-
-    const svgString = `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(clonedSvg)}`;
-    const url = URL.createObjectURL(new Blob([svgString], { type: 'image/svg+xml' }));
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `sudoku-drawing-${new Date().toISOString().slice(0, 10)}.svg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    statusMessage.value = '已导出 SVG 图片';
+    downloadBlob(await toPngBlob(svg), `${exportName()}.png`);
+    toast.success('已导出 PNG');
   } catch (error) {
-    logger.error('导出绘图 SVG 失败:', error);
-    statusMessage.value = '导出失败，请查看控制台日志';
+    logger.error('导出 PNG 失败:', error);
+    toast.error('导出失败，请查看控制台日志');
   }
 }
+
+async function copyImage(): Promise<void> {
+  const svg = boardSvg();
+  if (!svg) return;
+  try {
+    await copyPngToClipboard(svg);
+    toast.success('已复制图片到剪贴板');
+  } catch (error) {
+    logger.error('复制图片失败:', error);
+    toast.error('复制失败，浏览器可能不支持写入图片');
+  }
+}
+
+// ---------------- 快捷键 ----------------
+
+const KEY_TO_MODE: Record<string, DrawingMode> = { h: 'highlight', m: 'marker', l: 'line', c: 'chain' };
+
+function onKeydown(e: KeyboardEvent): void {
+  if (importOpen.value) return;
+  const tag = (e.target as HTMLElement | null)?.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
+  const key = e.key.toLowerCase();
+  if (e.metaKey || e.ctrlKey) {
+    if (key === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) redo();
+      else undo();
+    } else if (key === 'y') {
+      e.preventDefault();
+      redo();
+    }
+    return;
+  }
+  if (e.altKey) return;
+
+  const mode = KEY_TO_MODE[key];
+  if (mode) {
+    currentMode.value = mode;
+  } else if (e.key === 'Enter' && draftNodes.value.length >= 2) {
+    finishChain();
+  } else if (e.key === 'Escape') {
+    draftCancel();
+    cancelLine();
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown);
+  // 识别页「在绘图工具中打开」会带上 ?puzzle=<81位>
+  const fromQuery = typeof route.query.puzzle === 'string' ? parsePuzzleText(route.query.puzzle) : null;
+  if (fromQuery) loadPuzzle(fromQuery);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown);
+});
 </script>

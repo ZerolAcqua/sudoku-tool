@@ -1,15 +1,15 @@
 <template>
     <div class="space-y-6">
-        <div class="bg-white shadow rounded-lg p-6">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">数独识别演示</h2>
-            <p class="text-gray-600 mb-6">
+        <div class="bg-card shadow rounded-lg p-6">
+            <h2 class="text-2xl font-bold text-foreground mb-4">数独识别演示</h2>
+            <p class="text-muted-foreground mb-6">
                 上传清晰的数独图片，系统会自动检测网格并识别数字。支持笔直的网格图像。
             </p>
 
             <!-- 上传区域 -->
             <div v-if="!uploadedImageSrc" ref="uploadArea"
-                class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6 transition-colors"
-                :class="{ 'border-blue-500 bg-blue-50': isDraggingOver }" @dragover.prevent="isDraggingOver = true"
+                class="border-2 border-dashed border-border rounded-lg p-8 text-center mb-6 transition-colors"
+                :class="{ 'border-brand bg-brand-container/40': isDraggingOver }" @dragover.prevent="isDraggingOver = true"
                 @dragleave.prevent="isDraggingOver = false" @drop.prevent="handleDrop">
                 <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="handleFileSelect" />
 
@@ -19,16 +19,16 @@
                         @click="fileInput?.click()" :disabled="state.isLoading">
                         选择图片
                     </button>
-                    <p class="text-gray-500 text-sm">或拖拽图片到此处</p>
-                    <p class="text-gray-400 text-xs">或按 Ctrl+V / Cmd+V 从剪切板粘贴</p>
+                    <p class="text-muted-foreground text-sm">或拖拽图片到此处</p>
+                    <p class="text-muted-foreground text-xs">或按 Ctrl+V / Cmd+V 从剪切板粘贴</p>
                 </div>
             </div>
 
             <!-- 图像裁剪区域 -->
             <div v-if="uploadedImageSrc && !originalImage" class="mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-3">裁剪图像</h3>
-                <p class="text-gray-600 mb-3 text-sm">拖动边框调整裁剪区域，确保包含完整的数独网格</p>
-                <div class="bg-gray-100 rounded-lg p-4">
+                <h3 class="text-lg font-semibold text-foreground mb-3">裁剪图像</h3>
+                <p class="text-muted-foreground mb-3 text-sm">拖动边框调整裁剪区域，确保包含完整的数独网格</p>
+                <div class="bg-muted rounded-lg p-4">
                     <Cropper
                         ref="cropperRef"
                         :src="uploadedImageSrc"
@@ -52,27 +52,27 @@
 
             <!-- 原始图像预览 -->
             <div v-if="originalImage" class="mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-3">裁剪后的图像</h3>
-                <div class="bg-gray-100 rounded-lg p-4 max-h-[600px] overflow-auto">
+                <h3 class="text-lg font-semibold text-foreground mb-3">裁剪后的图像</h3>
+                <div class="bg-muted rounded-lg p-4 max-h-[600px] overflow-auto">
                     <canvas ref="originalCanvas" class="max-w-full h-auto block"></canvas>
                 </div>
             </div>
 
             <!-- 处理后的图像预览 -->
             <div v-if="state.processedImage" class="mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-3">二值化处理后</h3>
-                <div class="bg-gray-100 rounded-lg p-4 max-h-[600px] overflow-auto">
+                <h3 class="text-lg font-semibold text-foreground mb-3">二值化处理后</h3>
+                <div class="bg-muted rounded-lg p-4 max-h-[600px] overflow-auto">
                     <canvas ref="processedCanvas" class="max-w-full h-auto block"></canvas>
                 </div>
             </div>
 
             <!-- 网格线标注 -->
             <div v-if="state.gridImage" class="mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-3">识别的网格线（红色标注）</h3>
-                <div class="bg-gray-100 rounded-lg p-4 max-h-[600px] overflow-auto">
+                <h3 class="text-lg font-semibold text-foreground mb-3">识别的网格线（红色标注）</h3>
+                <div class="bg-muted rounded-lg p-4 max-h-[600px] overflow-auto">
                     <canvas ref="gridCanvas" class="max-w-full h-auto block"></canvas>
                 </div>
-                <p class="text-sm text-gray-600 mt-2">
+                <p class="text-sm text-muted-foreground mt-2">
                     • 粗红线：外框和宫线（3×3分割线）<br>
                     • 细红线：单元格分割线
                 </p>
@@ -80,36 +80,36 @@
 
             <!-- 全量检测线可视化 -->
             <div v-if="state.detectedLinesImage" class="mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-3">全量检测线（各阈值版本，不同颜色）</h3>
-                <div class="bg-gray-100 rounded-lg p-4 max-h-[600px] overflow-auto">
+                <h3 class="text-lg font-semibold text-foreground mb-3">全量检测线（各阈值版本，不同颜色）</h3>
+                <div class="bg-muted rounded-lg p-4 max-h-[600px] overflow-auto">
                     <canvas ref="detectedLinesCanvas" class="max-w-full h-auto block"></canvas>
                 </div>
-                <p class="text-sm text-gray-600 mt-2">每种颜色对应一个二值化阈值版本的检测结果</p>
+                <p class="text-sm text-muted-foreground mt-2">每种颜色对应一个二值化阈值版本的检测结果</p>
             </div>
 
             <!-- 单元格可视化 -->
             <div v-if="state.cellsVisualization" class="mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-3">提取的单元格（9×9 预览）</h3>
-                <div class="bg-gray-100 rounded-lg p-4 overflow-auto">
+                <h3 class="text-lg font-semibold text-foreground mb-3">提取的单元格（9×9 预览）</h3>
+                <div class="bg-muted rounded-lg p-4 overflow-auto">
                     <canvas ref="cellsVisualizationCanvas" class="block"></canvas>
                 </div>
-                <p class="text-sm text-gray-600 mt-2">上图显示提取出的 81 个单元格，用于调试网格检测和单元格提取</p>
+                <p class="text-sm text-muted-foreground mt-2">上图显示提取出的 81 个单元格，用于调试网格检测和单元格提取</p>
             </div>
 
             <!-- 识别结果 -->
             <div v-if="state.result" class="mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-3">识别结果（可手动修改）</h3>
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-4">
+                <h3 class="text-lg font-semibold text-foreground mb-3">识别结果（可手动修改）</h3>
+                <div class="bg-muted/50 border border-border rounded-lg p-6 mb-4">
                     <div class="grid grid-cols-9 gap-1 w-fit">
                         <input v-for="(digit, idx) in editableDigits" :key="idx"
-                            class="w-10 h-10 text-center bg-white border border-gray-300 rounded text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
-                            :class="{ 'text-gray-400': digit === '0' }"
+                            class="w-10 h-10 text-center bg-card border border-border rounded text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-ring"
+                            :class="{ 'text-muted-foreground': digit === '0' }"
                             maxlength="1"
                             inputmode="numeric"
                             :value="digit === '0' ? '' : digit"
                             @input="updateDigit(idx, ($event.target as HTMLInputElement).value)" />
                     </div>
-                    <p class="text-xs text-gray-500 mt-2">留空表示空格（0）</p>
+                    <p class="text-xs text-muted-foreground mt-2">留空表示空格（0）</p>
                 </div>
 
                 <div class="flex gap-3">
@@ -125,15 +125,15 @@
             </div>
 
             <!-- 错误提示 -->
-            <div v-if="state.error" class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-900 mb-6">
+            <div v-if="state.error" class="bg-error-container border border-destructive/30 rounded-lg p-4 text-error-container-foreground mb-6">
                 {{ state.error }}
             </div>
 
             <!-- 加载状态 -->
             <div v-if="state.isLoading" class="text-center py-8">
                 <div class="inline-block">
-                    <div class="w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-                    <p class="text-gray-600 mt-2">正在识别数独...</p>
+                    <div class="w-8 h-8 border-4 border-border border-t-brand rounded-full animate-spin"></div>
+                    <p class="text-muted-foreground mt-2">正在识别数独...</p>
                 </div>
             </div>
 
@@ -147,17 +147,17 @@
         </div>
 
         <!-- 单数字识别测试 -->
-        <div class="bg-white shadow rounded-lg p-6">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">单数字识别测试</h2>
-            <p class="text-gray-600 mb-4 text-sm">
+        <div class="bg-card shadow rounded-lg p-6">
+            <h2 class="text-2xl font-bold text-foreground mb-4">单数字识别测试</h2>
+            <p class="text-muted-foreground mb-4 text-sm">
                 上传裁剪好的单个数字图片，查看预处理结果和模型预测。用于调试识别效果。
             </p>
 
             <div class="flex flex-col sm:flex-row gap-4 mb-4">
                 <div class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">上传数字图片</label>
+                    <label class="block text-sm font-medium text-foreground mb-2">上传数字图片</label>
                     <div
-                        class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                        class="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-outline transition-colors"
                         @click="digitFileInput?.click()"
                         @dragover.prevent
                         @drop.prevent="handleDigitDrop"
@@ -169,14 +169,14 @@
                             class="hidden"
                             @change="handleDigitFileSelect"
                         />
-                        <p v-if="!digitImageSrc" class="text-gray-500 text-sm">点击选择或拖拽图片</p>
+                        <p v-if="!digitImageSrc" class="text-muted-foreground text-sm">点击选择或拖拽图片</p>
                         <img v-else :src="digitImageSrc" class="max-h-32 mx-auto object-contain" />
                     </div>
                 </div>
 
                 <div v-if="digitDebugCanvas" class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">预处理后 (28x28)</label>
-                    <div class="border border-gray-300 rounded p-2 inline-block bg-gray-50">
+                    <label class="block text-sm font-medium text-foreground mb-2">预处理后 (28x28)</label>
+                    <div class="border border-border rounded p-2 inline-block bg-muted/50">
                         <canvas ref="digitDebugCanvasRef" class="block" width="140" height="140"></canvas>
                     </div>
                 </div>
@@ -191,20 +191,20 @@
                 {{ digitLoading ? '识别中...' : '识别数字' }}
             </button>
 
-            <div v-if="digitResult" class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h4 class="font-semibold text-gray-900 mb-2">识别结果</h4>
-                <p class="text-2xl font-bold text-blue-600">{{ digitResult.digit }} (0-9)</p>
-                <p class="text-sm text-gray-600 mt-1">置信度: {{ (digitResult.confidence * 100).toFixed(1) }}%</p>
+            <div v-if="digitResult" class="bg-muted/50 border border-border rounded-lg p-4">
+                <h4 class="font-semibold text-foreground mb-2">识别结果</h4>
+                <p class="text-2xl font-bold text-brand">{{ digitResult.digit }} (0-9)</p>
+                <p class="text-sm text-muted-foreground mt-1">置信度: {{ (digitResult.confidence * 100).toFixed(1) }}%</p>
                 <details class="mt-2">
-                    <summary class="text-xs text-gray-500 cursor-pointer">各类别概率</summary>
+                    <summary class="text-xs text-muted-foreground cursor-pointer">各类别概率</summary>
                     <div class="mt-1 space-y-0.5">
                         <div v-for="(prob, idx) in digitResult.allProbs" :key="idx"
                             class="flex items-center gap-2 text-xs">
-                            <span class="w-6 text-right text-gray-500">{{ idx }}</span>
-                            <div class="flex-1 bg-gray-200 rounded h-3">
-                                <div class="bg-blue-500 rounded h-3" :style="{ width: (prob * 100) + '%' }"></div>
+                            <span class="w-6 text-right text-muted-foreground">{{ idx }}</span>
+                            <div class="flex-1 bg-muted rounded h-3">
+                                <div class="bg-brand rounded h-3" :style="{ width: (prob * 100) + '%' }"></div>
                             </div>
-                            <span class="w-12 text-gray-600">{{ (prob * 100).toFixed(1) }}%</span>
+                            <span class="w-12 text-muted-foreground">{{ (prob * 100).toFixed(1) }}%</span>
                         </div>
                     </div>
                 </details>
@@ -212,9 +212,9 @@
         </div>
 
         <!-- 说明 -->
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 class="text-lg font-semibold text-blue-900 mb-3">使用说明</h3>
-            <ul class="text-blue-800 space-y-2 text-sm">
+        <div class="bg-brand-container/40 border border-brand/30 rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-brand-container-foreground mb-3">使用说明</h3>
+            <ul class="text-brand-container-foreground space-y-2 text-sm">
                 <li>• 上传清晰的数独截图（暂不支持纸质数独拍照）</li>
                 <li>• 识别结果中 · 表示空白单元格，数字 1-9 表示识别到的数字</li>
                 <li>• 如果识别效果不佳，可以调整图像对比度后重试</li>

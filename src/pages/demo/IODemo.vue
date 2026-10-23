@@ -43,7 +43,7 @@
                 <h3 class="text-lg font-semibold mb-2">已保存的盘面：</h3>
                 <div class="flex flex-wrap gap-2">
                     <button v-for="(puzzle, index) in savedPuzzles" :key="index" @click="loadSavedPuzzle(index)"
-                        class="px-3 py-1 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 transition-colors">
+                        class="px-3 py-1 bg-muted border border-border rounded hover:bg-secondary transition-colors">
                         盘面 {{ index + 1 }} ({{ puzzle.timestamp }})
                     </button>
                 </div>

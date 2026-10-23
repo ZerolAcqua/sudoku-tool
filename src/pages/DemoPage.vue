@@ -1,33 +1,33 @@
 <template>
   <div class="page-container">
-    <h1 class="page-title mb-2">组件展示</h1>
-    <p class="text-sm text-muted-foreground mb-8">
-      盘面组件与 OCR 流水线的功能预览，用于开发验证，不属于正式功能入口。
-    </p>
+    <PageHeader title="组件展示" description="开发沙箱：盘面组件与 OCR 流水线的功能预览，用于开发验证，不属于正式功能入口。" />
 
-    <Tabs v-model="activeTab" class="gap-6">
-      <TabsList>
-        <TabsTrigger v-for="tab in tabs" :key="tab.id" :value="tab.id">{{ tab.label }}</TabsTrigger>
-      </TabsList>
+    <div>
+      <Tabs v-model="activeTab" class="gap-6">
+        <TabsList>
+          <TabsTrigger v-for="tab in tabs" :key="tab.id" :value="tab.id">{{ tab.label }}</TabsTrigger>
+        </TabsList>
 
-      <TabsContent value="basic">
-        <BasicDemo v-if="mounted.has('basic')" />
-      </TabsContent>
-      <TabsContent value="interactive">
-        <InteractiveDemo v-if="mounted.has('interactive')" />
-      </TabsContent>
-      <TabsContent value="io">
-        <IODemo v-if="mounted.has('io')" />
-      </TabsContent>
-      <TabsContent value="ocr">
-        <OCRDemo v-if="mounted.has('ocr')" />
-      </TabsContent>
-    </Tabs>
+        <TabsContent value="basic">
+          <BasicDemo v-if="mounted.has('basic')" />
+        </TabsContent>
+        <TabsContent value="interactive">
+          <InteractiveDemo v-if="mounted.has('interactive')" />
+        </TabsContent>
+        <TabsContent value="io">
+          <IODemo v-if="mounted.has('io')" />
+        </TabsContent>
+        <TabsContent value="ocr">
+          <OCRDemo v-if="mounted.has('ocr')" />
+        </TabsContent>
+      </Tabs>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, defineAsyncComponent, onMounted, watch } from 'vue'
+import PageHeader from '@/components/PageHeader.vue'
 import BasicDemo from './demo/BasicDemo.vue'
 import InteractiveDemo from './demo/InteractiveDemo.vue'
 import IODemo from './demo/IODemo.vue'

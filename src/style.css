@@ -8,61 +8,71 @@
 
 /* ============================================================
    设计 token：颜色的唯一来源
-   下面这组是 Material 3 light scheme 的颜色角色，种子色 = 品牌蓝 #2563eb。
+   结构沿用 Material 3 颜色角色；取值是「纸感极简」：暖白纸底 + 暖灰墨色 + 细描边，
+   品牌蓝 #2563eb 只留给主操作、链接与盘面选中格。
    改颜色只改这里；@theme 与组件都从这里取值。
    ============================================================ */
 :root {
   --color-primary: #2563eb;
   --color-primary-darken-1: #1d4ed8;
   --color-on-primary: #ffffff;
-  --color-primary-container: #dbe1ff;
-  --color-on-primary-container: #001551;
+  --color-primary-container: #dfe7ff;
+  --color-on-primary-container: #1b2f80;
 
-  --color-secondary: #565e71;
+  --color-secondary: #6b6760;
   --color-on-secondary: #ffffff;
-  --color-secondary-container: #dae2f9;
-  --color-on-secondary-container: #131c2b;
+  --color-secondary-container: #efede8;
+  --color-on-secondary-container: #1c1b19;
 
-  /* 页面底色：与 surface(#ffffff) 拉开足够对比，避免整屏泛白、卡片边界不清。
-     M3 原值 #f2f3f8 与纯白亮度只差约 4%，实测观感过于接近白色。 */
-  --color-background: #e6e8f0;
-  --color-on-background: #1a1b20;
+  /* 页面是纸，卡片 / 盘面是纸上的白页：两者只差一档亮度，靠细描边分界，不靠阴影 */
+  --color-background: #faf9f6;
+  --color-on-background: #1c1b19;
   --color-surface: #ffffff;
-  --color-on-surface: #1a1b20;
-  --color-surface-light: #f7f8fc;
+  --color-on-surface: #1c1b19;
+  --color-surface-light: #f5f4f0;
   --color-surface-bright: #ffffff;
-  --color-surface-variant: #e2e2ec;
-  --color-on-surface-variant: #45464f;
-  --color-outline: #767680;
-  --color-outline-variant: #c6c6d0;
+  --color-surface-variant: #f1efea;
+  --color-on-surface-variant: #6b6760;
+  --color-outline: #a19d94;
+  --color-outline-variant: #e6e3dd;
   --color-scrim: #000000;
-  --color-inverse-surface: #2f3033;
-  --color-inverse-on-surface: #f1f0f4;
+  --color-inverse-surface: #262522;
+  --color-inverse-on-surface: #f4f2ee;
 
-  --color-error: #ba1a1a;
+  --color-error: #c2352b;
   --color-on-error: #ffffff;
-  --color-error-container: #ffdad6;
-  --color-on-error-container: #410002;
-  --color-success: #146c2e;
+  --color-error-container: #fbeae7;
+  --color-on-error-container: #6e1a13;
+  --color-success: #2f7d4a;
   --color-on-success: #ffffff;
+  --color-success-container: #e6f2e9;
+  --color-on-success-container: #123b20;
   --color-info: #00639b;
   --color-on-info: #ffffff;
   --color-warning: #8a5100;
   --color-on-warning: #ffffff;
 
-  /* 品牌色：accent 即 M3 primary。
-     注意 shadcn 的 `accent` 语义是「浅色 hover 底」，与本项目的品牌蓝不同名同义。
-     本项目 `accent` 沿用品牌蓝（AGENTS.md 约定），shadcn 组件用到的 hover 底走 `secondary`。 */
+  /* 品牌色别名（历史命名）。注意 Tailwind 里的 `accent` 是 shadcn 语义的浅色 hover 底，
+     品牌蓝的工具类是 `brand-*`，见下方 @theme。 */
   --color-accent: var(--color-primary);
   --color-accent-dark: var(--color-primary-darken-1);
 
-  /* 盘面专用色 */
-  --color-given-num: #000000;
-  --color-user-num: #0066cc;
-  --color-cand: #1b1b1b;
+  /* 盘面：墨色数字、品牌蓝填数、低调的候选数 */
+  --color-given-num: #1c1b19;
+  --color-user-num: var(--color-primary);
+  --color-cand: #76716a;
+
+  /* 盘面网格：宫线 / 外框用墨色，格线用浅灰，粗细对比代替颜色对比 */
+  --color-board-line: #1c1b19;
+  --color-board-line-thin: #c4bfb6;
+
+  /* 盘面交互态：只有选中格用品牌蓝，同行列宫与悬停用中性暖灰，避免满盘泛蓝 */
+  --color-board-focus: var(--color-primary-container);
+  --color-board-hover: #ece9e3;
+  --color-board-related: #f4f2ee;
 
   /* 圆角基准（shadcn 组件按 --radius 派生 lg/md/sm） */
-  --radius: 0.625rem;
+  --radius: 0.5rem;
 }
 
 /* ============================================================
@@ -112,6 +122,13 @@
   --color-outline: var(--color-outline);
   --color-outline-variant: var(--color-outline-variant);
   --color-success: var(--color-success);
+  --color-success-foreground: var(--color-on-success);
+  --color-success-container: var(--color-success-container);
+  --color-success-container-foreground: var(--color-on-success-container);
+  --color-error-container: var(--color-error-container);
+  --color-error-container-foreground: var(--color-on-error-container);
+  --color-inverse-surface: var(--color-inverse-surface);
+  --color-inverse-surface-foreground: var(--color-inverse-on-surface);
   --color-info: var(--color-info);
   --color-warning: var(--color-warning);
 
@@ -124,7 +141,9 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
 
-  --font-sans: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  /* Inter 只含拉丁字形，中文按平台回退到各自的无衬线黑体 */
+  --font-sans: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif;
   --font-board: 'Noto Serif', Georgia, serif;
 }
 
@@ -158,15 +177,14 @@
   /* 页面布局。
      必须显式 w-full：页面根元素处于 App.vue 的 flex 列容器里，
      而 flex item 上的 margin-inline:auto（mx-auto）会抑制 stretch，
-     使元素收缩到内容宽度、max-w-7xl 失效。 */
-  .page-container { @apply w-full max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8; }
-  .page-title { @apply text-3xl font-bold text-foreground mb-8; }
+     使元素收缩到内容宽度、max-w 失效。
+     版心 max-w-5xl：纸感排版偏窄，盘面 + 侧栏正好铺满；导航与首页同宽，左右边缘对齐。 */
+  .page-container { @apply w-full max-w-5xl mx-auto py-8 px-4 sm:py-12 sm:px-6 lg:px-8; }
   .section-title { @apply text-xl font-semibold text-foreground mb-4; }
 
-  /* 卡片 */
+  /* 以下 .card / .btn* 仅剩 Demo 沙箱在用；正式页面统一用 shadcn 的 Card / Button */
   .card { @apply bg-card text-card-foreground shadow rounded-lg p-6; }
 
-  /* 按钮 */
   .btn { @apply inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50; }
   .btn-primary {
     @apply inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-transparent text-brand-foreground shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50;
@@ -175,6 +193,4 @@
   .btn-primary:hover:not(:disabled) {
     background-color: var(--color-primary-darken-1);
   }
-  .btn-success { @apply inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-transparent bg-green-600 text-white shadow-sm transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50; }
-  .btn-danger { @apply inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-transparent bg-red-600 text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50; }
 }

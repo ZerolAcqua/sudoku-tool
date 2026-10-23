@@ -5,15 +5,15 @@
       <h2 class="section-title">不同尺寸的数独盘面（展示模式无交互）</h2>
       <div class="flex flex-wrap items-end justify-center gap-8">
         <div class="flex flex-col items-center">
-          <p class="text-sm text-gray-600 mb-2">小尺寸 (300px)</p>
+          <p class="text-sm text-muted-foreground mb-2">小尺寸 (300px)</p>
           <SudokuBoard :board="board" :given="given" :size="300" mode="display" />
         </div>
         <div class="flex flex-col items-center">
-          <p class="text-sm text-gray-600 mb-2">默认尺寸 (450px)</p>
+          <p class="text-sm text-muted-foreground mb-2">默认尺寸 (450px)</p>
           <SudokuBoard :board="board" :given="given" :size="450" mode="display" />
         </div>
         <div class="flex flex-col items-center">
-          <p class="text-sm text-gray-600 mb-2">大尺寸 (600px)</p>
+          <p class="text-sm text-muted-foreground mb-2">大尺寸 (600px)</p>
           <SudokuBoard :board="board" :given="given" :size="600" mode="display" />
         </div>
       </div>
@@ -23,7 +23,7 @@
     <div class="card mb-8">
       <h2 class="section-title">已知数与填入数的区别</h2>
       <div class="flex flex-col items-center gap-4">
-        <p class="text-sm text-gray-600">黑色数字为题目给定的明数，蓝色数字为玩家填入的数字。</p>
+        <p class="text-sm text-muted-foreground">黑色数字为题目给定的明数，蓝色数字为玩家填入的数字。</p>
         <SudokuBoard :board="boardWithUserInput" :given="given" mode="display" />
       </div>
     </div>
@@ -32,7 +32,7 @@
     <div class="card mb-8">
       <h2 class="section-title">候选数示例</h2>
       <div class="flex flex-col items-center gap-4">
-        <p class="text-sm text-gray-600">展示在空格中的候选数（笔记），数字在格内按 3×3 小网格排布。</p>
+        <p class="text-sm text-muted-foreground">展示在空格中的候选数（笔记），数字在格内按 3×3 小网格排布。</p>
         <SudokuBoard :board="board" :given="given" :showCandidates="true" :candidates="candidates" mode="display" />
       </div>
     </div>

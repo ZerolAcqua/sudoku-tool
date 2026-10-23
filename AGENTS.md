@@ -17,8 +17,11 @@
 ## 架构
 
 - `src/pages/` 路由页；`src/pages/demo/` Demo 子组件（`OCRDemo` 体积约 16MB，必须用 `defineAsyncComponent` 懒加载，勿同步引入）
-- `src/components/` 通用组件。`SudokuBoard` 是**配置化 SVG 组件**（非 canvas），完全由 props 驱动；`SudokuHighlight/Markers/Chains/CandidateHighlights` 是它的各绘图层；`ChainPanel` 是绘图页右侧的链视图面板（纯 props + emit，不直接改状态）
-- `src/composables/` 可复用逻辑（`useDrawingState` = 绘图页的高亮/标记/摒除线/链状态与操作，工厂函数，每个绘图页一份）；`src/stores/` Pinia 状态；`src/utils/` 纯工具（`utils/ocr/` 为 OCR 流水线）
+- `src/components/` 通用组件。`SudokuBoard` 是**配置化 SVG 组件**（非 canvas），完全由 props 驱动；`SudokuHighlight/Markers/Chains/CandidateHighlights` 是它的各绘图层；`ChainPanel` 是绘图页的链视图面板（纯 props + emit，不直接改状态）；`PageHeader` 是功能页统一页头；`NumberPad` 是九宫数字键盘；`SegmentedControl` 是全站单选切换（封装 ToggleGroup，保证不会被点成无选中）；`ColorSwatches` 是绘图色板
+- `src/components/ui/` 是 shadcn-vue 组件（reka-ui）。用 `npx shadcn-vue@latest add <name>` 添加；CLI 会把 `cn` 误当成 npm 包安装并生成 `from "cn"`，需卸掉该包并改回 `@/lib/utils`
+- `src/composables/` 可复用逻辑（`useDrawingState` = 绘图页的高亮/标记/摒除线/链状态、操作与撤销栈，工厂函数，每个绘图页一份；`useBoardSize` = 盘面尺寸跟随容器宽度）；`src/stores/` Pinia 状态；`src/utils/` 纯工具（`utils/ocr/` 为 OCR 流水线，`exportBoard` 为盘面导出，`puzzleText` 为 81 位文本互转）
+- `src/constants/features.ts` 功能入口单一来源（首页功能卡与各页 `PageHeader` 的标题、图标）
+- 轻提示统一用 `vue-sonner` 的 `toast()`（`App.vue` 已挂 `<Toaster />`），不要再手写浮层
 - `src/types/sudoku.ts` 数独领域类型（高亮/标记/链的配置结构）
 - `ml/` 训练/部署脚本，独立于 Vite 构建；`test/` OCR 测试
 - 路由（`src/router/index.ts`）：除首页静态导入外，其余页面 `() => import(...)` 懒加载
@@ -26,10 +29,15 @@
 ## 样式约定（务必遵守）
 
 - 全部用 TailwindCSS 工具类，不写内联 `style`（例外：盘面 SVG 的绘制属性、数据驱动的颜色 swatch）
-- **设计 token 单一来源**：`src/style.css` 的 `:root` 定义 `--color-*`；`tailwind.config.js` 只做映射（`accent`/`given-num`/`user-num`/`cand`）。改颜色只改 `:root`，禁止在组件里再声明 hex 或 `--color-*`
-- 品牌色 = `accent`（`#2563eb`）；UI 界面（背景/卡片/导航/文字）坚持 gray 灰色系 + accent
-- **语义工具类**：`src/style.css` 的 `@layer components` 定义了 `.page-container`/`.page-title`/`.section-title`/`.card`/`.stat-card`/`.stat-label`/`.stat-value`/`.btn`/`.btn-primary`/`.btn-success`/`.btn-danger`/`.form-select`。优先复用，不要重新堆同样的类组合
-- 盘面绘制颜色（高亮/标记/链）是**数据驱动**的（props 的 `color` 字段），允许高饱和色；`.btn-success`/`.btn-danger` 是既定语义按钮。这些不违反「UI 用灰色系」
+- **设计 token 单一来源**：`src/style.css` 的 `:root` 定义 `--color-*`（Material 3 颜色角色）；同文件的 `@theme inline` 只做映射，生成 `bg-primary`/`text-muted-foreground` 等工具类（Tailwind v4，无 `tailwind.config.js`）。改颜色只改 `:root`，禁止在组件里再声明 hex 或 `--color-*`
+- **命名注意**：品牌蓝（`#2563eb`）的工具类是 `brand-*`（`bg-brand`、`bg-brand-container`…）；`accent` 在 Tailwind 里是 shadcn 语义的浅色 hover 底，**不是**品牌色。`background` 是页面灰底，卡片/弹层用 `card`
+- 正误语义色用 `success`/`destructive` 及 `success-container`/`error-container`，不要用 `green-*`/`red-*`；盘面交互态（选中/悬停/同行列宫）用 `--color-board-focus/hover/related`
+- **视觉风格：纸感极简**。暖白纸底（`background`）+ 白页（`card`/盘面）+ 细描边分界，**不用阴影**（弹层除外）；界面字体 Inter，盘面与数字键盘用衬线（`font-board`）
+- **品牌蓝克制使用**：只用于主操作按钮、链接、盘面选中格与少量强调；选中态一律中性——导航 / 分类用 `bg-muted text-foreground`，单选切换用 `SegmentedControl`（浅灰槽 + 白色滑块），不要再写 `data-[state=on]:bg-brand`
+- **页面结构**：功能页 = `.page-container`（版心 `max-w-5xl`，与导航同宽）内放 `<PageHeader>` + 内容；盘面直接放在纸面上，不套卡片；次级面板（统计、链列表）用无阴影的 `Card`；控制条直接落在纸面上
+- 盘面网格线用 `vector-effect="non-scaling-stroke"` 按屏幕像素计宽（格线 1px 浅灰、宫线 / 外框 2px 墨色），颜色走 `--color-board-line(-thin)`
+- **语义工具类**：`src/style.css` 的 `@layer components` 保留 `.page-container`/`.section-title`；`.card`/`.btn`/`.btn-primary` 仅剩 Demo 沙箱使用，正式页面用 shadcn 的 `Card`/`Button`
+- 盘面绘制颜色（高亮/标记/链）是**数据驱动**的（props 的 `color` 字段），允许高饱和色，不违反「UI 用灰色系」
 
 ## 代码风格
 

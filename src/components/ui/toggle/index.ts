@@ -11,6 +11,9 @@ export const toggleVariants = cva(
         default: "bg-transparent",
         outline:
           "border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground",
+        // 分段控件：浅灰槽里的白色滑块（配合 SegmentedControl 使用），选中态不用品牌色
+        segmented:
+          "bg-transparent text-muted-foreground hover:bg-transparent hover:text-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-xs",
       },
       size: {
         default: "h-9 px-2 min-w-9",

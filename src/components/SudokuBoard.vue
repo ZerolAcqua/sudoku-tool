@@ -1,26 +1,31 @@
 <template>
-  <!-- 盘面字体钉在 svg 根节点：数字、候选数、标记文字一律不受 UI 字体（Roboto 等）影响 -->
+  <!-- 盘面字体钉在 svg 根节点：数字、候选数、标记文字一律不受 UI 字体（Inter 等）影响 -->
   <svg :width="props.size" :height="props.size" viewBox="-10 -10 920 920" role="grid" aria-label="Sudoku board"
     font-family="'Noto Serif', Georgia, serif" @mousedown.prevent class="sudoku-svg">
-    <!-- Background -->
-    <rect x="-10" y="-10" width="920" height="920" fill="white" />
+    <!-- Background：白页只铺到网格范围，外框之外的留白透出页面纸色（导出时 exportBoard 会补白底） -->
+    <rect x="0" y="0" width="900" height="900" fill="var(--color-surface)" />
 
     <!-- Cell highlight backgrounds (for user selected) -->
     <g v-if="props.selected && mode === 'interactive'">
       <!-- Draw union of row/col/box related cells once each -->
       <rect v-for="cell in relatedCells" :key="'hl-' + cell.row + '-' + cell.col" :x="cell.col * 100"
-        :y="cell.row * 100" width="100" height="100" fill="#E8F4F8" opacity="0.5" pointer-events="none" />
+        :y="cell.row * 100" width="100" height="100" fill="var(--color-board-related)" pointer-events="none" />
     </g>
+
+    <!-- Selected cell background（画在网格线之下，不遮挡格线） -->
+    <rect v-if="props.selected && selectedCol !== null && selectedRow !== null && mode === 'interactive'"
+      :x="selectedCol * 100" :y="selectedRow * 100" width="100" height="100" fill="var(--color-board-focus)"
+      pointer-events="none" />
 
     <!-- Focus cell highlight (practice uses same colors as interactive) -->
     <g
       v-if="props.focusCell && focusCol !== null && focusRow !== null && (mode === 'practice' || mode === 'interactive')">
       <!-- Focus cell background -->
-      <rect :x="focusCol * 100" :y="focusRow * 100" width="100" height="100" fill="#D6ECFF" opacity="0.85"
+      <rect :x="focusCol * 100" :y="focusRow * 100" width="100" height="100" fill="var(--color-board-focus)"
         pointer-events="none" />
       <!-- Related cells highlight -->
       <rect v-for="cell in focusRelatedCells" :key="'focus-hl-' + cell.row + '-' + cell.col" :x="cell.col * 100"
-        :y="cell.row * 100" width="100" height="100" fill="#E8F4F8" opacity="0.5" pointer-events="none" />
+        :y="cell.row * 100" width="100" height="100" fill="var(--color-board-related)" pointer-events="none" />
     </g>
 
     <!-- Candidate emphasis layer (filled circles behind candidates) -->
@@ -32,8 +37,7 @@
       :cx="hoveredCandidate.col * 100 + getCandidateX(hoveredCandidate.candidate)"
       :cy="hoveredCandidate.row * 100 + getCandidateY(hoveredCandidate.candidate)"
       r="14"
-      fill="#BBDEFB"
-      opacity="0.6"
+      fill="var(--color-board-hover)"
       pointer-events="none"
     />
 
@@ -43,8 +47,7 @@
       :cx="selectedCandidate.col * 100 + getCandidateX(selectedCandidate.candidate)"
       :cy="selectedCandidate.row * 100 + getCandidateY(selectedCandidate.candidate)"
       r="14"
-      fill="#D6ECFF"
-      opacity="0.85"
+      fill="var(--color-board-focus)"
       pointer-events="none"
     />
     <circle
@@ -60,7 +63,7 @@
 
     <!-- Hover highlight (only in interactive mode, not in practice mode) -->
     <rect v-if="hoveredCell && mode === 'interactive' && !props.focusCell" :x="hoveredCell.col * 100"
-      :y="hoveredCell.row * 100" width="100" height="100" fill="#BBDEFB" opacity="0.5" pointer-events="none" />
+      :y="hoveredCell.row * 100" width="100" height="100" fill="var(--color-board-hover)" pointer-events="none" />
 
     <!-- Custom highlights layer -->
     <SudokuHighlight v-if="customHighlights.length > 0" :highlights="customHighlights" :cellSize="100" />
@@ -104,40 +107,32 @@
         @mouseleave="hoveredCell = null" style="cursor: pointer" />
     </g>
 
-    <!-- Grid lines -->
-    <!-- Thin cell lines -->
-    <g stroke="black" stroke-opacity="0.8" stroke-width="2.0" stroke-linecap="square">
-      <line v-for="i in 8" :key="'vthin' + i" :x1="i * 100" y1="0" :x2="i * 100" y2="900" />
-      <line v-for="i in 8" :key="'hthin' + i" x1="0" :y1="i * 100" x2="900" :y2="i * 100" />
+    <!-- Grid lines
+         线宽用 non-scaling-stroke 按屏幕像素计：盘面放大缩小、导出 900px 时粗细都一致。
+         格线浅灰 1px，宫线与外框墨色 2px，靠粗细与明度区分层级。 -->
+    <g stroke="var(--color-board-line-thin)" stroke-width="1" vector-effect="non-scaling-stroke">
+      <template v-for="i in 8" :key="'thin' + i">
+        <line v-if="i % 3 !== 0" :x1="i * 100" y1="0" :x2="i * 100" y2="900" vector-effect="non-scaling-stroke" />
+        <line v-if="i % 3 !== 0" x1="0" :y1="i * 100" x2="900" :y2="i * 100" vector-effect="non-scaling-stroke" />
+      </template>
     </g>
-    <!-- Thick box lines (inner only) -->
-    <g stroke="black" stroke-width="5" stroke-linecap="square">
-      <line v-for="i in 2" :key="'vbox' + i" :x1="i * 300" y1="0" :x2="i * 300" y2="900" />
-      <line v-for="i in 2" :key="'hbox' + i" x1="0" :y1="i * 300" x2="900" :y2="i * 300" />
-    </g>
-
-    <!-- Outer border (below selection borders) -->
-    <g stroke="black" stroke-width="8" stroke-linecap="square">
-      <line x1="0" y1="0" x2="900" y2="0" />
-      <line x1="900" y1="0" x2="900" y2="900" />
-      <line x1="900" y1="900" x2="0" y2="900" />
-      <line x1="0" y1="900" x2="0" y2="0" />
+    <g stroke="var(--color-board-line)" stroke-width="2" stroke-linecap="square">
+      <template v-for="i in 2" :key="'box' + i">
+        <line :x1="i * 300" y1="0" :x2="i * 300" y2="900" vector-effect="non-scaling-stroke" />
+        <line x1="0" :y1="i * 300" x2="900" :y2="i * 300" vector-effect="non-scaling-stroke" />
+      </template>
+      <rect x="0" y="0" width="900" height="900" fill="none" vector-effect="non-scaling-stroke" />
     </g>
 
     <!-- Selected cell border -->
-    <!-- Selected cell background -->
     <rect v-if="props.selected && selectedCol !== null && selectedRow !== null && mode === 'interactive'"
-      :x="selectedCol * 100" :y="selectedRow * 100" width="100" height="100" fill="#D6ECFF" opacity="0.85"
-      pointer-events="none" />
-
-    <!-- Selected cell border -->
-    <rect v-if="props.selected && selectedCol !== null && selectedRow !== null && mode === 'interactive'"
-      :x="selectedCol * 100" :y="selectedRow * 100" width="100" height="100" fill="none" stroke="var(--color-accent)"
-      stroke-width="4" rx="6" pointer-events="none" />
+      :x="selectedCol * 100 + 4" :y="selectedRow * 100 + 4" width="92" height="92" rx="8" fill="none"
+      stroke="var(--color-accent)" stroke-width="2" vector-effect="non-scaling-stroke" pointer-events="none" />
 
     <!-- Focus cell border (for practice mode) -->
-    <rect v-if="props.focusCell && focusCol !== null && focusRow !== null" :x="focusCol * 100" :y="focusRow * 100"
-      width="100" height="100" fill="none" stroke="var(--color-accent)" stroke-width="4" rx="6" pointer-events="none" />
+    <rect v-if="props.focusCell && focusCol !== null && focusRow !== null" :x="focusCol * 100 + 4"
+      :y="focusRow * 100 + 4" width="92" height="92" rx="8" fill="none" stroke="var(--color-accent)" stroke-width="2"
+      vector-effect="non-scaling-stroke" pointer-events="none" />
 
     <!-- Numbers -->
     <g text-anchor="middle" dominant-baseline="central">
@@ -154,7 +149,7 @@
         <template v-for="(cellCands, c) in row" :key="'cand-' + r + '-' + c">
           <g v-if="cellCands && cellCands.length > 0">
             <text v-for="n in cellCands" :key="'cand-' + r + '-' + c + '-' + n"
-              :x="(c as number) * 100 + getCandidateX(n)" :y="(r as number) * 100 + getCandidateY(n)" font-size="22"
+              :x="(c as number) * 100 + getCandidateX(n)" :y="(r as number) * 100 + getCandidateY(n)" font-size="19"
               fill="var(--color-cand)" text-anchor="middle" dominant-baseline="central" pointer-events="none">{{ n
               }}</text>
           </g>

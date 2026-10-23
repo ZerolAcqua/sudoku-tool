@@ -1,18 +1,20 @@
 <template>
-  <nav class="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
-    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <div class="flex h-16 items-center justify-between gap-4">
+  <nav class="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+      <div class="flex h-14 items-center justify-between gap-4">
         <!-- Logo -->
-        <router-link to="/" class="flex shrink-0 items-center gap-2 text-xl font-semibold text-foreground">
+        <!-- Logo：墨色字标 + 线条九宫，不用实心色块 -->
+        <router-link to="/" class="flex shrink-0 items-center gap-2 text-[15px] font-semibold tracking-tight text-foreground">
+          <Grid3x3 class="size-5" :stroke-width="1.75" />
           <span class="hidden sm:inline">丘卡的数独小站</span>
         </router-link>
 
         <!-- 桌面导航 -->
         <div class="hidden items-center gap-1 md:flex">
           <router-link v-for="item in navItems" :key="item.path" :to="item.path"
-            class="rounded-md px-3 py-2 text-sm font-medium transition-colors" :class="isActive(item.path)
-              ? 'bg-brand-container text-brand-container-foreground'
-              : 'text-muted-foreground hover:bg-secondary hover:text-foreground'">
+            class="rounded-md px-3 py-1.5 text-sm transition-colors" :class="isActive(item.path)
+              ? 'bg-muted font-medium text-foreground'
+              : 'text-muted-foreground hover:text-foreground'">
             {{ item.name }}
           </router-link>
         </div>
@@ -31,9 +33,9 @@
             </SheetHeader>
             <div class="flex flex-col gap-1 px-4">
               <router-link v-for="item in navItems" :key="item.path" :to="item.path"
-                class="rounded-md px-3 py-2.5 text-base font-medium transition-colors" :class="isActive(item.path)
-                  ? 'bg-brand-container text-brand-container-foreground'
-                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'"
+                class="rounded-md px-3 py-2.5 text-base transition-colors" :class="isActive(item.path)
+                  ? 'bg-muted font-medium text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'"
                 @click="mobileMenuOpen = false">
                 {{ item.name }}
               </router-link>
@@ -48,7 +50,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { Menu } from '@lucide/vue'
+import { Grid3x3, Menu } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 

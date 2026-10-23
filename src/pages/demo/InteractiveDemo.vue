@@ -3,7 +3,7 @@
         <div class="card mb-8">
             <h2 class="section-title">唯余练习模式（程序给定目标格）</h2>
             <div class="flex flex-col items-center gap-4">
-                <p class="text-sm text-gray-600">测试不同的高亮类型：行唯一数、列唯一数、宫唯一数、唯一余数</p>
+                <p class="text-sm text-muted-foreground">测试不同的高亮类型：行唯一数、列唯一数、宫唯一数、唯一余数</p>
                 <SudokuBoard :board="board" :given="given" :focusCell="practiceCell" :focusHighlight="highlightType"
                     mode="practice" />
             </div>
@@ -12,13 +12,13 @@
         <div class="card mb-8">
             <h2 class="section-title">交互模式（用户点击选中目标格）</h2>
             <div class="flex flex-col items-center gap-4">
-                <p class="text-sm text-gray-600">点击单元格选中，选中状态会持续显示</p>
+                <p class="text-sm text-muted-foreground">点击单元格选中，选中状态会持续显示</p>
                 <SudokuBoard :board="board" :given="given" :selected="selectedCell" @cell-click="onCellSelect"
                     mode="interactive" />
-                <p v-if="selectedCell" class="text-sm text-gray-700">
+                <p v-if="selectedCell" class="text-sm text-foreground">
                     当前选中: r{{ selectedCell.row + 1 }}c{{ selectedCell.col + 1 }}
                 </p>
-                    <p v-else class="text-sm text-gray-700">
+                    <p v-else class="text-sm text-foreground">
                     请点击任意单元格
                 </p>
             </div>
@@ -27,15 +27,15 @@
         <div class="card mb-8">
             <h2 class="section-title">候选数交互模式</h2>
             <div class="flex flex-col items-center gap-4">
-                <p class="text-sm text-gray-600">点击候选数进行选择，悬浮和选中时显示高亮效果</p>
+                <p class="text-sm text-muted-foreground">点击候选数进行选择，悬浮和选中时显示高亮效果</p>
                 <SudokuBoard :board="board" :given="given" :showCandidates="true" :candidates="candidates"
                     :selectedCandidate="selectedCandidateDemo" @candidate-click="onCandidateSelect" mode="candidate" />
-                <p v-if="selectedCandidateDemo" class="text-sm text-gray-700">
+                <p v-if="selectedCandidateDemo" class="text-sm text-foreground">
                     当前选中候选数: {{
                         selectedCandidateDemo.candidate }}r{{ selectedCandidateDemo.row + 1 }}c{{ selectedCandidateDemo.col
                         + 1 }}
                 </p>
-                <p v-else class="text-sm text-gray-700">
+                <p v-else class="text-sm text-foreground">
                     请点击任意候选数
                 </p>
             </div>

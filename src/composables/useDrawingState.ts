@@ -23,16 +23,17 @@ export interface DrawingColor {
   value: string;
 }
 
-// 绘图颜色单一来源：面板色板与工具栏共用，避免两处硬编码
+// 绘图颜色单一来源：面板色板与工具栏共用，避免两处硬编码。
+// 八色明度与饱和度相近（同一档「step 9」），叠在白盘面上不刺眼；黄色是数独标注最常用的高亮色
 export const DRAWING_COLORS: DrawingColor[] = [
-  { name: '红色', value: '#f44336' },
-  { name: '粉色', value: '#e91e63' },
-  { name: '紫色', value: '#9c27b0' },
-  { name: '蓝色', value: '#2196f3' },
-  { name: '青色', value: '#00bcd4' },
-  { name: '绿色', value: '#4caf50' },
-  { name: '橙色', value: '#ff9800' },
-  { name: '棕色', value: '#795548' },
+  { name: '红色', value: '#e5484d' },
+  { name: '橙色', value: '#f76b15' },
+  { name: '黄色', value: '#e5a50a' },
+  { name: '绿色', value: '#30a46c' },
+  { name: '青色', value: '#12a594' },
+  { name: '蓝色', value: '#3e63dd' },
+  { name: '紫色', value: '#8e4ec6' },
+  { name: '粉色', value: '#d6409f' },
 ];
 
 export const DRAWING_MODES: Array<{ id: DrawingMode; label: string }> = [
@@ -145,9 +146,72 @@ export function createDrawingState() {
   const lineStart = ref<CellPosition | null>(null);
   const selectedChainId = ref<string | null>(null);
 
+  // ---------------- 撤销 / 重做 ----------------
+  // 快照只覆盖已落盘的绘图（草稿链、摒除线起点、选中态属于临时交互，不入栈）。
+  // 每个改动函数在修改前调用 commit()。
+
+  interface Snapshot {
+    highlights: CellHighlight[];
+    markers: CellMarker[];
+    chains: Chain[];
+    candidateMarkers: CandidateMarker[];
+  }
+
+  const HISTORY_LIMIT = 100;
+  const past = ref<Snapshot[]>([]);
+  const future = ref<Snapshot[]>([]);
+
+  // 绘图数据都是纯 JSON 结构，JSON 往返即可得到脱离响应式的深拷贝
+  function snapshot(): Snapshot {
+    return JSON.parse(
+      JSON.stringify({
+        highlights: highlights.value,
+        markers: markers.value,
+        chains: chains.value,
+        candidateMarkers: candidateMarkers.value,
+      })
+    );
+  }
+
+  function restore(s: Snapshot): void {
+    highlights.value = s.highlights;
+    markers.value = s.markers;
+    chains.value = s.chains;
+    candidateMarkers.value = s.candidateMarkers;
+    lineStart.value = null;
+    if (selectedChainId.value && !s.chains.some((c) => c.id === selectedChainId.value)) {
+      selectedChainId.value = null;
+    }
+  }
+
+  function commit(): void {
+    past.value.push(snapshot());
+    if (past.value.length > HISTORY_LIMIT) past.value.shift();
+    future.value = [];
+  }
+
+  function undo(): void {
+    const prev = past.value.pop();
+    if (!prev) return;
+    future.value.push(snapshot());
+    restore(prev);
+  }
+
+  function redo(): void {
+    const next = future.value.pop();
+    if (!next) return;
+    past.value.push(snapshot());
+    restore(next);
+  }
+
+  const canUndo = computed(() => past.value.length > 0);
+  const canRedo = computed(() => future.value.length > 0);
+
   // ---------------- 高亮 ----------------
 
-  function toggleCellHighlight(pos: CellPosition, color: string, opacity = 0.5): void {
+  // 高亮透明度偏低：纸感盘面上浅色铺底即可辨认，太浓会压住数字
+  function toggleCellHighlight(pos: CellPosition, color: string, opacity = 0.35): void {
+    commit();
     const index = highlights.value.findIndex((h) =>
       h.cells.some((cell) => cell.row === pos.row && cell.col === pos.col)
     );
@@ -161,8 +225,9 @@ export function createDrawingState() {
   function toggleCandidateHighlight(
     pos: CellPosition & { candidate: number },
     color: string,
-    opacity = 0.6
+    opacity = 0.5
   ): void {
+    commit();
     const index = candidateMarkers.value.findIndex(
       (m) => m.row === pos.row && m.col === pos.col && m.candidate === pos.candidate
     );
@@ -176,6 +241,7 @@ export function createDrawingState() {
   // ---------------- 标记 ----------------
 
   function toggleMarker(pos: CellPosition, type: DrawMarkerType, color: string): void {
+    commit();
     const size = MARKER_SIZES[type];
     const index = markers.value.findIndex(
       (m) => m.cell?.row === pos.row && m.cell?.col === pos.col && m.type === type
@@ -200,6 +266,7 @@ export function createDrawingState() {
 
   function addLinePoint(pos: CellPosition, color: string, strokeWidth = 3): void {
     if (!lineStart.value) {
+      commit();
       lineStart.value = { ...pos };
       markers.value.push({
         cell: { ...pos },
@@ -213,6 +280,7 @@ export function createDrawingState() {
 
     if (lineStart.value.row === pos.row && lineStart.value.col === pos.col) return;
 
+    commit();
     markers.value.push({
       cells: [{ ...lineStart.value }, { ...pos }],
       type: 'line',
@@ -242,13 +310,27 @@ export function createDrawingState() {
     draftNodes.value = [];
   }
 
-  function addChain(input: Omit<Chain, 'id'> & { id?: string }): string | null {
+  // 不记录历史的内部版本：供已经 commit 过的复合操作调用，避免一次操作入栈两次
+  function insertChain(input: Omit<Chain, 'id'> & { id?: string }): string | null {
     const cells = normalizeChainNodes(input.cells);
     if (cells.length < 2) return null;
 
     const id = input.id ?? nextChainId();
     chains.value.push({ ...input, id, cells });
     return id;
+  }
+
+  function deleteChain(id: string): void {
+    const index = chains.value.findIndex((c) => c.id === id);
+    if (index < 0) return;
+    chains.value.splice(index, 1);
+    if (selectedChainId.value === id) selectedChainId.value = null;
+  }
+
+  function addChain(input: Omit<Chain, 'id'> & { id?: string }): string | null {
+    if (normalizeChainNodes(input.cells).length < 2) return null;
+    commit();
+    return insertChain(input);
   }
 
   // 结束草稿链：节点不足 2 个时丢弃
@@ -262,19 +344,20 @@ export function createDrawingState() {
   function updateChain(id: string, patch: Partial<Omit<Chain, 'id'>>): void {
     const chain = chains.value.find((c) => c.id === id);
     if (!chain) return;
+    commit();
     Object.assign(chain, patch);
   }
 
   function removeChain(id: string): void {
-    const index = chains.value.findIndex((c) => c.id === id);
-    if (index < 0) return;
-    chains.value.splice(index, 1);
-    if (selectedChainId.value === id) selectedChainId.value = null;
+    if (!chains.value.some((c) => c.id === id)) return;
+    commit();
+    deleteChain(id);
   }
 
   function toggleChainVisible(id: string): void {
     const chain = chains.value.find((c) => c.id === id);
     if (!chain) return;
+    commit();
     chain.visible = chain.visible === false;
   }
 
@@ -282,11 +365,12 @@ export function createDrawingState() {
     const chain = chains.value.find((c) => c.id === id);
     if (!chain || index < 0 || index >= chain.cells.length) return;
 
+    commit();
     chain.cells.splice(index, 1);
     // 节点数变化后逐段颜色无法对齐，直接回退为统一链色
     delete chain.segmentColors;
 
-    if (chain.cells.length < 2) removeChain(id);
+    if (chain.cells.length < 2) deleteChain(id);
   }
 
   function selectChain(id: string | null): void {
@@ -294,17 +378,28 @@ export function createDrawingState() {
   }
 
   function clearChains(): void {
+    if (chains.value.length > 0) commit();
     chains.value = [];
     draftNodes.value = [];
     selectedChainId.value = null;
   }
 
   function clearAll(): void {
+    if (hasDrawing.value) commit();
     highlights.value = [];
     markers.value = [];
     candidateMarkers.value = [];
-    clearChains();
+    chains.value = [];
+    draftNodes.value = [];
+    selectedChainId.value = null;
     lineStart.value = null;
+  }
+
+  // 换题时使用：清空绘图且丢弃历史（旧盘面上的绘图撤销回来没有意义）
+  function reset(): void {
+    clearAll();
+    past.value = [];
+    future.value = [];
   }
 
   const visibleChains = computed(() => chains.value.filter((c) => c.visible !== false));
@@ -348,6 +443,12 @@ export function createDrawingState() {
     selectChain,
     clearChains,
     clearAll,
+    reset,
+    // 历史
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   };
 }
 

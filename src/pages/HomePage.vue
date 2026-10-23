@@ -7,12 +7,12 @@
   <div class="flex flex-1 flex-col">
     <div class="flex-1">
       <!-- Hero -->
-      <section class="border-b border-border bg-card">
-      <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+      <section>
+      <div class="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
         <div class="grid items-center gap-10 lg:grid-cols-2">
           <div>
-            <p class="text-sm font-medium text-brand">让数独更简单 · 让思考更有趣</p>
-            <h1 class="mt-3 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+            <p class="text-sm text-muted-foreground">让数独更简单 · 让思考更有趣</p>
+            <h1 class="mt-3 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
               欢迎来到<br />丘卡的数独小站
             </h1>
             <p class="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
@@ -31,42 +31,27 @@
             </div>
           </div>
 
-          <!-- Hero 插图：盘面示意 + 浮起数字 -->
-          <div class="relative hidden justify-center lg:flex">
-            <div class="relative">
-              <div class="grid size-56 grid-cols-3 gap-1 rounded-2xl border-2 border-brand bg-card p-2 shadow-lg">
-                <div v-for="i in 9" :key="'hero-' + i"
-                  class="grid place-items-center rounded-md text-2xl font-semibold text-muted-foreground"
-                  :class="i % 2 === 0 ? 'bg-secondary' : 'bg-card'">
-                  {{ [5, 3, 7, 6, 1, 9, 8, 4, 2][i - 1] }}
-                </div>
-              </div>
-              <span
-                class="absolute -left-6 top-4 grid size-12 place-items-center rounded-xl bg-brand text-xl font-bold text-brand-foreground shadow-md">1</span>
-              <span
-                class="absolute -right-5 top-1/2 grid size-12 place-items-center rounded-xl bg-card text-xl font-bold text-brand shadow-md ring-1 ring-border">9</span>
-              <span
-                class="absolute -bottom-4 left-10 grid size-12 place-items-center rounded-xl bg-brand-container text-xl font-bold text-brand-container-foreground shadow-md">3</span>
-            </div>
+          <!-- Hero 插图：一张真实盘面 + 少量标注，展示「纸上推理」的样子 -->
+          <div class="hidden justify-center lg:flex" aria-hidden="true">
+            <SudokuBoard :board="HERO_BOARD" :given="HERO_GIVEN" :size="360" :showCandidates="false" mode="display"
+              :customHighlights="HERO_HIGHLIGHTS" :markers="HERO_MARKERS" />
           </div>
         </div>
       </div>
     </section>
 
       <!-- 功能入口 -->
-      <section class="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      <section class="mx-auto w-full max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <router-link v-for="feature in features" :key="feature.path" :to="feature.path" class="group">
-            <Card class="h-full transition-shadow group-hover:shadow-md">
+            <Card class="h-full transition-colors group-hover:border-foreground/30">
               <CardHeader>
-                <span class="grid size-11 place-items-center rounded-lg bg-brand-container text-brand">
-                  <component :is="feature.icon" class="size-5" />
-                </span>
-                <CardTitle class="mt-3">{{ feature.title }}</CardTitle>
+                <component :is="feature.icon" class="size-5 text-foreground" :stroke-width="1.5" />
+                <CardTitle class="mt-3 text-base font-medium">{{ feature.title }}</CardTitle>
                 <CardDescription>{{ feature.description }}</CardDescription>
               </CardHeader>
               <CardContent>
-                <span class="inline-flex items-center gap-1 text-sm font-medium text-brand">
+                <span class="inline-flex items-center gap-1 text-sm text-brand">
                   {{ feature.action }}
                   <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
@@ -78,9 +63,9 @@
     </div>
 
     <!-- 底栏：仅首页。作为 flex 列的兄弟节点，由上面的 flex-1 内容区把它顶到底部 -->
-    <footer class="border-t border-border bg-card">
-      <div class="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-6 sm:flex-row sm:gap-3 sm:px-6 lg:px-8">
-        <Lightbulb class="size-4 shrink-0 text-brand" />
+    <footer class="border-t border-border">
+      <div class="mx-auto flex max-w-5xl flex-col items-center gap-2 px-4 py-6 sm:flex-row sm:gap-3 sm:px-6 lg:px-8">
+        <Lightbulb class="size-4 shrink-0 text-muted-foreground" />
         <p class="text-center text-xs text-muted-foreground sm:text-left sm:text-sm">
           数独，数字与孤独……
         </p>
@@ -91,38 +76,31 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowRight, Grid3x3, Lightbulb, PenLine, ScanText, BookOpen } from '@lucide/vue'
+import { ArrowRight, Lightbulb } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import SudokuBoard from '@/components/SudokuBoard.vue'
+import { FEATURES as features } from '@/constants/features'
+import { DRAWING_COLORS } from '@/composables/useDrawingState'
+import type { CellHighlight, CellMarker } from '@/types/sudoku'
 
-const features = [
-  {
-    title: '唯余练习',
-    description: '多种题型、多种难度，专项训练唯余判断能力。',
-    action: '开始练习',
-    path: '/practice',
-    icon: Grid3x3,
-  },
-  {
-    title: '绘图工具',
-    description: '标记候选数、链、摒除线等，探索数独的更多解法。',
-    action: '进入工具',
-    path: '/draw',
-    icon: PenLine,
-  },
-  {
-    title: '数独识别',
-    description: '上传图片智能识别，快速生成可编辑盘面。',
-    action: '开始识别',
-    path: '/solver',
-    icon: ScanText,
-  },
-  {
-    title: '数独教程',
-    description: '千题千解，图文详解，掌握解题思路。',
-    action: '查看教程',
-    path: '/tutorial',
-    icon: BookOpen,
-  },
+// Hero 示例盘面：经典开局题，高亮第 5 列并圈出一个可确定的格子
+const HERO_BOARD: number[][] = [
+  [5, 3, 0, 0, 7, 0, 0, 0, 0],
+  [6, 0, 0, 1, 9, 5, 0, 0, 0],
+  [0, 9, 8, 0, 0, 0, 0, 6, 0],
+  [8, 0, 0, 0, 6, 0, 0, 0, 3],
+  [4, 0, 0, 8, 0, 3, 0, 0, 1],
+  [7, 0, 0, 0, 2, 0, 0, 0, 6],
+  [0, 6, 0, 0, 0, 0, 2, 8, 0],
+  [0, 0, 0, 4, 1, 9, 0, 0, 5],
+  [0, 0, 0, 0, 8, 0, 0, 7, 9],
 ]
+const HERO_GIVEN = HERO_BOARD.map((row) => row.map((v) => v > 0))
+const yellow = DRAWING_COLORS.find((c) => c.name === '黄色')!.value
+const blue = DRAWING_COLORS.find((c) => c.name === '蓝色')!.value
+const HERO_HIGHLIGHTS: CellHighlight[] = [
+  { cells: Array.from({ length: 9 }, (_, row) => ({ row, col: 4 })), color: yellow, opacity: 0.18 },
+]
+const HERO_MARKERS: CellMarker[] = [{ cell: { row: 4, col: 4 }, type: 'circle', color: blue, size: 35, strokeWidth: 3 }]
 </script>
