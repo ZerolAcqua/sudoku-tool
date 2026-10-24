@@ -17,9 +17,9 @@
 ## 架构
 
 - `src/pages/` 路由页；`src/pages/demo/` Demo 子组件（`OCRDemo` 体积约 16MB，必须用 `defineAsyncComponent` 懒加载，勿同步引入）
-- `src/components/` 通用组件。`SudokuBoard` 是**配置化 SVG 组件**（非 canvas），完全由 props 驱动；`SudokuHighlight/Markers/Chains/CandidateHighlights` 是它的各绘图层；`ChainPanel` 是绘图页的链视图面板（纯 props + emit，不直接改状态）；`PageHeader` 是功能页统一页头；`NumberPad` 是九宫数字键盘；`SegmentedControl` 是全站单选切换（封装 ToggleGroup，保证不会被点成无选中）；`ColorSwatches` 是绘图色板
+- `src/components/` 通用组件。`SudokuBoard` 是**配置化 SVG 组件**（非 canvas），完全由 props 驱动；`SudokuHighlight/Markers/Chains/CandidateHighlights` 是它的各绘图层；`ChainPanel` 是绘图页的链视图面板（纯 props + emit，不直接改状态）；`PageHeader` 是功能页统一页头；`NumberPad` 是九宫数字键盘；`SegmentedControl` 是全站单选切换（封装 ToggleGroup，保证不会被点成无选中）；`ColorSwatches` 是绘图色板；`FlickInput` 是练习页盘面上的手势输入层（点按 = 5，八方向滑动 = 九宫键盘同方位数字）
 - `src/components/ui/` 是 shadcn-vue 组件（reka-ui）。用 `npx shadcn-vue@latest add <name>` 添加；CLI 会把 `cn` 误当成 npm 包安装并生成 `from "cn"`，需卸掉该包并改回 `@/lib/utils`
-- `src/composables/` 可复用逻辑（`useDrawingState` = 绘图页的高亮/标记/摒除线/链状态、操作与撤销栈，工厂函数，每个绘图页一份；`useBoardSize` = 盘面尺寸跟随容器宽度）；`src/stores/` Pinia 状态；`src/utils/` 纯工具（`utils/ocr/` 为 OCR 流水线，`exportBoard` 为盘面导出，`puzzleText` 为 81 位文本互转）
+- `src/composables/` 可复用逻辑（`useDrawingState` = 绘图页的高亮/标记/摒除线/链状态、操作与撤销栈，工厂函数，每个绘图页一份；`useBoardSize` = 盘面尺寸跟随容器，`fitHeight` / `reserveWidth` 用于一屏布局）；`src/stores/` Pinia 状态；`src/utils/` 纯工具（`utils/ocr/` 为 OCR 流水线，`exportBoard` 为盘面导出，`puzzleText` 为 81 位文本互转）
 - `src/constants/features.ts` 功能入口单一来源（首页功能卡与各页 `PageHeader` 的标题、图标）
 - 轻提示统一用 `vue-sonner` 的 `toast()`（`App.vue` 已挂 `<Toaster />`），不要再手写浮层
 - `src/types/sudoku.ts` 数独领域类型（高亮/标记/链的配置结构）
@@ -34,6 +34,7 @@
 - 正误语义色用 `success`/`destructive` 及 `success-container`/`error-container`，不要用 `green-*`/`red-*`；盘面交互态（选中/悬停/同行列宫）用 `--color-board-focus/focus-ring/hover/related`（暖黄系），用户填数用 `--color-user-num`（赭色）
 - **视觉风格：纸感极简**。暖白纸底（`background`）+ 白页（`card`/盘面）+ 细描边分界，**不用阴影**（弹层除外）；界面字体 Inter，盘面与数字键盘用衬线（`font-board`）
 - **不用冷色品牌蓝**：它在暖纸面上显得突兀。主按钮 / 开关 / 焦点环用墨色；链接用墨色 + 下划线；彩色强调只用荧光笔黄（盘面选中格、新纪录、连击），且要克制。选中态一律中性——导航 / 分类用 `bg-muted text-foreground`，单选切换用 `SegmentedControl`（浅灰槽 + 白色滑块）
+- **一屏布局**：`App.vue` 外壳 `h-dvh`，只有 `main` 内部可滚动。桌面端（lg）页面应恰好一屏、不出滚动条：页面根加 `lg:min-h-0`（否则会被内容撑高），盘面所在区域用 `lg:min-h-0 lg:flex-1` 吃掉剩余高度，`useBoardSize` 开 `fitHeight` 按宽高较小者定边长；网格行用 `lg:grid-rows-[minmax(0,1fr)]` 防止内容反向撑高；非盘面的方块预览可用容器查询（`[container-type:size]` + `size-[100cqmin]`）。窄屏允许滚动
 - **页面结构**：功能页 = `.page-container`（版心 `max-w-5xl`，与导航同宽）内放 `<PageHeader>` + 内容；盘面直接放在纸面上，不套卡片；次级面板（统计、链列表）用无阴影的 `Card`；控制条直接落在纸面上
 - 盘面网格线用 `vector-effect="non-scaling-stroke"` 按屏幕像素计宽（格线 1px 浅灰、宫线 / 外框 2px 墨色），颜色走 `--color-board-line(-thin)`
 - **语义工具类**：`src/style.css` 的 `@layer components` 保留 `.page-container`/`.section-title`；`.card`/`.btn`/`.btn-primary` 仅剩 Demo 沙箱使用，正式页面用 shadcn 的 `Card`/`Button`

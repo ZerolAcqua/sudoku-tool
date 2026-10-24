@@ -1,10 +1,12 @@
 <template>
   <TooltipProvider>
-    <!-- 全高列：让各页面能撑满视口（首页页脚据此贴底），footer 本身仍由页面自行提供 -->
-    <div class="flex min-h-screen flex-col">
+    <!-- 一屏布局：外壳恰好等于视口高度，导航固定在上，内容区占满剩余高度。
+         页面按剩余高度排版（盘面按可用高度缩放），桌面端不出现整页滚动；
+         内容确实放不下时（小屏 / 长内容）只在 main 内部滚动。 -->
+    <div class="flex h-dvh flex-col">
       <AppNav />
 
-      <main class="flex flex-1 flex-col">
+      <main class="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <RouterView />
       </main>
     </div>

@@ -1,5 +1,6 @@
 <template>
-  <div class="page-container">
+  <!-- lg:min-h-0：页面高度严格等于可用高度，不被内容（如初始尺寸的盘面）撑高，盘面才能按剩余高度缩放 -->
+  <div class="page-container lg:min-h-0">
     <PageHeader :title="feature.title" description="在给定盘面中找出唯一能填的数字，训练唯余判断的准确度与速度">
       <template #actions>
         <Button :variant="isSessionComplete ? 'default' : 'outline'" title="快捷键 R" @click="restart()">
@@ -9,117 +10,108 @@
       </template>
     </PageHeader>
 
-    <!-- 控制条：题型 / 模式 / 会话状态，直接落在纸面上，不套卡片 -->
-    <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
-      <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <div class="flex items-center gap-2.5">
-          <span class="text-sm text-muted-foreground">题型</span>
-          <SegmentedControl v-model="uiMode" :options="TYPE_OPTIONS" aria-label="题型" />
-        </div>
-        <div class="flex items-center gap-2.5">
-          <span class="text-sm text-muted-foreground">模式</span>
-          <SegmentedControl v-model="practiceMode" :options="MODE_OPTIONS" aria-label="练习模式" />
-        </div>
-      </div>
-
-      <!-- 会话状态 -->
-      <div v-if="practiceMode === 'timed'" class="flex items-center gap-3">
-        <div class="h-1 w-24 overflow-hidden rounded-full bg-muted">
-          <div class="h-full rounded-full transition-all duration-500"
-            :class="[timeLeft <= 30 ? 'bg-destructive' : 'bg-foreground', pctClass(elapsedPct)]" />
-        </div>
-        <span class="min-w-12 text-right text-lg font-medium tabular-nums"
-          :class="timeLeft <= 30 ? 'text-destructive' : 'text-foreground'">{{ formatTime(timeLeft) }}</span>
-      </div>
-      <div v-else-if="practiceMode === 'sprint'" class="flex items-center gap-3">
-        <div class="h-1 w-24 overflow-hidden rounded-full bg-muted">
-          <div class="h-full rounded-full bg-foreground transition-all duration-300"
-            :class="pctClass((stats.total / sprintTarget) * 100)" />
-        </div>
-        <span class="text-lg font-medium tabular-nums text-foreground">
-          {{ stats.total }}<span class="text-sm text-muted-foreground"> / {{ sprintTarget }}</span>
-        </span>
-      </div>
-      <span v-else class="text-sm text-muted-foreground">
-        已练习 <span class="font-medium tabular-nums text-foreground">{{ stats.total }}</span> 题
-      </span>
-    </div>
-
-    <!-- 盘面 + 侧栏 -->
-    <!-- 盘面贴左、侧栏贴右：内容左右边缘分别与页头标题、操作按钮对齐 -->
-    <div class="mt-8 grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,620px)_minmax(0,300px)] lg:justify-between lg:gap-10">
-      <!-- 盘面：本身就是纸上的一张白页，不再套卡片 -->
-      <section class="min-w-0">
-        <div class="flex items-baseline justify-between gap-3 text-sm">
-          <p class="min-w-0 truncate">
-            <span class="font-medium text-foreground">{{ modeMeta.label }}</span>
-            <span class="text-muted-foreground"> · {{ modeMeta.hint }}</span>
-          </p>
-          <div class="flex shrink-0 items-center gap-4 text-muted-foreground">
-            <!-- 连击：数值变化时重新挂载，触发轻微弹出 -->
-            <span :key="'streak-' + stats.streak" title="连击：连续答对的题数"
-              class="inline-flex items-center gap-1 tabular-nums"
-              :class="stats.streak > 0 ? 'font-medium text-foreground animate-in zoom-in-90 duration-200' : ''">
-              <Flame class="size-3.5" :class="stats.streak >= 5 ? 'text-highlight-strong' : ''" />
-              {{ stats.streak }}
-            </span>
-            <span class="tabular-nums">第 {{ questionNo }} 题</span>
-          </div>
-        </div>
-
-        <div ref="boardWrapRef" class="mt-3 flex">
+    <!-- 舞台：桌面端吃满剩余高度；盘面边长 = min(舞台高, 舞台宽 − 侧栏)，侧栏拉伸到与盘面等高 -->
+    <div ref="stageRef" class="lg:min-h-0 lg:flex-1">
+      <div class="grid grid-cols-1 gap-8 lg:grid-cols-[auto_300px] lg:justify-between">
+        <!-- 盘面 + 手势层：点按 = 5，滑动 = 九宫方位 -->
+        <FlickInput class="justify-self-center lg:self-start" :disabled="inputLocked" @input="onNumberInput"
+          @preview="gesturePreview = $event">
           <SudokuBoard :board="board" :given="given" :size="boardSize" :showCandidates="false"
             :focusCell="focusCell" :focusHighlight="focusHighlight" mode="practice" />
-        </div>
+        </FlickInput>
 
-        <!-- 答题反馈：只用文字与图标着色，不铺色块 -->
-        <div class="mt-4 flex h-6 items-center text-sm" aria-live="polite">
-          <span v-if="feedback" class="inline-flex items-center gap-1.5"
-            :class="feedback.correct ? 'text-success' : 'text-destructive'">
-            <component :is="feedback.correct ? CircleCheck : CircleX" class="size-4" />
-            <template v-if="feedback.correct">正确，答案是 {{ feedback.answer }}</template>
-            <template v-else>答错了，正确答案是 {{ feedback.answer }}</template>
-          </span>
-          <span v-else-if="!isRunning" class="text-muted-foreground">本次练习已结束，点击「再来一局」继续</span>
-          <span v-else class="text-muted-foreground">按键盘 1–9 作答，R 重新开始</span>
-        </div>
-      </section>
-
-      <!-- 侧栏 -->
-      <aside class="flex flex-col gap-6 lg:sticky lg:top-20">
-        <NumberPad :disabled="inputLocked" @input="onNumberInput" />
-
-        <Card class="gap-0 p-5">
-          <div class="flex items-baseline justify-between">
-            <span class="text-sm text-muted-foreground">正确率</span>
-            <span class="text-2xl font-semibold tabular-nums text-foreground">{{ accuracyPct }}%</span>
+        <!-- 侧栏：设置 → 当前题 → 统计 → 反馈 → 键盘（贴底，与盘面底边对齐） -->
+        <aside class="flex min-w-0 flex-col gap-5">
+          <div class="flex flex-col gap-2.5">
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-sm text-muted-foreground">题型</span>
+              <SegmentedControl v-model="uiMode" :options="TYPE_OPTIONS" aria-label="题型" />
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-sm text-muted-foreground">模式</span>
+              <SegmentedControl v-model="practiceMode" :options="MODE_OPTIONS" aria-label="练习模式" />
+            </div>
           </div>
 
-          <dl class="mt-4 divide-y divide-border border-t border-border text-sm">
-            <div v-for="row in statRows" :key="row.label" class="flex items-center justify-between py-2">
-              <dt class="text-muted-foreground">{{ row.label }}</dt>
-              <dd class="tabular-nums text-foreground">{{ row.value }}</dd>
+          <!-- 当前题 -->
+          <div class="border-t border-border pt-4">
+            <div class="flex items-baseline justify-between gap-3 text-sm">
+              <span class="font-medium text-foreground">{{ modeMeta.label }}</span>
+              <span class="tabular-nums text-muted-foreground">第 {{ questionNo }} 题</span>
             </div>
-            <div class="flex items-center justify-between py-2">
-              <dt class="text-muted-foreground">答对 / 答错</dt>
-              <dd class="tabular-nums">
-                <span class="text-success">{{ stats.correct }}</span>
-                <span class="text-muted-foreground"> / </span>
-                <span class="text-destructive">{{ stats.wrong }}</span>
-              </dd>
+            <p class="mt-1 text-sm text-muted-foreground">{{ modeMeta.hint }}</p>
+
+            <!-- 会话进度：限时 = 剩余时间，冲刺 = 完成题数 -->
+            <div v-if="practiceMode !== 'free'" class="mt-3 flex items-center gap-3">
+              <div class="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                <div class="h-full rounded-full transition-all duration-500" :class="practiceMode === 'timed'
+                  ? [timeLeft <= 30 ? 'bg-destructive' : 'bg-foreground', pctClass(elapsedPct)]
+                  : ['bg-foreground', pctClass((stats.total / sprintTarget) * 100)]" />
+              </div>
+              <span v-if="practiceMode === 'timed'" class="text-sm font-medium tabular-nums"
+                :class="timeLeft <= 30 ? 'text-destructive' : 'text-foreground'">{{ formatTime(timeLeft) }}</span>
+              <span v-else class="text-sm font-medium tabular-nums text-foreground">
+                {{ stats.total }}<span class="text-muted-foreground"> / {{ sprintTarget }}</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- 统计：一行四格；悬停正确率查看分类明细 -->
+          <dl class="grid grid-cols-4 border-t border-border pt-4 text-center">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <div tabindex="0" class="cursor-default rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+                  <dd class="text-lg font-semibold tabular-nums text-foreground">{{ accuracyPct }}%</dd>
+                  <dt class="text-xs text-muted-foreground underline decoration-dotted underline-offset-4">正确率</dt>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <dl class="grid grid-cols-[auto_auto] gap-x-4 gap-y-0.5">
+                  <template v-for="row in modeRows" :key="row.mode">
+                    <dt>{{ row.label }}</dt>
+                    <dd class="text-right tabular-nums">{{ row.text }}</dd>
+                  </template>
+                </dl>
+              </TooltipContent>
+            </Tooltip>
+            <div v-for="cell in statCells" :key="cell.label">
+              <dd class="text-lg font-semibold tabular-nums" :class="cell.tone">{{ cell.value }}</dd>
+              <dt class="text-xs text-muted-foreground">{{ cell.label }}</dt>
             </div>
           </dl>
 
-          <!-- 分类正确率：行集合只由「题型」决定，无数据时也占位，侧栏高度整局恒定 -->
-          <p class="mt-5 text-xs text-muted-foreground">分类正确率</p>
-          <dl class="mt-1.5 text-sm">
-            <div v-for="row in modeRows" :key="row.mode" class="flex items-center justify-between py-1">
-              <dt class="text-muted-foreground">{{ row.label }}</dt>
-              <dd class="tabular-nums text-foreground">{{ row.text }}</dd>
+          <!-- 最近答题：答对中性灰、答错红色，只让错题跳出来；无数据时占位，侧栏高度不跳 -->
+          <div>
+            <p class="mb-2 text-xs text-muted-foreground">最近 {{ RECENT_COUNT }} 题</p>
+            <div class="grid grid-cols-[repeat(20,minmax(0,1fr))] gap-0.5">
+              <span v-for="(item, i) in recentSlots" :key="'recent-' + i" class="h-2 rounded-[2px]" :class="item === null
+                ? 'bg-muted'
+                : item.correct ? 'bg-muted-foreground/35' : 'bg-destructive'"
+                :title="item ? `${item.correct ? '正确' : '错误'} · ${formatMs(item.durationMs)}` : undefined" />
             </div>
-          </dl>
-        </Card>
-      </aside>
+          </div>
+
+          <!-- 答题反馈：只用文字与图标着色，不铺色块；mt-auto 把它和键盘一起压到底部 -->
+          <div class="mt-auto flex h-5 items-center text-sm" aria-live="polite">
+            <span v-if="feedback" class="inline-flex items-center gap-1.5"
+              :class="feedback.correct ? 'text-success' : 'text-destructive'">
+              <component :is="feedback.correct ? CircleCheck : CircleX" class="size-4" />
+              <template v-if="feedback.correct">正确，答案是 {{ feedback.answer }}</template>
+              <template v-else>答错了，正确答案是 {{ feedback.answer }}</template>
+            </span>
+            <span v-else-if="!isRunning" class="text-muted-foreground">本次练习已结束</span>
+          </div>
+
+          <!-- 键盘：九宫方位即手势方位，手势进行中 / 按键输入时高亮对应数字 -->
+          <div>
+            <div class="mb-2 flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
+              <span>数字键盘</span>
+              <span>盘面上点按 = 5，滑动 = 同方位</span>
+            </div>
+            <NumberPad :disabled="inputLocked" :active="gesturePreview ?? flashKey" @input="onNumberInput" />
+          </div>
+        </aside>
+      </div>
     </div>
 
     <!-- 结算窗口 -->
@@ -203,17 +195,17 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useLocalStorage } from '@vueuse/core'
+import { useLocalStorage, useMediaQuery } from '@vueuse/core'
 import { toast } from 'vue-sonner'
-import { CircleCheck, CircleX, Copy, Flame, RotateCcw, Trophy } from '@lucide/vue'
+import { CircleCheck, CircleX, Copy, RotateCcw, Trophy } from '@lucide/vue'
 import { logger } from '../utils/logger'
+import FlickInput from '@/components/FlickInput.vue'
 import NumberPad from '@/components/NumberPad.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import SegmentedControl, { type SegmentedOption } from '@/components/SegmentedControl.vue'
 import SudokuBoard from '../components/SudokuBoard.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -222,6 +214,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useBoardSize } from '@/composables/useBoardSize'
 import { FEATURE_BY_KEY } from '@/constants/features'
 import { usePracticeStore } from '../stores/practice'
@@ -274,8 +267,25 @@ const questionNo = ref<number>(1)
 const feedback = ref<{ correct: boolean, answer: number } | null>(null)
 
 // 盘面尺寸跟随容器宽度
-const boardWrapRef = ref<HTMLElement | null>(null)
-const boardSize = useBoardSize(boardWrapRef)
+// 桌面端（lg）一屏布局：盘面同时受舞台高度限制，并给右侧 300px 侧栏 + 32px 间距让出宽度
+const isDesktop = useMediaQuery('(min-width: 1024px)')
+const stageRef = ref<HTMLElement | null>(null)
+const boardSize = useBoardSize(stageRef, {
+  min: 280,
+  fitHeight: isDesktop,
+  reserveWidth: () => (isDesktop.value ? 300 + 32 : 0),
+})
+
+// 数字键盘高亮：手势进行中显示候选数字；点键 / 敲键盘后短暂闪一下所按的数字
+const gesturePreview = ref<number | null>(null)
+const flashKey = ref<number | null>(null)
+let flashTimer: ReturnType<typeof setTimeout> | null = null
+
+function flash(n: number) {
+  flashKey.value = n
+  if (flashTimer) clearTimeout(flashTimer)
+  flashTimer = setTimeout(() => (flashKey.value = null), 180)
+}
 
 const poolModes: UnitMode[] = ['row', 'col', 'box', 'general']
 
@@ -353,10 +363,22 @@ const recordText = computed(() => {
 })
 
 // 侧栏统计列表（答对 / 答错两色并列，单独渲染）
-const statRows = computed(() => [
-  { label: '平均用时', value: stats.total ? formatMs(stats.avgMs) : '—' },
-  { label: '上题用时', value: lastDurationMs.value === null ? '—' : formatMs(lastDurationMs.value) },
-  { label: '最佳连击', value: stats.bestStreak },
+// 最近答题条：固定 20 格，从左到右由旧到新，不足补空位
+const RECENT_COUNT = 20
+const recentSlots = computed(() => {
+  const recent = stats.history.slice(-RECENT_COUNT)
+  return [...recent, ...Array(RECENT_COUNT - recent.length).fill(null)] as (typeof recent[number] | null)[]
+})
+
+// 侧栏统计（正确率单独渲染，带分类明细浮层）
+const statCells = computed(() => [
+  { label: '平均用时', value: stats.total ? formatMs(stats.avgMs) : '—', tone: 'text-foreground' },
+  {
+    label: '连击',
+    value: stats.streak,
+    tone: stats.streak >= 5 ? 'text-highlight-strong' : 'text-foreground',
+  },
+  { label: '答错', value: stats.wrong, tone: stats.wrong ? 'text-destructive' : 'text-foreground' },
 ])
 
 const settlementCells = computed(() => [
@@ -450,6 +472,7 @@ function newPuzzle() {
 
 function onNumberInput(n: number) {
   if (inputLocked.value || !focusCell.value) return
+  flash(n)
   const { row, col } = focusCell.value
   if (given.value[row]![col]!) return
 
@@ -500,6 +523,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
+  if (flashTimer) clearTimeout(flashTimer)
   clearTimer()
 })
 

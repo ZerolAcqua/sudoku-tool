@@ -1,5 +1,6 @@
 <template>
-  <div class="page-container">
+  <!-- lg:min-h-0：页面高度严格等于可用高度，不被内容（如初始尺寸的盘面）撑高，盘面才能按剩余高度缩放 -->
+  <div class="page-container lg:min-h-0">
     <PageHeader :title="feature.title" description="上传数独图片，自动识别为可编辑盘面，并可导出为文本">
       <!-- 三步指示器：细线圆点 + 文字，当前步用墨色实心 -->
       <ol class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm" aria-label="识别步骤">
@@ -76,119 +77,94 @@
         </CardContent>
       </Card>
 
-      <!-- 识别结果 -->
-      <div v-else class="space-y-6">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <p class="text-sm text-muted-foreground">
-            识别到 <span class="font-medium tabular-nums text-foreground">{{ digitCount }}</span> 个数字
-          </p>
-          <div class="flex items-center gap-2.5">
-            <span class="text-sm text-muted-foreground">对比方式</span>
+      <!-- 识别结果：左侧对比区吃满剩余高度（方块边长 = 格子宽高较小者，用容器查询 cqmin），右侧修正 + 导出 -->
+      <div v-else
+        class="grid grid-cols-1 gap-8 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-[minmax(0,1fr)]">
+        <section class="flex min-w-0 flex-col gap-3 lg:min-h-0">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="text-sm text-muted-foreground">
+              识别到 <span class="font-medium tabular-nums text-foreground">{{ digitCount }}</span> 个数字
+            </p>
             <SegmentedControl v-model="compareMode" :options="COMPARE_OPTIONS" aria-label="对比方式" />
           </div>
-        </div>
 
-        <!-- 并排：原图 + 识别盘面 -->
-        <div v-if="compareMode === 'side'" class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <Card class="flex flex-col">
-            <CardHeader>
-              <div class="flex items-center justify-between gap-3">
-                <CardTitle>原图</CardTitle>
-                <span class="text-sm text-muted-foreground">已按网格边界对齐</span>
-              </div>
-            </CardHeader>
-            <CardContent class="flex flex-1 items-center justify-center">
-              <canvas ref="originalCanvas"
-                class="block h-auto max-h-[220px] w-auto max-w-full rounded-lg ring-1 ring-border sm:max-h-[360px] xl:max-h-[440px]"></canvas>
-            </CardContent>
-          </Card>
-
-          <Card class="flex flex-col">
-            <CardHeader>
-              <CardTitle>识别结果</CardTitle>
-            </CardHeader>
-            <CardContent
-              class="flex flex-1 items-center justify-center [&_svg]:h-[220px] [&_svg]:w-auto [&_svg]:max-w-full sm:[&_svg]:h-[360px] xl:[&_svg]:h-[440px]">
-              <SudokuBoard :board="board" :given="given" :size="440" :showCandidates="false" :selected="selected"
-                mode="interactive" @cell-click="onCellClick" />
-            </CardContent>
-          </Card>
-        </div>
-
-        <!-- 叠加：识别盘面半透明覆盖在原图上，逐格比对 -->
-        <Card v-else>
-          <CardHeader>
-            <div class="flex items-center justify-between gap-3">
-              <CardTitle>叠加对比</CardTitle>
-              <span class="text-sm text-muted-foreground">数字错位处即识别有误</span>
-            </div>
-          </CardHeader>
-          <CardContent class="flex justify-center">
-            <div class="grid aspect-square w-full max-w-[440px] *:col-start-1 *:row-start-1">
-              <canvas ref="originalCanvas" class="size-full rounded-lg"></canvas>
-              <SudokuBoard class="size-full opacity-60" :board="board" :given="given" :size="440"
-                :showCandidates="false" :selected="selected" mode="interactive" @cell-click="onCellClick" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <!-- 修正 + 导出 -->
-        <Card>
-          <CardContent class="flex flex-col gap-5">
-            <div>
-              <div class="flex flex-wrap items-center gap-2">
-                <h2 class="text-base font-medium">修正数字</h2>
-                <span class="text-sm tabular-nums" :class="selected ? 'text-foreground' : 'text-muted-foreground'">
-                  · {{ selected ? `已选中 R${selected.row + 1}C${selected.col + 1}` : '未选中' }}
-                </span>
-              </div>
-              <p class="mt-1.5 text-sm text-muted-foreground">
-                点选盘面格子（方向键移动），再用键盘 1–9 输入，0 / Backspace 清除；修正后的数字以赭色显示
-              </p>
-            </div>
-
-            <div class="grid grid-cols-1 gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8">
-              <NumberPad :disabled="!selected" @input="inputDigit">
-                <Button variant="ghost" class="flex-1" :disabled="!selected" @click="clearSelected">清除选中</Button>
-              </NumberPad>
-
-              <!-- 导出 -->
-              <div class="min-w-0 flex-1 lg:border-l lg:border-border lg:pl-8">
-                <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                  <span class="text-xs font-medium text-muted-foreground">导出文本</span>
-                  <span class="text-sm text-muted-foreground">81 个字符，修正后实时更新</span>
+          <!-- 对比区：每个格子是 size 容器，内部方块用 100cqmin 取宽高较小者；窄屏退化为正方形格子 -->
+          <div class="grid gap-4 lg:min-h-0 lg:flex-1"
+            :class="compareMode === 'side' ? 'grid-cols-2' : 'grid-cols-1'">
+            <template v-if="compareMode === 'side'">
+              <figure class="flex min-w-0 flex-col gap-1.5 lg:min-h-0">
+                <figcaption class="text-xs text-muted-foreground">原图（已按网格边界对齐）</figcaption>
+                <div class="grid aspect-square place-items-start [container-type:size] lg:aspect-auto lg:min-h-0 lg:flex-1">
+                  <canvas ref="originalCanvas" class="size-[100cqmin] rounded-sm object-contain ring-1 ring-border"></canvas>
                 </div>
-
-                <div class="mt-2.5 break-all rounded-md bg-muted px-4 py-3 font-mono text-xs leading-relaxed">
-                  {{ boardText }}
+              </figure>
+              <figure class="flex min-w-0 flex-col gap-1.5 lg:min-h-0">
+                <figcaption class="text-xs text-muted-foreground">识别结果（点选格子修正）</figcaption>
+                <div class="grid aspect-square place-items-start [container-type:size] lg:aspect-auto lg:min-h-0 lg:flex-1">
+                  <SudokuBoard class="size-[100cqmin]" :board="board" :given="given" :size="440" :showCandidates="false"
+                    :selected="selected" mode="interactive" @cell-click="onCellClick" />
                 </div>
+              </figure>
+            </template>
 
-                <div class="mt-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
-                  <Button @click="openInDraw">
-                    <PenLine />
-                    在绘图工具中打开
-                  </Button>
-                  <Button variant="outline" @click="copyText">
-                    <Copy />
-                    复制文本
-                  </Button>
-                  <Button variant="outline" @click="downloadText">
-                    <Download />
-                    下载 .txt
-                  </Button>
-                  <Button variant="ghost" @click="backToCrop">
-                    <Scan />
-                    重新裁剪
-                  </Button>
-                  <Button variant="ghost" @click="reset">
-                    <RotateCcw />
-                    重新上传
-                  </Button>
+            <!-- 叠加：识别盘面半透明覆盖在原图上，数字错位处即识别有误 -->
+            <figure v-else class="flex min-w-0 flex-col gap-1.5 lg:min-h-0">
+              <figcaption class="text-xs text-muted-foreground">叠加对比（数字错位处即识别有误）</figcaption>
+              <div class="grid aspect-square place-items-start [container-type:size] lg:aspect-auto lg:min-h-0 lg:flex-1">
+                <div class="grid size-[100cqmin] *:col-start-1 *:row-start-1">
+                  <canvas ref="originalCanvas" class="size-full rounded-sm object-contain"></canvas>
+                  <SudokuBoard class="size-full opacity-60" :board="board" :given="given" :size="440"
+                    :showCandidates="false" :selected="selected" mode="interactive" @cell-click="onCellClick" />
                 </div>
               </div>
+            </figure>
+          </div>
+        </section>
+
+        <!-- 右栏：修正 → 导出，内容放不下时只在栏内滚动 -->
+        <aside class="flex min-w-0 flex-col gap-5 lg:min-h-0 lg:overflow-y-auto">
+          <div>
+            <div class="flex items-baseline justify-between gap-3">
+              <h2 class="text-sm font-medium text-foreground">修正数字</h2>
+              <span class="text-sm tabular-nums" :class="selected ? 'text-foreground' : 'text-muted-foreground'">
+                {{ selected ? `R${selected.row + 1}C${selected.col + 1}` : '未选中' }}
+              </span>
             </div>
-          </CardContent>
-        </Card>
+            <p class="mt-1 mb-3 text-xs text-muted-foreground">
+              点选格子（方向键移动），键盘 1–9 输入，0 / Backspace 清除；修正后的数字以赭色显示
+            </p>
+            <NumberPad size="sm" :disabled="!selected" @input="inputDigit">
+              <Button variant="ghost" size="sm" class="flex-1" :disabled="!selected" @click="clearSelected">清除选中</Button>
+            </NumberPad>
+          </div>
+
+          <div class="border-t border-border pt-4">
+            <h2 class="text-sm font-medium text-foreground">导出</h2>
+            <p class="mt-2 break-all rounded-md bg-muted px-3 py-2 font-mono text-xs leading-relaxed">{{ boardText }}</p>
+            <Button class="mt-3 w-full" @click="openInDraw">
+              <PenLine />
+              在绘图工具中打开
+            </Button>
+            <div class="mt-2 grid grid-cols-2 gap-2">
+              <Button variant="outline" size="sm" @click="copyText">
+                <Copy />
+                复制文本
+              </Button>
+              <Button variant="outline" size="sm" @click="downloadText">
+                <Download />
+                下载 .txt
+              </Button>
+              <Button variant="ghost" size="sm" @click="backToCrop">
+                <Scan />
+                重新裁剪
+              </Button>
+              <Button variant="ghost" size="sm" @click="reset">
+                <RotateCcw />
+                重新上传
+              </Button>
+            </div>
+          </div>
+        </aside>
       </div>
   </div>
 </template>
@@ -221,7 +197,7 @@ import SegmentedControl, { type SegmentedOption } from '@/components/SegmentedCo
 import SudokuBoard from '@/components/SudokuBoard.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Kbd } from '@/components/ui/kbd'
 import { useOCR } from '@/composables/useOCR'
 import { FEATURE_BY_KEY } from '@/constants/features'
@@ -522,8 +498,9 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* 一屏布局：裁剪框高度随视口收缩（扣掉导航、页头、标题与按钮行），最少保留 240px */
 .cropper {
-  max-height: 520px;
+  max-height: max(240px, min(520px, calc(100dvh - 420px)));
 }
 
 /* 裁剪框外部与容器同色（inverse-surface），避免默认纯黑产生割裂感 */

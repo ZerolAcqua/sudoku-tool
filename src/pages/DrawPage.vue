@@ -1,6 +1,7 @@
 <template>
-  <div>
-    <div class="page-container">
+  <!-- 外层只为容纳抽屉 / 弹窗；同样撑满 main 并锁定高度（lg:min-h-0），盘面才能按剩余高度缩放 -->
+  <div class="flex flex-1 flex-col lg:min-h-0">
+    <div class="page-container lg:min-h-0">
       <PageHeader :title="feature.title" description="在盘面上标注高亮、标记、摒除线与链，导出为图片分享解题思路">
         <template #actions>
           <Button variant="ghost" aria-label="导入题目" @click="openImport">
@@ -61,9 +62,10 @@
       </PageHeader>
 
       <!-- 盘面贴左、链面板贴右：与页头标题、操作按钮的边缘对齐 -->
-      <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,600px)_minmax(0,18rem)] lg:justify-between lg:gap-10">
+      <!-- 一屏布局：网格吃满剩余高度（单行 minmax(0,1fr)），左列工具条 + 盘面，盘面再吃掉左列剩余高度 -->
+      <div class="grid items-start gap-8 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,600px)_minmax(0,18rem)] lg:grid-rows-[minmax(0,1fr)] lg:justify-between lg:gap-10">
         <!-- 左列：工具条与盘面同宽，左右边缘对齐 -->
-        <section class="w-full min-w-0">
+        <section class="flex w-full min-w-0 flex-col lg:h-full lg:min-h-0">
           <!-- 第一行：常驻的模式与颜色 -->
           <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
             <SegmentedControl v-model="currentMode" :options="MODE_OPTIONS" aria-label="绘图模式" />
@@ -116,7 +118,7 @@
           </div>
 
           <!-- 盘面：纸上的白页，不再套卡片 -->
-          <div ref="boardWrapRef" class="mt-4 flex">
+          <div ref="boardWrapRef" class="mt-4 flex lg:min-h-0 lg:flex-1">
             <SudokuBoard ref="boardRef" :size="boardSize" :board="board" :given="given" :showCandidates="true"
               :candidates="candidates" :customHighlights="highlights" :markers="markers" :chains="renderChains"
               :candidateMarkers="candidateMarkers" :selectedChainId="selectedChainId" :chainsInteractive="true"
@@ -126,11 +128,12 @@
           </div>
 
           <!-- 状态栏：当前模式的操作提示 -->
-          <p class="mt-4 text-sm text-muted-foreground">{{ MODE_HINTS[currentMode] }}</p>
+          <p class="mt-3 text-sm text-muted-foreground">{{ MODE_HINTS[currentMode] }}</p>
         </section>
 
         <!-- 右列：链视图面板（桌面） -->
-        <aside v-if="isDesktop" class="lg:sticky lg:top-20">
+        <!-- 链很多时只在面板内部滚动，不撑出整页滚动条 -->
+        <aside v-if="isDesktop" class="lg:max-h-full lg:overflow-y-auto">
           <ChainPanel v-bind="chainPanelProps" v-on="chainPanelListeners" />
         </aside>
       </div>
@@ -319,10 +322,10 @@ const selectCandidate = ref(false);
 const currentCandidate = ref<CandidatePosition | null>(null);
 const boardRef = ref<InstanceType<typeof SudokuBoard> | null>(null);
 
-const boardWrapRef = ref<HTMLElement | null>(null);
-const boardSize = useBoardSize(boardWrapRef, { max: 600 });
-
 const isDesktop = useMediaQuery('(min-width: 1024px)');
+const boardWrapRef = ref<HTMLElement | null>(null);
+const boardSize = useBoardSize(boardWrapRef, { max: 600, min: 280, fitHeight: () => isDesktop.value });
+
 const chainSheetOpen = ref(false);
 
 // 链模式必须选中候选数；离开摒除线模式时丢弃未完成的起点
