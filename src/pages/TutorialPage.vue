@@ -1,5 +1,6 @@
+<!-- 文档类页面：恢复文本选择（全站默认 select-none，见 style.css） -->
 <template>
-  <div class="page-container">
+  <div class="page-container select-text">
     <PageHeader :title="feature.title" description="千题千解文档化，图文详解，掌握解题思路" />
 
     <div>

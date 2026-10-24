@@ -29,6 +29,7 @@
 ## 样式约定（务必遵守）
 
 - 全部用 TailwindCSS 工具类，不写内联 `style`（例外：盘面 SVG 的绘制属性、数据驱动的颜色 swatch）
+- **默认禁止选中文本**：`body` 全局 `user-select: none`（表单控件除外）。文档类页面（目前是教程页）在页面根加 `select-text` 恢复；需要被复制的数据（如 81 位导出文本）用 `select-all`
 - **设计 token 单一来源**：`src/style.css` 的 `:root` 定义 `--color-*`（Material 3 颜色角色）；同文件的 `@theme inline` 只做映射，生成 `bg-primary`/`text-muted-foreground` 等工具类（Tailwind v4，无 `tailwind.config.js`）。改颜色只改 `:root`，禁止在组件里再声明 hex 或 `--color-*`
 - **命名注意**：主色是**墨色**（`primary` / `brand-*` 都指向它，历史上曾是品牌蓝）；唯一的彩色强调是荧光笔黄 `highlight-*`（`bg-highlight-container`、`text-highlight-strong`…）；`accent` 在 Tailwind 里是 shadcn 语义的浅色 hover 底，**不是**强调色。`background` 是页面纸底，卡片/弹层用 `card`
 - 正误语义色用 `success`/`destructive` 及 `success-container`/`error-container`，不要用 `green-*`/`red-*`；盘面交互态（选中/悬停/同行列宫）用 `--color-board-focus/focus-ring/hover/related`（暖黄系），用户填数用 `--color-user-num`（赭色）

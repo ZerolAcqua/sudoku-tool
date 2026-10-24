@@ -140,7 +140,8 @@
 
           <div class="border-t border-border pt-4">
             <h2 class="text-sm font-medium text-foreground">导出</h2>
-            <p class="mt-2 break-all rounded-md bg-muted px-3 py-2 font-mono text-xs leading-relaxed">{{ boardText }}</p>
+            <!-- 导出文本是要被复制的数据：点一下即整段选中 -->
+            <p class="mt-2 cursor-text break-all rounded-md bg-muted px-3 py-2 font-mono text-xs leading-relaxed select-all">{{ boardText }}</p>
             <Button class="mt-3 w-full" @click="openInDraw">
               <PenLine />
               在绘图工具中打开

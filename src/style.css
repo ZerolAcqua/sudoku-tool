@@ -182,6 +182,20 @@
     box-sizing: border-box;
   }
 
+  /* 全站是「工具 / 游戏」界面：默认禁止拖动选中文本，避免点击、拖动、手势输入时误选出蓝色选区。
+     文档类页面（教程）在页面根上加 select-text 恢复；表单控件始终可选，否则无法编辑。 */
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable='true'] {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
   body {
     font-family: var(--font-sans);
     background-color: var(--color-background);
