@@ -1,6 +1,6 @@
+<!-- 分段控件：浅灰槽 + 白色滑块。全站单选切换统一用它，选中态不占用品牌色。
+     spacing 非 0：避开 ToggleGroupItem 为「连体按钮」写的 rounded-none / shadow-none 规则 -->
 <template>
-  <!-- 分段控件：浅灰槽 + 白色滑块。全站单选切换统一用它，选中态不占用品牌色。
-       spacing 非 0：避开 ToggleGroupItem 为「连体按钮」写的 rounded-none / shadow-none 规则 -->
   <ToggleGroup :model-value="modelValue" type="single" variant="segmented" :size="size" :spacing="0.5"
     class="rounded-lg bg-muted p-0.5" :aria-label="ariaLabel" @update:model-value="onUpdate">
     <ToggleGroupItem v-for="opt in options" :key="opt.value" :value="opt.value" :title="opt.title"

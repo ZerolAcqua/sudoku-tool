@@ -1,5 +1,5 @@
+<!-- 页头：直接落在纸面内容流里（放在 .page-container 内），不做色带、不加图标块 -->
 <template>
-  <!-- 页头：直接落在纸面内容流里（放在 .page-container 内），不做色带、不加图标块 -->
   <header class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
     <div class="min-w-0">
       <h1 class="text-2xl font-semibold tracking-tight text-foreground">{{ title }}</h1>

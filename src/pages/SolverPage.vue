@@ -1,5 +1,5 @@
+<!-- lg:min-h-0：页面高度严格等于可用高度，不被内容（如初始尺寸的盘面）撑高，盘面才能按剩余高度缩放 -->
 <template>
-  <!-- lg:min-h-0：页面高度严格等于可用高度，不被内容（如初始尺寸的盘面）撑高，盘面才能按剩余高度缩放 -->
   <div class="page-container lg:min-h-0">
     <PageHeader :title="feature.title" description="上传数独图片，自动识别为可编辑盘面，并可导出为文本">
       <!-- 三步指示器：细线圆点 + 文字，当前步用墨色实心 -->

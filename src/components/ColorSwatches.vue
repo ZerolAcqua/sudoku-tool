@@ -1,5 +1,5 @@
+<!-- 绘图色板：圆形色块，选中用外圈描边表示（不缩放、不加粗边，避免布局跳动） -->
 <template>
-  <!-- 绘图色板：圆形色块，选中用外圈描边表示（不缩放、不加粗边，避免布局跳动） -->
   <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="颜色">
     <button v-for="color in DRAWING_COLORS" :key="color.value" type="button"
       class="grid place-items-center rounded-full ring-offset-2 ring-offset-card transition-shadow"

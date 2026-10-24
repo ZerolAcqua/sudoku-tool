@@ -1,5 +1,5 @@
+<!-- 外层只为容纳抽屉 / 弹窗；同样撑满 main 并锁定高度（lg:min-h-0），盘面才能按剩余高度缩放 -->
 <template>
-  <!-- 外层只为容纳抽屉 / 弹窗；同样撑满 main 并锁定高度（lg:min-h-0），盘面才能按剩余高度缩放 -->
   <div class="flex flex-1 flex-col lg:min-h-0">
     <div class="page-container lg:min-h-0">
       <PageHeader :title="feature.title" description="在盘面上标注高亮、标记、摒除线与链，导出为图片分享解题思路">
@@ -119,7 +119,7 @@
 
           <!-- 盘面：纸上的白页，不再套卡片 -->
           <div ref="boardWrapRef" class="mt-4 flex lg:min-h-0 lg:flex-1">
-            <SudokuBoard ref="boardRef" :size="boardSize" :board="board" :given="given" :showCandidates="true"
+            <SudokuBoard :size="boardSize" :board="board" :given="given" :showCandidates="true"
               :candidates="candidates" :customHighlights="highlights" :markers="markers" :chains="renderChains"
               :candidateMarkers="candidateMarkers" :selectedChainId="selectedChainId" :chainsInteractive="true"
               :selectedCandidate="candidateSelectActive ? currentCandidate : null"
@@ -320,7 +320,6 @@ const chainArrow = ref(true);
 const currentColor = ref(DRAWING_COLORS[0]!.value);
 const selectCandidate = ref(false);
 const currentCandidate = ref<CandidatePosition | null>(null);
-const boardRef = ref<InstanceType<typeof SudokuBoard> | null>(null);
 
 const isDesktop = useMediaQuery('(min-width: 1024px)');
 const boardWrapRef = ref<HTMLElement | null>(null);
@@ -457,8 +456,9 @@ function confirmImport(): void {
 
 // ---------------- 导出 ----------------
 
-function boardSvg(): SVGElement | null {
-  return (boardRef.value?.$el as SVGElement | undefined) ?? null;
+// 直接在盘面容器里找 svg，不依赖组件实例的 $el（$el 在根节点不是单个元素时会是文本锚点）
+function boardSvg(): SVGSVGElement | null {
+  return boardWrapRef.value?.querySelector<SVGSVGElement>('svg.sudoku-svg') ?? null;
 }
 
 const exportName = () => `sudoku-drawing-${new Date().toISOString().slice(0, 10)}`;

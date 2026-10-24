@@ -1,5 +1,5 @@
+<!-- lg:min-h-0：页面高度严格等于可用高度，不被内容（如初始尺寸的盘面）撑高，盘面才能按剩余高度缩放 -->
 <template>
-  <!-- lg:min-h-0：页面高度严格等于可用高度，不被内容（如初始尺寸的盘面）撑高，盘面才能按剩余高度缩放 -->
   <div class="page-container lg:min-h-0">
     <PageHeader :title="feature.title" description="在给定盘面中找出唯一能填的数字，训练唯余判断的准确度与速度">
       <template #actions>

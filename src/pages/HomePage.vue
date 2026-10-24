@@ -1,5 +1,5 @@
+<!-- 一屏首页：Hero 吃掉剩余高度（盘面按可用高度缩放），功能入口与页脚固定在下方 -->
 <template>
-  <!-- 一屏首页：Hero 吃掉剩余高度（盘面按可用高度缩放），功能入口与页脚固定在下方 -->
   <div class="flex flex-1 flex-col lg:min-h-0">
     <!-- Hero -->
     <section class="mx-auto grid w-full max-w-5xl flex-1 items-center gap-10 px-4 py-8 sm:px-6 lg:min-h-0 lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)] lg:px-8">

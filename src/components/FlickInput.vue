@@ -1,8 +1,8 @@
+<!-- 手势输入层（类似手机 flick 输入）：包住任意内容（盘面），在其上
+     - 点按 = 5
+     - 按住向 8 个方向滑动 = 九宫键盘上对应方位的数字（↖7 ↑8 ↗9 ←4 →6 ↙1 ↓2 ↘3）
+     滑动时在按下处弹出九宫罗盘实时提示，抬起才提交。 -->
 <template>
-  <!-- 手势输入层（类似手机 flick 输入）：包住任意内容（盘面），在其上
-       - 点按 = 5
-       - 按住向 8 个方向滑动 = 九宫键盘上对应方位的数字（↖7 ↑8 ↗9 ←4 →6 ↙1 ↓2 ↘3）
-       滑动时在按下处弹出九宫罗盘实时提示，抬起才提交。 -->
   <div ref="rootRef" class="relative w-fit touch-none select-none" :class="disabled ? '' : 'cursor-pointer'"
     @pointerdown="onDown" @pointermove="onMove" @pointerup="onUp" @pointercancel="cancel">
     <slot />

@@ -136,8 +136,9 @@ function onClick(pos: any) {
 
 async function saveAsImage() {
     try {
-        // 使用当前 IODemo 中的 SudokuBoard 实例的 $el（其根元素就是 SVG）
-        const svgElement = (sudokuBoard.value as any)?.$el as SVGElement | null
+        // 使用当前 IODemo 中的 SudokuBoard 实例的根 svg；$el 不是元素时（如开发模式片段）视为未找到
+        const rootEl = (sudokuBoard.value as any)?.$el
+        const svgElement = rootEl instanceof SVGSVGElement ? rootEl : null
         if (!svgElement) {
             alert('找不到 SVG 元素，请确保数独盘面已正确加载')
             return

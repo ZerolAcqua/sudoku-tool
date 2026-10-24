@@ -1,5 +1,6 @@
+<!-- 盘面字体钉在 svg 根节点：数字、候选数、标记文字一律不受 UI 字体（Inter 等）影响。
+     模板根节点必须是单个 <svg>，说明性注释写在 <template> 外（见 AGENTS.md「模板根节点」）。 -->
 <template>
-  <!-- 盘面字体钉在 svg 根节点：数字、候选数、标记文字一律不受 UI 字体（Inter 等）影响 -->
   <svg :width="props.size" :height="props.size" viewBox="-10 -10 920 920" role="grid" aria-label="Sudoku board"
     font-family="'Noto Serif', Georgia, serif" @mousedown.prevent class="sudoku-svg">
     <!-- Background：白页只铺到网格范围，外框之外的留白透出页面纸色（导出时 exportBoard 会补白底） -->

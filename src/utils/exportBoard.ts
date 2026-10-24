@@ -11,9 +11,12 @@ function resolveVars(value: string, styles: CSSStyleDeclaration): string {
 
 // 克隆盘面并内联颜色，返回带 XML 头的 SVG 文本
 export function toSvgString(svgEl: SVGElement, size = 900): string {
+  // 调用方传错节点（如组件 $el 拿到的文本锚点）时给出明确报错，而不是在 setAttribute 处崩溃
+  if (!(svgEl instanceof SVGSVGElement)) throw new TypeError('toSvgString 需要一个 <svg> 元素');
   const styles = getComputedStyle(document.documentElement);
   const cloned = svgEl.cloneNode(true) as SVGElement;
-  cloned.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  // 不要手动 setAttribute('xmlns')：XMLSerializer 总会为 SVG 命名空间的根元素输出 xmlns，
+  // 再手动设一次会产生重复属性，严格的 XML 解析器（部分编辑器 / 查看器）会拒绝打开该文件。
   cloned.setAttribute('width', String(size));
   cloned.setAttribute('height', String(size));
 
