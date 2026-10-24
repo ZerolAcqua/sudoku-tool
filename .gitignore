@@ -97,3 +97,8 @@ coverage/
 /agent/
 /.claude/skills/
 .claude/settings.local.json
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

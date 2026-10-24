@@ -13,6 +13,9 @@
     },
     {
       "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.vitest.json"
     }
   ],
   // 本文件是「解决方案式」配置（files 为空，只做 references 编排），自身不编译任何文件，

@@ -8,11 +8,12 @@
 
 - 开发 / 构建 / 预览：`npm run dev` / `build` / `preview`（`build` = type-check + vite build）
 - 类型检查：`npm run type-check`（vue-tsc）
-- OCR 测试：`npm run test:ocr`（唯一测试入口）
+- 单测（Vitest）：`npm test` 跑全部；`npm run test:unit`（组件 / 工具函数，jsdom，watch 模式）；`npm run test:ocr`（OCR 回归，真实 Node + tfjs-node，约 20 秒）
+- E2E（Playwright）：`npm run test:e2e`，自动启动 dev server，默认用本机 Chrome（无 Chrome 时 `PW_BUNDLED=1` + `npx playwright install chromium`）
 - ML 训练 / 部署：`npm run train:digit` / `deploy:model`
 - 生成合成训练数据：`npx tsx --import ./ml/polyfill-util.ts ml/generate-synthetic-data.ts`（无 npm script）
 
-需要 Node 侧 canvas 的 ML/测试脚本（训练、生成数据、OCR 测试）要带 `--import ./ml/polyfill-util.ts` 前缀。
+需要 Node 侧 canvas 的 ML 脚本（训练、生成数据）要带 `--import ./ml/polyfill-util.ts` 前缀；OCR 测试已在 `vitest.config.ts` 的 `ocr` 项目里通过 setupFiles 加载，无需手动加。
 
 ## 架构
 
@@ -23,7 +24,9 @@
 - `src/constants/features.ts` 功能入口单一来源（首页功能卡与各页 `PageHeader` 的标题、图标）
 - 轻提示统一用 `vue-sonner` 的 `toast()`（`App.vue` 已挂 `<Toaster />`），不要再手写浮层
 - `src/types/sudoku.ts` 数独领域类型（高亮/标记/链的配置结构）
-- `ml/` 训练/部署脚本，独立于 Vite 构建；`test/` OCR 测试
+- `ml/` 训练/部署脚本，独立于 Vite 构建
+- 测试分层：`src/**/__tests__/*.spec.ts` 单测 / 组件测试（Vitest + @vue/test-utils，黑盒断言对外行为）；`test/` OCR 回归（Vitest `ocr` 项目）；`e2e/` 只放真实浏览器才能验证的行为（拖动选区、下载 / 剪贴板、手势、一屏布局），用 `e2e/fixtures.ts` 的 `test`，自动断言无控制台错误
+- **模板根节点不能有注释**：说明性注释写在 `<template>` 外。开发模式保留注释，根部「注释 + 元素」会让组件变成片段，`$el` 变成文本锚点（曾导致导出图片报错）；`src/__tests__/sfcTemplateRoot.spec.ts` 会检查所有 `.vue`
 - 路由（`src/router/index.ts`）：除首页静态导入外，其余页面 `() => import(...)` 懒加载
 
 ## 样式约定（务必遵守）
