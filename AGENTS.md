@@ -30,10 +30,10 @@
 
 - 全部用 TailwindCSS 工具类，不写内联 `style`（例外：盘面 SVG 的绘制属性、数据驱动的颜色 swatch）
 - **设计 token 单一来源**：`src/style.css` 的 `:root` 定义 `--color-*`（Material 3 颜色角色）；同文件的 `@theme inline` 只做映射，生成 `bg-primary`/`text-muted-foreground` 等工具类（Tailwind v4，无 `tailwind.config.js`）。改颜色只改 `:root`，禁止在组件里再声明 hex 或 `--color-*`
-- **命名注意**：品牌蓝（`#2563eb`）的工具类是 `brand-*`（`bg-brand`、`bg-brand-container`…）；`accent` 在 Tailwind 里是 shadcn 语义的浅色 hover 底，**不是**品牌色。`background` 是页面灰底，卡片/弹层用 `card`
-- 正误语义色用 `success`/`destructive` 及 `success-container`/`error-container`，不要用 `green-*`/`red-*`；盘面交互态（选中/悬停/同行列宫）用 `--color-board-focus/hover/related`
+- **命名注意**：主色是**墨色**（`primary` / `brand-*` 都指向它，历史上曾是品牌蓝）；唯一的彩色强调是荧光笔黄 `highlight-*`（`bg-highlight-container`、`text-highlight-strong`…）；`accent` 在 Tailwind 里是 shadcn 语义的浅色 hover 底，**不是**强调色。`background` 是页面纸底，卡片/弹层用 `card`
+- 正误语义色用 `success`/`destructive` 及 `success-container`/`error-container`，不要用 `green-*`/`red-*`；盘面交互态（选中/悬停/同行列宫）用 `--color-board-focus/focus-ring/hover/related`（暖黄系），用户填数用 `--color-user-num`（赭色）
 - **视觉风格：纸感极简**。暖白纸底（`background`）+ 白页（`card`/盘面）+ 细描边分界，**不用阴影**（弹层除外）；界面字体 Inter，盘面与数字键盘用衬线（`font-board`）
-- **品牌蓝克制使用**：只用于主操作按钮、链接、盘面选中格与少量强调；选中态一律中性——导航 / 分类用 `bg-muted text-foreground`，单选切换用 `SegmentedControl`（浅灰槽 + 白色滑块），不要再写 `data-[state=on]:bg-brand`
+- **不用冷色品牌蓝**：它在暖纸面上显得突兀。主按钮 / 开关 / 焦点环用墨色；链接用墨色 + 下划线；彩色强调只用荧光笔黄（盘面选中格、新纪录、连击），且要克制。选中态一律中性——导航 / 分类用 `bg-muted text-foreground`，单选切换用 `SegmentedControl`（浅灰槽 + 白色滑块）
 - **页面结构**：功能页 = `.page-container`（版心 `max-w-5xl`，与导航同宽）内放 `<PageHeader>` + 内容；盘面直接放在纸面上，不套卡片；次级面板（统计、链列表）用无阴影的 `Card`；控制条直接落在纸面上
 - 盘面网格线用 `vector-effect="non-scaling-stroke"` 按屏幕像素计宽（格线 1px 浅灰、宫线 / 外框 2px 墨色），颜色走 `--color-board-line(-thin)`
 - **语义工具类**：`src/style.css` 的 `@layer components` 保留 `.page-container`/`.section-title`；`.card`/`.btn`/`.btn-primary` 仅剩 Demo 沙箱使用，正式页面用 shadcn 的 `Card`/`Button`

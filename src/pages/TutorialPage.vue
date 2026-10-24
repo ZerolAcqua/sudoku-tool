@@ -39,7 +39,7 @@
                   <CardDescription>{{ topic.description }}</CardDescription>
                 </CardHeader>
                 <CardContent v-if="topic.link">
-                  <span class="inline-flex items-center gap-1 text-sm text-brand">
+                  <span class="inline-flex items-center gap-1 text-sm font-medium text-foreground underline-offset-4 group-hover:underline">
                     {{ topic.action }}
                     <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
                   </span>
@@ -50,7 +50,7 @@
 
           <p class="mt-6 text-sm text-muted-foreground">
             每篇题解将包含盘面演示、推理步骤与关键技巧说明。在此之前，可以先用
-            <RouterLink to="/draw" class="font-medium text-brand hover:underline">绘图工具</RouterLink>
+            <RouterLink to="/draw" class="font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground">绘图工具</RouterLink>
             自己标注思路。
           </p>
         </section>

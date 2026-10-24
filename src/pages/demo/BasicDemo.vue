@@ -23,7 +23,7 @@
     <div class="card mb-8">
       <h2 class="section-title">已知数与填入数的区别</h2>
       <div class="flex flex-col items-center gap-4">
-        <p class="text-sm text-muted-foreground">黑色数字为题目给定的明数，蓝色数字为玩家填入的数字。</p>
+        <p class="text-sm text-muted-foreground">黑色数字为题目给定的明数，赭色数字为玩家填入的数字。</p>
         <SudokuBoard :board="boardWithUserInput" :given="given" mode="display" />
       </div>
     </div>

@@ -143,7 +143,7 @@
                 </span>
               </div>
               <p class="mt-1.5 text-sm text-muted-foreground">
-                点选盘面格子（方向键移动），再用键盘 1–9 输入，0 / Backspace 清除；修正后的数字显示为蓝色
+                点选盘面格子（方向键移动），再用键盘 1–9 输入，0 / Backspace 清除；修正后的数字以赭色显示
               </p>
             </div>
 

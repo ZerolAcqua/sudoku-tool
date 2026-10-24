@@ -60,7 +60,7 @@
             <span :key="'streak-' + stats.streak" title="连击：连续答对的题数"
               class="inline-flex items-center gap-1 tabular-nums"
               :class="stats.streak > 0 ? 'font-medium text-foreground animate-in zoom-in-90 duration-200' : ''">
-              <Flame class="size-3.5" :class="stats.streak >= 5 ? 'text-brand' : ''" />
+              <Flame class="size-3.5" :class="stats.streak >= 5 ? 'text-highlight-strong' : ''" />
               {{ stats.streak }}
             </span>
             <span class="tabular-nums">第 {{ questionNo }} 题</span>
@@ -130,7 +130,7 @@
             <DialogTitle class="text-xl">
               {{ practiceMode === 'timed' ? '时间到' : '冲刺完成' }}
             </DialogTitle>
-            <Badge v-if="isNewRecord" class="bg-brand-container text-brand-container-foreground">
+            <Badge v-if="isNewRecord" class="bg-highlight-container text-highlight-container-foreground">
               <Trophy />
               新纪录
             </Badge>
@@ -163,10 +163,10 @@
             <line v-if="hoveredIdx !== null" :x1="chart.xs[hoveredIdx]" :x2="chart.xs[hoveredIdx]" y1="0"
               :y2="CHART_H" class="stroke-outline" stroke-width="1" stroke-dasharray="3 3"
               vector-effect="non-scaling-stroke" />
-            <path :d="chart.path" fill="none" class="stroke-brand" stroke-width="2" stroke-linejoin="round"
+            <path :d="chart.path" fill="none" class="stroke-foreground" stroke-width="2" stroke-linejoin="round"
               stroke-linecap="round" vector-effect="non-scaling-stroke" />
             <circle v-if="hoveredIdx !== null" :cx="chart.xs[hoveredIdx]" :cy="chart.ys[hoveredIdx]" r="4"
-              class="fill-brand stroke-card" stroke-width="2" />
+              class="fill-foreground stroke-card" stroke-width="2" />
             <!-- 命中区：每题一条整高的透明带，比数据点大得多 -->
             <rect v-for="(x, i) in chart.xs" :key="'hit-' + i" :x="x - chart.step / 2" y="0" :width="chart.step"
               :height="CHART_H" fill="transparent" @mouseenter="hoveredIdx = i" />

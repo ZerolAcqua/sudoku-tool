@@ -51,7 +51,7 @@
                 <CardDescription>{{ feature.description }}</CardDescription>
               </CardHeader>
               <CardContent>
-                <span class="inline-flex items-center gap-1 text-sm text-brand">
+                <span class="inline-flex items-center gap-1 text-sm font-medium text-foreground underline-offset-4 group-hover:underline">
                   {{ feature.action }}
                   <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
@@ -98,9 +98,9 @@ const HERO_BOARD: number[][] = [
 ]
 const HERO_GIVEN = HERO_BOARD.map((row) => row.map((v) => v > 0))
 const yellow = DRAWING_COLORS.find((c) => c.name === '黄色')!.value
-const blue = DRAWING_COLORS.find((c) => c.name === '蓝色')!.value
+const red = DRAWING_COLORS.find((c) => c.name === '红色')!.value
 const HERO_HIGHLIGHTS: CellHighlight[] = [
   { cells: Array.from({ length: 9 }, (_, row) => ({ row, col: 4 })), color: yellow, opacity: 0.18 },
 ]
-const HERO_MARKERS: CellMarker[] = [{ cell: { row: 4, col: 4 }, type: 'circle', color: blue, size: 35, strokeWidth: 3 }]
+const HERO_MARKERS: CellMarker[] = [{ cell: { row: 4, col: 4 }, type: 'circle', color: red, size: 35, strokeWidth: 3 }]
 </script>

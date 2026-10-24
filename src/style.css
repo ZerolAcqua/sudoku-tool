@@ -8,16 +8,23 @@
 
 /* ============================================================
    设计 token：颜色的唯一来源
-   结构沿用 Material 3 颜色角色；取值是「纸感极简」：暖白纸底 + 暖灰墨色 + 细描边，
-   品牌蓝 #2563eb 只留给主操作、链接与盘面选中格。
+   结构沿用 Material 3 颜色角色；取值是「纸感极简」：暖白纸底 + 暖灰墨色 + 细描边。
+   主色 = 墨色（主按钮、开关、焦点环）；唯一的彩色强调 = 荧光笔黄（盘面选中格、纪录、连击）。
+   不使用冷色品牌蓝：它在暖纸面上会跳出来，显得突兀。
    改颜色只改这里；@theme 与组件都从这里取值。
    ============================================================ */
 :root {
-  --color-primary: #2563eb;
-  --color-primary-darken-1: #1d4ed8;
-  --color-on-primary: #ffffff;
-  --color-primary-container: #dfe7ff;
-  --color-on-primary-container: #1b2f80;
+  --color-primary: #262420;
+  --color-primary-darken-1: #11100e;
+  --color-on-primary: #faf9f6;
+  --color-primary-container: #ecebe6;
+  --color-on-primary-container: #1c1b19;
+
+  /* 强调色：荧光笔黄。fill 用于大面积铺底，strong 用于描边 / 小字（白底上对比度约 5:1） */
+  --color-highlight: #e5a50a;
+  --color-highlight-strong: #8f6100;
+  --color-highlight-container: #fbeec4;
+  --color-on-highlight-container: #523800;
 
   --color-secondary: #6b6760;
   --color-on-secondary: #ffffff;
@@ -57,19 +64,20 @@
   --color-accent: var(--color-primary);
   --color-accent-dark: var(--color-primary-darken-1);
 
-  /* 盘面：墨色数字、品牌蓝填数、低调的候选数 */
+  /* 盘面：墨色题目数、赭色填数（与黄色选中格同色系）、低调的候选数 */
   --color-given-num: #1c1b19;
-  --color-user-num: var(--color-primary);
+  --color-user-num: #8f6100;
   --color-cand: #76716a;
 
   /* 盘面网格：宫线 / 外框用墨色，格线用浅灰，粗细对比代替颜色对比 */
   --color-board-line: #1c1b19;
   --color-board-line-thin: #c4bfb6;
 
-  /* 盘面交互态：只有选中格用品牌蓝，同行列宫与悬停用中性暖灰，避免满盘泛蓝 */
-  --color-board-focus: var(--color-primary-container);
-  --color-board-hover: #ece9e3;
-  --color-board-related: #f4f2ee;
+  /* 盘面交互态：选中格是荧光笔黄 + 赭色描边，同行列宫与悬停用更淡的暖色，层次由深到浅 */
+  --color-board-focus: #fbe5a0;
+  --color-board-focus-ring: #c08800;
+  --color-board-hover: #f3efe5;
+  --color-board-related: #f8f5ed;
 
   /* 圆角基准（shadcn 组件按 --radius 派生 lg/md/sm） */
   --radius: 0.5rem;
@@ -114,6 +122,12 @@
   --color-brand-foreground: var(--color-on-primary);
   --color-brand-container: var(--color-primary-container);
   --color-brand-container-foreground: var(--color-on-primary-container);
+
+  /* 荧光笔黄强调色 */
+  --color-highlight: var(--color-highlight);
+  --color-highlight-strong: var(--color-highlight-strong);
+  --color-highlight-container: var(--color-highlight-container);
+  --color-highlight-container-foreground: var(--color-on-highlight-container);
 
   /* M3 其余角色，供既有界面按名字沿用 */
   --color-surface: var(--color-surface);

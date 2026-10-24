@@ -56,7 +56,7 @@
       :cy="selectedCandidate.row * 100 + getCandidateY(selectedCandidate.candidate)"
       r="14"
       fill="none"
-      stroke="var(--color-accent)"
+      stroke="var(--color-board-focus-ring)"
       stroke-width="2"
       pointer-events="none"
     />
@@ -127,11 +127,11 @@
     <!-- Selected cell border -->
     <rect v-if="props.selected && selectedCol !== null && selectedRow !== null && mode === 'interactive'"
       :x="selectedCol * 100 + 4" :y="selectedRow * 100 + 4" width="92" height="92" rx="8" fill="none"
-      stroke="var(--color-accent)" stroke-width="2" vector-effect="non-scaling-stroke" pointer-events="none" />
+      stroke="var(--color-board-focus-ring)" stroke-width="2" vector-effect="non-scaling-stroke" pointer-events="none" />
 
     <!-- Focus cell border (for practice mode) -->
     <rect v-if="props.focusCell && focusCol !== null && focusRow !== null" :x="focusCol * 100 + 4"
-      :y="focusRow * 100 + 4" width="92" height="92" rx="8" fill="none" stroke="var(--color-accent)" stroke-width="2"
+      :y="focusRow * 100 + 4" width="92" height="92" rx="8" fill="none" stroke="var(--color-board-focus-ring)" stroke-width="2"
       vector-effect="non-scaling-stroke" pointer-events="none" />
 
     <!-- Numbers -->
