@@ -25,6 +25,7 @@
 - 轻提示统一用 `vue-sonner` 的 `toast()`（`App.vue` 已挂 `<Toaster />`），不要再手写浮层
 - `src/types/sudoku.ts` 数独领域类型（高亮/标记/链的配置结构）
 - `ml/` 训练/部署脚本，独立于 Vite 构建
+- 教程：文章是 `content/tutorial/**/*.md`，目录是同目录的 `SUMMARY.md`（GitBook 写法）；`plugins/tutorialMarkdown.ts` 构建期把 Markdown 编译成组件、```` ```sudoku ```` 代码块（YAML，见 `utils/sudokuFigure.ts`）换成 `SudokuFigure`、相对 `.md` 链接换成 `RouterLink`，坏链接 / 锚点 / 盘面写错直接构建失败。写法说明本身就是教程里的「写作指南」几篇文章。`utils/sudokuText.ts` 是数独通用文本格式（Susser / HoDoKu / 铅笔盘面等）的导入导出；`plugins/` 与它引用的 `utils/sudokuFigure`、`sudokuText`、`tutorialSummary` 在 Node 侧加载，**不能用 `@` 别名**
 - 测试分层：`src/**/__tests__/*.spec.ts` 单测 / 组件测试（Vitest + @vue/test-utils，黑盒断言对外行为）；`test/` OCR 回归（Vitest `ocr` 项目）；`e2e/` 只放真实浏览器才能验证的行为（拖动选区、下载 / 剪贴板、手势、一屏布局），用 `e2e/fixtures.ts` 的 `test`，自动断言无控制台错误
 - **模板根节点不能有注释**：说明性注释写在 `<template>` 外。开发模式保留注释，根部「注释 + 元素」会让组件变成片段，`$el` 变成文本锚点（曾导致导出图片报错）；`src/__tests__/sfcTemplateRoot.spec.ts` 会检查所有 `.vue`
 - 路由（`src/router/index.ts`）：除首页静态导入外，其余页面 `() => import(...)` 懒加载

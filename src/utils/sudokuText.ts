@@ -203,8 +203,8 @@ function parseOpenSudoku(compact: string): ParsedSudokuText {
 }
 
 function parseExcel(text: string): ParsedSudokuText {
-  // 整行全空的行也是 8 个制表符，只去掉首尾的空行
-  const lines = text.replace(/^(?:[ \t]*\r?\n)+|(?:\r?\n[ \t]*)+$/g, '').split(/\r?\n/);
+  // 整行全空的行是 8 个制表符，不能当空行去掉：只去掉首尾不含制表符的空行
+  const lines = text.replace(/^(?: *\r?\n)+|(?:\r?\n *)+$/g, '').split(/\r?\n/);
   if (lines.length !== 9) throw new SudokuTextError(`Excel 表格格式需要 9 行，实际 ${lines.length} 行`);
   const cells = lines.flatMap((line, r) => {
     const fields = line.split('\t');

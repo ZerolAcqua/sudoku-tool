@@ -25,15 +25,10 @@ const router = createRouter({
       component: () => import('../pages/SolverPage.vue'),
     },
     {
-      path: '/tutorial',
+      // 教程：/tutorial 是前言，其后是 content/tutorial/ 下文章的相对路径（可含子目录）
+      path: '/tutorial/:slug*',
       name: 'tutorial',
       component: () => import('../pages/TutorialPage.vue'),
-    },
-    {
-      // 文章路由 = content/tutorial/ 下的相对路径，可含子目录
-      path: '/tutorial/:slug+',
-      name: 'tutorial-article',
-      component: () => import('../pages/TutorialArticlePage.vue'),
     },
     {
       path: '/demo',

@@ -74,6 +74,12 @@ describe('sudokuText 解析', () => {
     expect(parseSudokuText(text).state.candidates[0]![0]).toEqual([1, 2]);
   });
 
+  it('Excel 表格末行全空（只有制表符）时不会被当成空行丢掉', () => {
+    const text = S.EXCEL.split('\n').slice(0, 8).join('\n') + '\n' + '\t'.repeat(8) + '\n';
+    const { state } = parseSudokuText(text);
+    expect(state.digits[8]).toEqual(Array(9).fill(0));
+  });
+
   it('候选数数独只含候选、没有数字', () => {
     const { state } = parseSudokuText(S.SUKAKU);
     expect(state.digits.flat().every((v) => v === 0)).toBe(true);

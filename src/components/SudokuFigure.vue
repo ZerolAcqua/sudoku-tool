@@ -1,8 +1,9 @@
 <!-- 教程盘面：由 ```sudoku 代码块生成（见 utils/sudokuFigure.ts）。
      多帧时在帧之间循环播放，用来演示推理步骤；滚出视口或系统开启「减少动态效果」时不自动播放。 -->
 <template>
-  <figure class="sudoku-figure my-6 flex flex-col items-center gap-3">
-    <div ref="boardWrapRef" class="w-full max-w-[440px]">
+  <figure class="sudoku-figure my-6 flex flex-col items-center gap-3" @click="onLinkClick">
+    <!-- aspect-square 先占住盘面高度：盘面边长要等挂载后按容器宽度算出，不占位的话下方内容会跳动 -->
+    <div ref="boardWrapRef" class="aspect-square w-full max-w-[440px]">
       <SudokuBoard v-if="frame" mode="display" :size="boardSize" :board="frame.board" :given="frame.given"
         :candidates="frame.candidates" :show-candidates="figure.showCandidates" :custom-highlights="frame.highlights"
         :candidate-markers="frame.candidateMarkers" :markers="frame.markers" :chains="frame.chains" />
@@ -39,7 +40,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, inject, onBeforeUnmount, ref, watch } from 'vue';
+import { routerKey } from 'vue-router';
 import { useIntersectionObserver, usePreferredReducedMotion } from '@vueuse/core';
 import { ChevronLeft, ChevronRight, Pause, Play } from '@lucide/vue';
 import SudokuBoard from '@/components/SudokuBoard.vue';
@@ -52,6 +54,16 @@ const props = defineProps<{
 }>();
 
 const figure = computed(() => resolveFigure(props.spec));
+
+// 说明里的站内链接是 v-html 插入的普通 <a data-router-link>，点击时交给路由，不整页刷新
+const router = inject(routerKey, null);
+
+function onLinkClick(event: MouseEvent): void {
+  const link = (event.target as Element | null)?.closest?.('a[data-router-link]');
+  if (!link || !router || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+  event.preventDefault();
+  router.push(link.getAttribute('href')!);
+}
 const frames = computed(() => figure.value.frames);
 const hasFrameCaptions = computed(() => frames.value.some((f) => f.caption));
 

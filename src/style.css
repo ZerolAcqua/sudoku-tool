@@ -223,7 +223,7 @@
   .tutorial-prose h2 { @apply mt-10 mb-3 text-xl font-semibold tracking-tight; }
   .tutorial-prose h3 { @apply mt-8 mb-2 text-base font-semibold; }
   .tutorial-prose p { @apply my-4; }
-  .tutorial-prose a { @apply font-medium underline decoration-border underline-offset-4 hover:decoration-foreground; }
+  .tutorial-prose a { @apply font-medium underline decoration-muted-foreground/50 underline-offset-4 hover:decoration-foreground; }
   .tutorial-prose strong { @apply font-semibold; }
   .tutorial-prose ul { @apply my-4 list-disc pl-6; }
   .tutorial-prose ol { @apply my-4 list-decimal pl-6; }
@@ -238,6 +238,11 @@
   .tutorial-prose td { @apply border-b border-border px-3 py-2; }
   .tutorial-prose img { @apply my-6 max-w-full; }
   .tutorial-prose .sudoku-figure p { @apply my-0; }
+  .tutorial-prose :is(h1, h2, h3) { @apply scroll-mt-4; }
+  /* ```sudoku source：盘面下方可展开的 YAML 源码 */
+  .tutorial-prose details.sudoku-source { @apply -mt-3 mb-6 text-sm; }
+  .tutorial-prose details.sudoku-source summary { @apply mx-auto w-fit cursor-pointer text-xs text-muted-foreground hover:text-foreground; }
+  .tutorial-prose details.sudoku-source pre { @apply mt-2 text-xs; }
 
   /* 以下 .card / .btn* 仅剩 Demo 沙箱在用；正式页面统一用 shadcn 的 Card / Button */
   .card { @apply bg-card text-card-foreground shadow rounded-lg p-6; }

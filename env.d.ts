@@ -17,8 +17,8 @@ declare module '*.md' {
   export default component;
 }
 
-// 教程文章目录：plugins/tutorialMarkdown.ts 汇总 content/tutorial/ 下各文章的 frontmatter
-declare module 'virtual:tutorial-index' {
-  import type { TutorialArticleMeta } from '@/constants/tutorial';
-  export const articles: TutorialArticleMeta[];
+// 教程目录：plugins/tutorialMarkdown.ts 解析 content/tutorial/SUMMARY.md 生成
+declare module 'virtual:tutorial-summary' {
+  import type { TutorialSection } from '@/utils/tutorialSummary';
+  export const sections: TutorialSection[];
 }

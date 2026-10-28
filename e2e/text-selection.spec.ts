@@ -33,8 +33,7 @@ test.describe('工具页面：禁止拖动选中文本', () => {
 
 test('文档页面（教程）：可以拖动选中文本', async ({ page }) => {
   await page.goto('/tutorial');
-  expect(await dragSelect(page, page.locator('header p'))).toContain('图文详解');
-  expect((await dragSelect(page, page.locator('section p').first())).length).toBeGreaterThan(5);
+  expect((await dragSelect(page, page.locator('article p').first())).length).toBeGreaterThan(5);
 });
 
 test('表单控件始终可以选中与编辑', async ({ page }) => {
