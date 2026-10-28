@@ -1,0 +1,27 @@
+# 书籍信息：显示在教程书架（/tutorial）上
+title: 千题千解
+description: 千题千解文档化，图文详解每道题的解题思路。
+order: 1
+
+# 章节结构：顺序即目录顺序，也是「上一篇 / 下一篇」的顺序。写法见写作指南《书籍与章节》
+chapters:
+  - README.md
+  - group: 基础技巧
+    chapters:
+      - basic/naked-single.md
+      - basic/box-hidden-single.md
+      - title: 行列摒除
+  - group: 进阶技巧
+    chapters:
+      - title: 区块摒除
+      - title: 显性 / 隐性数组
+      - title: X-Wing
+  - group: 链
+    chapters:
+      - title: 双强链
+      - title: XY-Chain
+      - title: AIC
+  - group: 唯一矩形
+    chapters:
+      - file: ur/ur-type-4.md
+        title: UR Type 4

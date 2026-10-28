@@ -1,0 +1,18 @@
+title: 写作指南
+description: 如何为本站编写教程：书籍与章节、Markdown 语法、sudoku 盘面与链接。
+order: 100
+
+chapters:
+  - file: README.md
+    title: 简介
+  - books.md
+  - group: 正文
+    chapters:
+      - markdown.md
+      - links.md
+  - group: 盘面
+    chapters:
+      - file: sudoku-figure.md
+        chapters:
+          - sudoku-coordinates.md
+          - sudoku-text-formats.md

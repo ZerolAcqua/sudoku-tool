@@ -26,4 +26,4 @@ frames:
 ## 要点
 
 - 类型 4 的关键是：矩形的一侧（这里是 r4c4、r4c6）被某个数（8）的**强链**锁定，于是另一个数（1）在这一侧都可以删去。
-- 盘面的写法见 [sudoku 盘面](../guide/sudoku-figure.md#链)，这里用到了带二次删数的 [Susser 格式](../guide/sudoku-text-formats.md#susser)。
+- 盘面的写法见 [sudoku 盘面](../../guide/sudoku-figure.md#链)，这里用到了带二次删数的 [Susser 格式](../../guide/sudoku-text-formats.md#susser)。

@@ -50,7 +50,7 @@
 import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { ChevronRight } from '@lucide/vue';
-import type { TutorialNode } from '@/utils/tutorialSummary';
+import type { TutorialNode } from '@/utils/tutorialBook';
 
 export interface TutorialHeading {
   id: string;

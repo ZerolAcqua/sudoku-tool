@@ -40,7 +40,7 @@ test.describe('一屏布局', () => {
   ]) {
     test(`${width}×${height} 下各功能页无滚动条，练习页侧栏与盘面等高`, async ({ page }) => {
       await page.setViewportSize({ width, height });
-      for (const path of ['/', '/practice', '/draw', '/solver', '/tutorial', '/tutorial/guide/sudoku-figure']) {
+      for (const path of ['/', '/practice', '/draw', '/solver', '/tutorial', '/tutorial/qianti-qianjie', '/tutorial/guide/sudoku-figure']) {
         await page.goto(path);
         await expect(page.locator('main')).toBeVisible();
         const overflow = await page.evaluate(() => {

@@ -65,5 +65,5 @@
 
 ## 链接
 
-站内文章之间的链接写相对路径，例如 [链接与目录](links.md)；外链会在新标签页打开，例如
-[数独文本格式规范](https://sudoku.kazusa.tech/appendix/sudoku-text-format)。详见 [链接与目录](links.md)。
+站内文章之间的链接写相对路径，例如 [书籍与章节](books.md)；外链会在新标签页打开，例如
+[数独文本格式规范](https://sudoku.kazusa.tech/appendix/sudoku-text-format)。详见 [链接](links.md)。

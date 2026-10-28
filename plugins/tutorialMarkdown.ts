@@ -1,9 +1,10 @@
 // 教程 Markdown 构建插件
 // - content/tutorial/**/*.md 编译为 Vue 组件（unplugin-vue-markdown）
 // - ```sudoku 代码块按 YAML 解析、校验后替换为 <SudokuFigure>
-// - 标题自动生成 id（供锚点与页内目录）；文章间的相对链接（a.md、../b/c.md#标题、#标题）改写为 <RouterLink>，
+// - 标题自动生成 id（供锚点与页内目录）；文章间的相对链接（a.md、../b/c.md#标题、#标题，可跨书）改写为 <RouterLink>，
 //   并校验目标文章与锚点存在；/draw 这类站内页面路径也走路由；外链在新标签页打开
-// - SUMMARY.md（GitBook 写法）汇总成 `virtual:tutorial-summary`，校验其中链接的文章都存在
+// - content/tutorial/<书 id>/ 是一本书：book.yaml（书籍信息 + 章节结构，见 utils/tutorialBook.ts）+ README.md（首页），
+//   全部书汇总成 `virtual:tutorial-books`，校验章节里列出的文章都存在
 // 写错时构建报错并给出文件与行号。
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
@@ -11,10 +12,9 @@ import Markdown from 'unplugin-vue-markdown/vite';
 import type { Plugin, PluginOption } from 'vite';
 import { parse as parseYaml, YAMLParseError } from 'yaml';
 import { FigureSpecError, parseFigureSpec, type FigureSpec } from '../src/utils/sudokuFigure';
-import { parseSummary, pathToSlug, SummaryError } from '../src/utils/tutorialSummary';
+import { BookError, parseBook, pathToSlug, type TutorialBook } from '../src/utils/tutorialBook';
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
-const SUMMARY_FILE = 'SUMMARY.md';
 const ROUTE_BASE = '/tutorial';
 
 function escapeAttr(text: string): string {
@@ -87,47 +87,105 @@ interface MdToken {
   attrSet(name: string, value: string): void;
 }
 
-const INDEX_ID = 'virtual:tutorial-summary';
+const INDEX_ID = 'virtual:tutorial-books';
 const RESOLVED_INDEX_ID = `\0${INDEX_ID}`;
+const BOOK_FILE = 'book.yaml';
+const BOOK_ID = /^[a-z0-9][a-z0-9-]*$/;
 
-function tutorialSummary(contentDir: string): Plugin {
-  const summaryPath = join(contentDir, SUMMARY_FILE);
+// 读取一本书的 book.yaml，校验章节里的文章都存在；返回书与它的告警
+function readBook(contentDir: string, id: string): { book: TutorialBook; warnings: string[] } {
+  const dir = join(contentDir, id);
+  const where = `content/tutorial/${id}/${BOOK_FILE}`;
+  if (!BOOK_ID.test(id)) throw new Error(`书的目录名「${id}」只能用小写字母、数字和 -（它也是网址的一部分）`);
+
+  const bookPath = join(dir, BOOK_FILE);
+  if (!existsSync(bookPath)) throw new Error(`缺少书籍信息 ${where}`);
+  let raw: unknown;
+  try {
+    raw = parseYaml(readFileSync(bookPath, 'utf8'));
+  } catch (e) {
+    throw new Error(`书籍信息 YAML 语法错误（${where}）：${(e as Error).message}`);
+  }
+
+  let book: TutorialBook;
+  try {
+    book = parseBook(raw, id, {
+      readArticle: (path) => {
+        const file = join(dir, path);
+        return existsSync(file) ? readFileSync(file, 'utf8') : null;
+      },
+    });
+  } catch (e) {
+    if (e instanceof BookError) throw new Error(`书籍信息有误（${where}）：${e.message}`);
+    throw e;
+  }
+
+  // 没写进章节的文章仍可通过链接访问，但读者从目录里找不到，提醒一下
+  const listed = new Set<string>();
+  const collect = (nodes: TutorialBook['sections'][number]['items']) =>
+    nodes.forEach((n) => {
+      if (n.slug !== undefined) listed.add(n.slug);
+      collect(n.children);
+    });
+  book.sections.forEach((sec) => collect(sec.items));
+  const warnings = listMarkdown(dir)
+    .map((file) => toPosix(relative(contentDir, file)))
+    .filter((rel) => !listed.has(pathToSlug(rel)))
+    .map((rel) => `content/tutorial/${rel} 没有写进 ${where} 的 chapters`);
+
+  return { book, warnings };
+}
+
+// 汇总全部书：返回模块代码与告警
+function readBooks(contentDir: string): { code: string; warnings: string[] } {
+  if (!existsSync(contentDir)) throw new Error(`缺少教程目录 ${toPosix(relative(process.cwd(), contentDir))}`);
+  const entries = readdirSync(contentDir, { withFileTypes: true });
+  // 文章都要放在某本书里
+  for (const e of entries) {
+    if (e.isFile() && e.name.endsWith('.md')) {
+      throw new Error(`content/tutorial/${e.name} 不属于任何一本书，请放进 content/tutorial/<书>/ 目录`);
+    }
+  }
+  const warnings: string[] = [];
+  const books = entries
+    .filter((e) => e.isDirectory())
+    .map((e) => {
+      const result = readBook(contentDir, e.name);
+      warnings.push(...result.warnings);
+      return result.book;
+    })
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+  return { code: `export const books = ${JSON.stringify(books)};`, warnings };
+}
+
+function tutorialBooks(contentDir: string): Plugin {
+  // 上次生成的模块代码：开发时据此判断目录是否真的变了
+  let lastCode: string | null = null;
   return {
-    name: 'tutorial-summary',
+    name: 'tutorial-books',
     resolveId(id) {
       return id === INDEX_ID ? RESOLVED_INDEX_ID : undefined;
     },
     load(id) {
       if (id !== RESOLVED_INDEX_ID) return;
-      this.addWatchFile(summaryPath);
-      if (!existsSync(summaryPath)) throw new Error(`缺少教程目录 ${toPosix(relative(process.cwd(), summaryPath))}`);
-
-      let parsed;
-      try {
-        parsed = parseSummary(readFileSync(summaryPath, 'utf8'));
-      } catch (e) {
-        if (e instanceof SummaryError) throw new Error(`教程目录有误（content/tutorial/${e.message}）`);
-        throw e;
-      }
-      for (const link of parsed.links) {
-        if (!existsSync(join(contentDir, link.path))) {
-          throw new Error(`教程目录有误（content/tutorial/${SUMMARY_FILE}:${link.line}）：文章「${link.path}」不存在`);
-        }
-      }
-      // 没写进目录的文章仍可通过链接访问，但读者从目录里找不到，提醒一下
-      const listed = new Set(parsed.links.map((l) => l.slug));
-      for (const file of listMarkdown(contentDir)) {
-        const rel = toPosix(relative(contentDir, file));
-        if (rel !== SUMMARY_FILE && !listed.has(pathToSlug(rel))) {
-          this.warn(`content/tutorial/${rel} 没有写进 ${SUMMARY_FILE}`);
-        }
-      }
-      return `export const sections = ${JSON.stringify(parsed.sections)};`;
+      const { code, warnings } = readBooks(contentDir);
+      warnings.forEach((w) => this.warn(w));
+      lastCode = code;
+      return code;
     },
-    // 开发时改目录或增删文章，目录随之刷新
+    // 开发时改书籍信息、增删文章或改了文章标题（章节标题缺省取文章一级标题），书架与目录随之刷新；
+    // 只改正文时目录不变，不整页刷新，文章照常热更新
     configureServer(server) {
       const refresh = (file: string) => {
-        if (!file.startsWith(contentDir) || !file.endsWith('.md')) return;
+        if (!file.startsWith(contentDir + sep)) return;
+        if (!file.endsWith('.md') && !file.endsWith(BOOK_FILE)) return;
+        let code: string | null = null;
+        try {
+          code = readBooks(contentDir).code;
+        } catch {
+          // 写到一半的 book.yaml 会报错：交给 load 在页面上报出来
+        }
+        if (code !== null && code === lastCode) return;
         const mod = server.moduleGraph.getModuleById(RESOLVED_INDEX_ID);
         if (!mod) return;
         server.moduleGraph.invalidateModule(mod);
@@ -135,7 +193,7 @@ function tutorialSummary(contentDir: string): Plugin {
       };
       server.watcher.on('add', refresh);
       server.watcher.on('unlink', refresh);
-      server.watcher.on('change', (file) => file === summaryPath && refresh(file));
+      server.watcher.on('change', refresh);
     },
   };
 }
@@ -148,7 +206,6 @@ export function tutorialMarkdown(contentDir: string): PluginOption[] {
   return [
     Markdown({
       include: [/\.md$/],
-      exclude: [new RegExp(`${SUMMARY_FILE}$`)],
       wrapperClasses: 'tutorial-prose',
       markdownSetup(md) {
         // 某篇文章的全部标题 id（读文件现解析，开发时目标文章改了标题也能及时发现）
@@ -304,6 +361,6 @@ export function tutorialMarkdown(contentDir: string): PluginOption[] {
         },
       },
     }),
-    tutorialSummary(contentDir),
+    tutorialBooks(contentDir),
   ];
 }

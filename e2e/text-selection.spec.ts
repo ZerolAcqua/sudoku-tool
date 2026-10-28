@@ -32,7 +32,7 @@ test.describe('工具页面：禁止拖动选中文本', () => {
 });
 
 test('文档页面（教程）：可以拖动选中文本', async ({ page }) => {
-  await page.goto('/tutorial');
+  await page.goto('/tutorial/qianti-qianjie');
   expect((await dragSelect(page, page.locator('article p').first())).length).toBeGreaterThan(5);
 });
 
