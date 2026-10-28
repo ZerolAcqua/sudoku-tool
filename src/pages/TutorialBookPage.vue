@@ -42,11 +42,12 @@
     </div>
 
     <div class="lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[240px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-10">
-      <nav class="hidden overflow-y-auto pr-1 pb-8 lg:block" aria-label="教程目录">
+      <nav class="hidden overflow-y-auto pr-3 pb-8 [scrollbar-gutter:stable] lg:block" aria-label="教程目录">
         <ReuseToc />
       </nav>
 
-      <div class="min-w-0 lg:overflow-y-auto lg:pb-8">
+      <!-- 正文列自己滚动：右侧留白把文字与滚动条隔开；gutter 常驻，长短文章切换时版心不左右跳 -->
+      <div class="min-w-0 lg:overflow-y-auto lg:pr-8 lg:pb-8 lg:[scrollbar-gutter:stable]">
         <div class="mx-auto w-full max-w-3xl">
           <nav v-if="breadcrumb.length > 1" class="mb-4 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground"
             aria-label="面包屑">
