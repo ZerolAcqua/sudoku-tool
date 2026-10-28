@@ -3,6 +3,7 @@ import { fileURLToPath, URL } from 'node:url';
 import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueDevTools from 'vite-plugin-vue-devtools';
+import { tutorialMarkdown } from './plugins/tutorialMarkdown';
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -19,7 +20,12 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    plugins: [vue(), vueDevTools()],
+    // 教程文章是 content/tutorial/ 下的 Markdown，编译成 Vue 组件（见 plugins/tutorialMarkdown.ts）
+    plugins: [
+      vue({ include: [/\.vue$/, /\.md$/] }),
+      tutorialMarkdown(fileURLToPath(new URL('./content/tutorial', import.meta.url))),
+      vueDevTools(),
+    ],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

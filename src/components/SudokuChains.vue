@@ -110,7 +110,6 @@ const renderSegments = computed<RenderSegment[]>(() => {
     const opacity = dimmed ? 0.25 : 1
 
     const points = chain.cells.map(n => anchorPoint(n, props.cellSize))
-    const dash = strokeDashArray(chain.style) || ''
     const curve = chain.curve ?? 'straight'
 
     // 为相邻节点对生成线段
@@ -121,6 +120,7 @@ const renderSegments = computed<RenderSegment[]>(() => {
       const node2 = chain.cells[i + 1]!
       // 逐段异色：优先取该段颜色，缺省回退整条链颜色
       const segmentColor = chain.segmentColors?.[i] ?? chain.color
+      const dash = strokeDashArray(chain.segmentStyles?.[i] ?? chain.style) || ''
       
       // 检查是否在同一个单元格的同一个候选数上，如果是则跳过这条线段
       const sameCell = node1.row === node2.row && node1.col === node2.col

@@ -56,10 +56,12 @@
     "terser": "^5.50.0",
     "tsx": "^4.21.0",
     "typescript": "~5.9.0",
+    "unplugin-vue-markdown": "^32.1.1",
     "vite": "^7.1.11",
     "vite-plugin-vue-devtools": "^8.0.3",
     "vitest": "^5.0.5",
     "vue-router": "^4.6.4",
-    "vue-tsc": "^3.1.1"
+    "vue-tsc": "^3.1.1",
+    "yaml": "^2.9.1"
   }
 }

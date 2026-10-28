@@ -57,6 +57,7 @@ export interface Chain {
   arrow?: boolean; // 是否显示箭头
   curve?: 'straight' | 'smooth'; // 直线或平滑曲线
   segmentColors?: string[]; // 逐段异色（长度 = cells.length - 1），缺省回退到 color
+  segmentStyles?: ChainStyle[]; // 逐段线型（如强链实线、弱链虚线），缺省回退到 style
 }
 
 // 坐标转换函数类型

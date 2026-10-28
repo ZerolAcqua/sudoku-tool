@@ -215,6 +215,30 @@
   .page-container { @apply flex w-full flex-1 flex-col max-w-5xl mx-auto py-6 px-4 sm:py-8 sm:px-6 lg:px-8; }
   .section-title { @apply text-xl font-semibold text-foreground mb-4; }
 
+  /* 教程正文：Markdown 编译出的 HTML 无法逐个写工具类，在这里按元素统一排版（纸感、无阴影、墨色链接加下划线）。
+     盘面（.sudoku-figure）自带排版，不受这里影响。 */
+  .tutorial-prose { @apply text-[15px] leading-7 text-foreground; }
+  .tutorial-prose > :first-child { @apply mt-0; }
+  .tutorial-prose h1 { @apply mt-0 mb-6 text-2xl font-semibold tracking-tight; }
+  .tutorial-prose h2 { @apply mt-10 mb-3 text-xl font-semibold tracking-tight; }
+  .tutorial-prose h3 { @apply mt-8 mb-2 text-base font-semibold; }
+  .tutorial-prose p { @apply my-4; }
+  .tutorial-prose a { @apply font-medium underline decoration-border underline-offset-4 hover:decoration-foreground; }
+  .tutorial-prose strong { @apply font-semibold; }
+  .tutorial-prose ul { @apply my-4 list-disc pl-6; }
+  .tutorial-prose ol { @apply my-4 list-decimal pl-6; }
+  .tutorial-prose li { @apply my-1; }
+  .tutorial-prose blockquote { @apply my-4 border-l-2 border-border pl-4 text-muted-foreground; }
+  .tutorial-prose hr { @apply my-8 border-border; }
+  .tutorial-prose code { @apply rounded bg-muted px-1.5 py-0.5 font-mono text-[0.875em]; }
+  .tutorial-prose pre { @apply my-4 overflow-x-auto rounded-md border border-border bg-card p-4 text-sm leading-6; }
+  .tutorial-prose pre code { @apply bg-transparent p-0; }
+  .tutorial-prose table { @apply my-4 w-full border-collapse text-sm; }
+  .tutorial-prose th { @apply border-b border-border px-3 py-2 text-left font-medium; }
+  .tutorial-prose td { @apply border-b border-border px-3 py-2; }
+  .tutorial-prose img { @apply my-6 max-w-full; }
+  .tutorial-prose .sudoku-figure p { @apply my-0; }
+
   /* 以下 .card / .btn* 仅剩 Demo 沙箱在用；正式页面统一用 shadcn 的 Card / Button */
   .card { @apply bg-card text-card-foreground shadow rounded-lg p-6; }
 

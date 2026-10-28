@@ -30,6 +30,12 @@ const router = createRouter({
       component: () => import('../pages/TutorialPage.vue'),
     },
     {
+      // 文章路由 = content/tutorial/ 下的相对路径，可含子目录
+      path: '/tutorial/:slug+',
+      name: 'tutorial-article',
+      component: () => import('../pages/TutorialArticlePage.vue'),
+    },
+    {
       path: '/demo',
       name: 'demo',
       component: () => import('../pages/DemoPage.vue'),

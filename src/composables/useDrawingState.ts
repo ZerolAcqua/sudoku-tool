@@ -18,23 +18,7 @@ export type DrawingMode = 'highlight' | 'marker' | 'line' | 'chain';
 // 可手动绘制的标记类型（line 由摒除线模式生成，不出现在标记工具栏）
 export type DrawMarkerType = Exclude<MarkerType, 'line'>;
 
-export interface DrawingColor {
-  name: string;
-  value: string;
-}
-
-// 绘图颜色单一来源：面板色板与工具栏共用，避免两处硬编码。
-// 八色明度与饱和度相近（同一档「step 9」），叠在白盘面上不刺眼；黄色是数独标注最常用的高亮色
-export const DRAWING_COLORS: DrawingColor[] = [
-  { name: '红色', value: '#e5484d' },
-  { name: '橙色', value: '#f76b15' },
-  { name: '黄色', value: '#e5a50a' },
-  { name: '绿色', value: '#30a46c' },
-  { name: '青色', value: '#12a594' },
-  { name: '蓝色', value: '#3e63dd' },
-  { name: '紫色', value: '#8e4ec6' },
-  { name: '粉色', value: '#d6409f' },
-];
+export { DRAWING_COLORS, type DrawingColor } from '@/constants/drawingColors';
 
 export const DRAWING_MODES: Array<{ id: DrawingMode; label: string }> = [
   { id: 'highlight', label: '高亮' },
